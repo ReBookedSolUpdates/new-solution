@@ -77,7 +77,7 @@ serve(async (req) => {
       throw new Error('Invalid generation type');
     }
 
-    console.log('Calling OpenAI API with model gpt-5-mini-2025-08-07');
+    console.log('Calling OpenAI API with model gpt-4o-mini-2024-07-18');
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -86,12 +86,13 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-5-mini-2025-08-07',
+        model: 'gpt-4o-mini-2024-07-18',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
         ],
-        max_completion_tokens: 4096,
+        max_tokens: 4096,
+        temperature: 0.7,
       }),
     });
 
