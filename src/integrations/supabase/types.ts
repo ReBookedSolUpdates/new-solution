@@ -322,58 +322,52 @@ export type Database = {
           },
         ]
       }
-      flashcards: {
+      knowledge_base: {
         Row: {
-          back: string
+          content: string
+          content_type: string | null
           created_at: string | null
-          deck_id: string
-          difficulty: string | null
-          front: string
-          hint: string | null
           id: string
-          is_mastered: boolean
-          next_review_at: string | null
-          times_correct: number
-          times_reviewed: number
+          is_active: boolean | null
+          source_file_url: string | null
+          subject_id: string | null
+          tags: string[] | null
+          title: string
           updated_at: string | null
           user_id: string
         }
         Insert: {
-          back: string
+          content: string
+          content_type?: string | null
           created_at?: string | null
-          deck_id: string
-          difficulty?: string | null
-          front: string
-          hint?: string | null
           id?: string
-          is_mastered?: boolean
-          next_review_at?: string | null
-          times_correct?: number
-          times_reviewed?: number
+          is_active?: boolean | null
+          source_file_url?: string | null
+          subject_id?: string | null
+          tags?: string[] | null
+          title: string
           updated_at?: string | null
           user_id: string
         }
         Update: {
-          back?: string
+          content?: string
+          content_type?: string | null
           created_at?: string | null
-          deck_id?: string
-          difficulty?: string | null
-          front?: string
-          hint?: string | null
           id?: string
-          is_mastered?: boolean
-          next_review_at?: string | null
-          times_correct?: number
-          times_reviewed?: number
+          is_active?: boolean | null
+          source_file_url?: string | null
+          subject_id?: string | null
+          tags?: string[] | null
+          title?: string
           updated_at?: string | null
           user_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "flashcards_deck_id_fkey"
-            columns: ["deck_id"]
+            foreignKeyName: "knowledge_base_subject_id_fkey"
+            columns: ["subject_id"]
             isOneToOne: false
-            referencedRelation: "flashcard_decks"
+            referencedRelation: "subjects"
             referencedColumns: ["id"]
           },
         ]
@@ -409,15 +403,7 @@ export type Database = {
           started_at?: string | null
           user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "lesson_completions_lesson_id_fkey"
-            columns: ["lesson_id"]
-            isOneToOne: false
-            referencedRelation: "lessons"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       lesson_sections: {
         Row: {
@@ -456,68 +442,7 @@ export type Database = {
           title?: string
           updated_at?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "lesson_sections_lesson_id_fkey"
-            columns: ["lesson_id"]
-            isOneToOne: false
-            referencedRelation: "lessons"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      lessons: {
-        Row: {
-          created_at: string | null
-          description: string | null
-          difficulty: string | null
-          estimated_duration_minutes: number | null
-          id: string
-          is_ai_generated: boolean | null
-          order_index: number | null
-          subject_id: string | null
-          title: string
-          total_sections: number | null
-          updated_at: string | null
-          user_id: string
-        }
-        Insert: {
-          created_at?: string | null
-          description?: string | null
-          difficulty?: string | null
-          estimated_duration_minutes?: number | null
-          id?: string
-          is_ai_generated?: boolean | null
-          order_index?: number | null
-          subject_id?: string | null
-          title: string
-          total_sections?: number | null
-          updated_at?: string | null
-          user_id: string
-        }
-        Update: {
-          created_at?: string | null
-          description?: string | null
-          difficulty?: string | null
-          estimated_duration_minutes?: number | null
-          id?: string
-          is_ai_generated?: boolean | null
-          order_index?: number | null
-          subject_id?: string | null
-          title?: string
-          total_sections?: number | null
-          updated_at?: string | null
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "lessons_subject_id_fkey"
-            columns: ["subject_id"]
-            isOneToOne: false
-            referencedRelation: "subjects"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       nbt_data_attempts: {
         Row: {
