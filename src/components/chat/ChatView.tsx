@@ -186,11 +186,11 @@ const ChatView = ({ conversation, onBack, onArchived }: ChatViewProps) => {
           onClick={() => otherParty?.id && navigate(`/seller/${otherParty.id}`)}
         >
           <Avatar className="h-9 w-9 border-2 border-book-200">
-                      {(otherParty as any)?.profile_picture_url && (
-              <img
-                src={(otherParty as any).profile_picture_url}
+              {otherParty?.profile_picture_url && (
+              <AvatarImage
+                src={otherParty.profile_picture_url}
                 alt={otherName}
-                className="w-full h-full object-cover"
+                className="object-cover"
               />
             )}
             <AvatarFallback className="bg-book-100 text-book-700 text-xs font-semibold">
