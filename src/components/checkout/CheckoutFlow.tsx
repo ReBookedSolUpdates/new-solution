@@ -539,9 +539,9 @@ const CheckoutFlow: React.FC<CheckoutFlowProps> = ({ book }) => {
 
     // Track purchase (non-blocking)
     try {
-      const orderId = orderData.orderId || book.id;
-      const orderTotal = orderData.totalAmount || book.price;
-      const itemCount = checkoutState.order_summary?.items?.length || 1;
+      const orderId = orderData.order_id || book.id;
+      const orderTotal = orderData.total_paid || book.price;
+      const itemCount = 1;
 
       await ActivityService.trackPurchase(
         user?.id,
