@@ -248,10 +248,10 @@ const UnifiedTrackingComponent: React.FC<UnifiedTrackingComponentProps> = ({
             <div className="bg-white border-b border-gray-200">
               <CardHeader className="p-4 sm:p-6">
                 {/* Courier Logo Banner */}
-                {trackingData.bobgo_logo && (
+                {(trackingData as any).bobgo_logo && (
                   <div className="flex justify-center mb-4 pb-4 border-b border-gray-200">
                     <img
-                      src={trackingData.bobgo_logo}
+                      src={(trackingData as any).bobgo_logo}
                       alt="Courier Logo"
                       className="h-8 sm:h-10 object-contain"
                     />

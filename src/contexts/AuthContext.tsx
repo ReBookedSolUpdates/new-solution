@@ -158,7 +158,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               }
               if (phone) {
                 await supabase.auth.updateUser({ data: { phone_number: phone, phone } }).catch(() => {});
-                await supabase.from("profiles").update({ phone_number: phone }).eq("id", uid).catch(() => {});
+                await supabase.from("profiles").update({ phone_number: phone } as any).eq("id", uid).then(() => {}).catch(() => {});
               }
             } catch (_) {}
 
@@ -176,8 +176,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
               // Prefetch banking / subaccount — cache only, no state updates
               Promise.allSettled([
-                import("@/services/bankingService").then(m => m.getSellerRequirements(uid)),
-                import("@/services/paystackSubaccountService").then(m => m.getUserSubaccountStatus(uid)),
+                import("@/services/bankingService").then(m => m.BankingService.getSellerRequirements(uid)),
+                import("@/services/paystackSubaccountService").then(m => m.PaystackSubaccountService.getUserSubaccountStatus(uid)),
               ]).then(([bankRes, subRes]) => {
                 if (bankRes.status === "fulfilled") {
                   try { localStorage.setItem(`banking_requirements_${uid}`, JSON.stringify(bankRes.value)); } catch (_) {}

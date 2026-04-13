@@ -60,7 +60,7 @@ export const GoogleMapsProvider: React.FC<GoogleMapsProviderProps> = ({
         libraries,
         preventGoogleFontsLoading: true,
         region: "ZA", // South Africa region
-        retries: 2, // Reduce retry attempts
+        // retries: 2, // Not supported by this version
         nonce: undefined,
         language: "en"
       })

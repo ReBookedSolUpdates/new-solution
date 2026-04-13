@@ -28,7 +28,7 @@ const cleanApiKey = validateSupabaseConfig();
 // import { supabase } from "@/integrations/supabase/client";
 
 // Global singleton pattern to prevent multiple client instances
-let supabaseInstance: ReturnType<typeof createClient<Database>> | null = null;
+let supabaseInstance: any = null;
 
 // Create or return existing Supabase client instance
 const createSupabaseClient = () => {
@@ -56,12 +56,10 @@ const createSupabaseClient = () => {
         // Add heartbeat to keep connections alive
         heartbeatIntervalMs: 30000,
         // Reconnection settings with limited attempts
-        reconnectAfterMs: (retries) => {
-          // Stop attempting after 5 retries to prevent endless loops
+        reconnectAfterMs: (retries: number) => {
           if (retries >= 5) {
-            return false; // Stop reconnecting completely
+            return 60000; // Stop reconnecting frequently after 5 retries
           }
-          // Exponential backoff: 1s, 2s, 4s, 8s, 10s
           const delay = Math.min(1000 * Math.pow(2, retries), 10000);
           return delay;
         },

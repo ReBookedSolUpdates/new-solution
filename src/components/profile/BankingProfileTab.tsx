@@ -136,14 +136,15 @@ const BankingProfileTab = () => {
         return;
       }
 
+      const updateData: any = {
+        subaccount_code: null,
+        preferences: {
+          banking_setup_complete: false,
+        },
+      };
       const { error: profileError } = await supabase
         .from("profiles")
-        .update({
-          subaccount_code: null as any,
-          preferences: {
-            banking_setup_complete: false,
-          } as any,
-        })
+        .update(updateData)
         .eq("id", user.id);
 
       if (profileError) {

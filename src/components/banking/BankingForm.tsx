@@ -137,20 +137,22 @@ export default function BankingForm({ onSuccess, onCancel }: BankingFormProps) {
       const subaccountCode = `ACCT_${session.user.id}_${Date.now()}`;
 
       // Update profile with subaccount code and preferences
+      const updateData: any = {
+        subaccount_code: subaccountCode,
+        preferences: {
+          banking_setup_complete: true,
+          business_name: formData.businessName,
+          bank_details: {
+            bank_name: formData.bankName,
+            bank_code: branchCode,
+            account_number_masked: `****${formData.accountNumber.slice(-4)}`
+          }
+        }
+      };
+
       const { error: profileError } = await supabase
         .from("profiles")
-        .update({
-          subaccount_code: subaccountCode,
-          preferences: {
-            banking_setup_complete: true,
-            business_name: formData.businessName,
-            bank_details: {
-              bank_name: formData.bankName,
-              bank_code: branchCode,
-              account_number_masked: `****${formData.accountNumber.slice(-4)}`
-            }
-          } as any
-        })
+        .update(updateData)
         .eq("id", session.user.id);
 
       if (profileError) {

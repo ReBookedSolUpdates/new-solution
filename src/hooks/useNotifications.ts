@@ -116,7 +116,7 @@ class NotificationManager {
             clearNotificationCache(userId);
             refreshCallback().catch((err) => {
               const safeMessage = getSafeErrorMessage(err, 'Refresh callback failed');
-              debugLogger.error('[useNotifications', '[NotificationManager] Refresh callback error:', safeMessage, { original: err });
+              debugLogger.error('[useNotifications]', '[NotificationManager] Refresh callback error:', safeMessage);
             });
           }
         },
@@ -136,7 +136,7 @@ class NotificationManager {
             clearNotificationCache(userId);
             refreshCallback().catch((err) => {
               const safeMessage = getSafeErrorMessage(err, 'Refresh callback failed');
-              debugLogger.error('[useNotifications', '[NotificationManager] Refresh callback error:', safeMessage, { original: err });
+              debugLogger.error('[useNotifications]', '[NotificationManager] Refresh callback error:', safeMessage);
             });
           }
         },
