@@ -12,6 +12,10 @@ export interface CheckoutAddress {
   longitude?: number;
   phone?: string;
   additional_info?: string;
+  streetAddress?: string;
+  postalCode?: string;
+  zip?: string;
+  [key: string]: any;
 }
 
 export interface CheckoutBook {
@@ -28,6 +32,7 @@ export interface CheckoutBook {
   category?: string;
   itemType?: string;
   item_type?: string;
+  genre?: string;
   grade?: string;
   universityYear?: string;
   university?: string;

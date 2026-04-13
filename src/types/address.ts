@@ -3,12 +3,13 @@ export interface Address {
   city: string;
   province: string;
   postalCode: string;
-  postal_code?: string; // fallback
+  postal_code?: string;
   country?: string;
-  streetAddress?: string; // For backend compatibility
-  street_address?: string; // fallback
-  instructions?: string; // For additional details like unit numbers, gate codes, etc.
-  additional_info?: string; // For additional information like special instructions, security details, etc.
+  streetAddress?: string;
+  street_address?: string;
+  instructions?: string;
+  additional_info?: string;
+  [key: string]: any;
 }
 
 export interface AddressData {
