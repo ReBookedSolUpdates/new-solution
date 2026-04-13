@@ -458,7 +458,7 @@ const Step2DeliveryOptions: React.FC<Step2DeliveryOptionsProps> = ({
       case "local":
         return "bg-green-100 text-green-800";
       case "provincial":
-        return "bg-blue-100 text-blue-800";
+        return "bg-emerald-100 text-emerald-800";
       case "national":
         return "bg-purple-100 text-purple-800";
       default:
@@ -522,8 +522,8 @@ const Step2DeliveryOptions: React.FC<Step2DeliveryOptionsProps> = ({
       <Card className="border border-gray-200 shadow-md">
         <CardHeader className="pb-4 border-b border-gray-100">
           <CardTitle className="flex items-center gap-3">
-            <div className="p-2 bg-blue-50 rounded-lg">
-              <MapPin className="w-5 h-5 text-blue-600" />
+            <div className="p-2 bg-green-50 rounded-lg">
+              <MapPin className="w-5 h-5 text-green-700" />
             </div>
             Delivery To
           </CardTitle>
@@ -547,7 +547,7 @@ const Step2DeliveryOptions: React.FC<Step2DeliveryOptionsProps> = ({
                     )}
                   </div>
                 ) : (
-                  <div className="p-4 rounded-lg bg-blue-50 border border-blue-100">
+                  <div className="p-4 rounded-lg bg-green-50 border border-green-100">
                     <p className="text-sm font-semibold text-gray-900 mb-1">Your Delivery Address</p>
                     <p className="text-sm text-gray-700">
                       {buyerAddress?.street || "No address set"}, {buyerAddress?.city || ""},{" "}
@@ -561,7 +561,7 @@ const Step2DeliveryOptions: React.FC<Step2DeliveryOptionsProps> = ({
                   variant="outline"
                   size="sm"
                   onClick={onEditAddress}
-                  className="mt-1 text-blue-600 border-blue-200 hover:bg-blue-50"
+                  className="mt-1 text-green-700 border-green-200 hover:bg-green-50"
                 >
                   <Edit3 className="w-4 h-4" />
                 </Button>
@@ -584,8 +584,8 @@ const Step2DeliveryOptions: React.FC<Step2DeliveryOptionsProps> = ({
         ).map(([courier, items]) => (
           <div key={courier} className="space-y-3">
             <div className="flex items-center gap-3 px-2">
-              <div className="p-2 rounded-lg bg-blue-50">
-                <Truck className="w-5 h-5 text-blue-600" />
+              <div className="p-2 rounded-lg bg-green-50">
+                <Truck className="w-5 h-5 text-green-700" />
               </div>
               <span className="text-base sm:text-lg font-semibold text-gray-900">{courier}</span>
             </div>
@@ -621,7 +621,7 @@ const Step2DeliveryOptions: React.FC<Step2DeliveryOptionsProps> = ({
                   <div
                     key={idx}
                     className={`flex flex-wrap items-center justify-between gap-4 p-4 sm:p-5 transition-colors cursor-pointer ${
-                      isSelected ? "bg-blue-50" : "hover:bg-gray-50"
+                      isSelected ? "bg-green-50" : "hover:bg-gray-50"
                     }`}
                     onClick={() => { setLocalSelectedDelivery(option); onSelectDelivery(option); }}
                   >
@@ -650,8 +650,8 @@ const Step2DeliveryOptions: React.FC<Step2DeliveryOptionsProps> = ({
                     <button
                       className={`shrink-0 inline-flex items-center rounded-lg px-4 py-2 text-sm font-semibold transition-all border-2 whitespace-nowrap ${
                         isSelected
-                          ? "bg-blue-600 text-white border-blue-600 shadow-md"
-                          : "bg-white text-gray-900 border-gray-300 hover:border-blue-400 hover:bg-blue-50"
+                          ? "bg-green-600 text-white border-green-600 shadow-md"
+                          : "bg-white text-gray-900 border-gray-300 hover:border-green-400 hover:bg-green-50"
                       }`}
                       onClick={(e) => { e.stopPropagation(); onSelectDelivery(option); }}
                     >
@@ -698,9 +698,9 @@ const Step2DeliveryOptions: React.FC<Step2DeliveryOptionsProps> = ({
         <div className="flex gap-3">
           {onCancel && (
             <Button
-              variant="ghost"
+              variant="outline"
               onClick={onCancel}
-              className="py-2 px-4"
+              className="py-2 px-4 text-red-600 border-red-300 hover:bg-red-50 hover:border-red-400"
             >
               <X className="w-4 h-4 mr-2" />
               <span className="hidden sm:inline">Cancel</span>
@@ -709,7 +709,7 @@ const Step2DeliveryOptions: React.FC<Step2DeliveryOptionsProps> = ({
           <Button
             onClick={() => localSelectedDelivery && onSelectDelivery(localSelectedDelivery)}
             disabled={!localSelectedDelivery}
-            className="py-2 px-4 bg-blue-600 hover:bg-blue-700"
+            className="py-2 px-4 bg-green-600 hover:bg-green-700"
           >
             Next: Payment
             <ArrowRight className="w-4 h-4 ml-2" />

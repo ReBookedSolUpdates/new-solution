@@ -46,7 +46,7 @@ const BookInfo = ({ book }: BookInfoProps) => {
           <p className="text-lg md:text-xl text-gray-600 mb-4">by {book.author}</p>
         )}
         <div className="flex flex-wrap gap-2 mb-4">
-          {book.category && <Badge variant="secondary">{book.category}</Badge>}
+          {isBook && book.category && <Badge variant="secondary">{book.category}</Badge>}
           {book.condition && <Badge variant="outline">{book.condition}</Badge>}
           {isUniform && <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">Uniform</Badge>}
           {isSchoolSupply && <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">School Supply</Badge>}

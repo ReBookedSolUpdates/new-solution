@@ -7,6 +7,7 @@ import {
   CreditCard,
   Package,
   Truck,
+  MapPin,
   ArrowLeft,
   Loader2,
   CheckCircle,
@@ -563,20 +564,53 @@ Time: ${new Date().toISOString()}
       </Card>
 
       {/* Delivery Address Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Delivery Address</CardTitle>
+      <Card className="border border-gray-200 shadow-sm">
+        <CardHeader className="pb-3 border-b border-gray-100">
+          <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+            <MapPin className="w-4 h-4 text-book-600" />
+            Delivery Address
+          </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="text-sm">
-            <p>{orderSummary.buyer_address.street}</p>
-            <p>
-              {orderSummary.buyer_address.city},{" "}
-              {orderSummary.buyer_address.province}{" "}
-              {orderSummary.buyer_address.postal_code}
-            </p>
-            <p>{orderSummary.buyer_address.country}</p>
-          </div>
+        <CardContent className="pt-4">
+          {/* Locker delivery */}
+          {orderSummary.delivery_method === "locker" && orderSummary.selected_locker ? (
+            <div className="bg-purple-50 rounded-lg p-4 border border-purple-100">
+              <p className="text-xs font-semibold text-purple-700 uppercase tracking-wide">Locker pickup</p>
+              <p className="font-semibold text-gray-900 mt-1">
+                {(orderSummary.selected_locker as any).name || "Selected locker"}
+              </p>
+              <p className="text-sm text-gray-700 mt-1">
+                {(orderSummary.selected_locker as any).full_address ||
+                  (orderSummary.selected_locker as any).address ||
+                  ""}
+              </p>
+              <p className="text-xs text-gray-600 mt-2">
+                We’ll deliver to your selected locker. You’ll receive pickup instructions once shipped.
+              </p>
+            </div>
+          ) : (
+            /* Home delivery */
+            <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Home delivery</p>
+              <div className="mt-2 space-y-1 text-sm text-gray-800">
+                <p className="font-semibold text-gray-900">
+                  {orderSummary.buyer_address.street}
+                </p>
+                <p className="text-gray-700">
+                  {[orderSummary.buyer_address.suburb, orderSummary.buyer_address.city].filter(Boolean).join(", ")}
+                </p>
+                <p className="text-gray-700">
+                  {[orderSummary.buyer_address.province, orderSummary.buyer_address.postal_code].filter(Boolean).join(" ")}
+                </p>
+                <p className="text-gray-600">{orderSummary.buyer_address.country}</p>
+                {orderSummary.buyer_address.additional_info && (
+                  <p className="text-xs text-gray-600 pt-2 border-t border-gray-200">
+                    <span className="font-semibold text-gray-700">Notes:</span> {orderSummary.buyer_address.additional_info}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 

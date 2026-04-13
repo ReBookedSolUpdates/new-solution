@@ -210,6 +210,12 @@ Deno.serve(async (req) => {
     const bookTitle = orders.items?.[0]?.title || orders.items?.[0]?.book_title || 'Book';
 
     if (webhookData.status === 'paid') {
+      // Idempotency guard: BobPay can retry webhooks.
+      // If we've already processed payment, do not send emails again.
+      if (orders.payment_status === 'paid') {
+        return new Response('OK', { status: 200, headers: corsHeaders });
+      }
+
       // Mark book as sold ONLY after payment confirmed
       if (bookId) {
         const bookMarked = await markBookAsSold(supabaseClient, bookId);
@@ -294,6 +300,9 @@ Deno.serve(async (req) => {
       const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
       if (buyerEmail && supabaseUrl && supabaseServiceKey) {
+        const paymentReference = orders.payment_reference || orders.paystack_reference || webhookData.custom_payment_id;
+        const commitDeadlineText = commitDeadline.toLocaleString('en-ZA', { year: 'numeric', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+
         const buyerEmailHtml = `
           <div style="font-family: Arial, sans-serif; background: #f3fef7; padding: 20px; color: #1f4e3d;">
             <div style="max-width: 500px; margin: auto; background: #ffffff; padding: 30px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
@@ -301,11 +310,13 @@ Deno.serve(async (req) => {
               <p>Hello ${buyerName},</p>
               <p><strong>Thank you for your purchase!</strong> Your payment has been processed successfully.</p>
               <div style="background-color: #f3fef7; padding: 15px; border-radius: 8px; margin: 20px 0;">
-                <h3 style="color: #1f4e3d; margin-top: 0;">Order Summary</h3>
-                <p><strong>Book:</strong> ${bookTitle}</p>
+                <h3 style="color: #1f4e3d; margin-top: 0;">Receipt</h3>
+                <p><strong>Item:</strong> ${bookTitle}</p>
                 <p><strong>Seller:</strong> ${sellerName}</p>
                 <p><strong>Order ID:</strong> ${orders.id}</p>
-                <p><strong>Amount Paid:</strong> R${webhookData.paid_amount.toFixed(2)}</p>
+                <p><strong>Payment Reference:</strong> ${paymentReference}</p>
+                <p><strong>Total Paid:</strong> R${webhookData.paid_amount.toFixed(2)}</p>
+                <p><strong>Seller Commit Deadline:</strong> ${commitDeadlineText}</p>
               </div>
               <p>The seller has 48 hours to confirm your order. If they don't confirm, you'll receive a full automatic refund.</p>
               <a href="https://rebookedsolutions.co.za/profile" style="display: inline-block; padding: 12px 20px; background: #3ab26f; color: #ffffff; text-decoration: none; border-radius: 5px; margin-top: 20px; font-weight: bold;">View Your Orders</a>

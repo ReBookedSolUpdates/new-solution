@@ -296,20 +296,6 @@ const Step1OrderSummary: React.FC<Step1OrderSummaryProps> = ({
                 <DetailRow label="Province" value={(book as any).province} icon={<Globe className="w-3.5 h-3.5" />} />
               </div>
 
-              {extraDetailEntries.length > 0 && (
-                <div className="mt-4">
-                  <h4 className="text-sm font-semibold text-gray-900 mb-3">More listing details</h4>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    {extraDetailEntries.map((detail) => (
-                      <div key={detail.key} className="rounded-xl border border-gray-100 bg-gray-50 p-3">
-                        <div className="text-xs text-gray-500 mb-1">{detail.label}</div>
-                        <div className="text-sm font-semibold text-gray-800 break-words">{detail.value}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
               {/* Description */}
               {book.description && (
                 <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
@@ -370,7 +356,7 @@ const Step1OrderSummary: React.FC<Step1OrderSummaryProps> = ({
         <Button
           onClick={onNext}
           disabled={loading}
-          className="flex-1 px-8 py-3 sm:py-4 text-base font-semibold bg-blue-600 hover:bg-blue-700 shadow-md hover:shadow-lg transition-all"
+          className="flex-1 px-8 py-3 sm:py-4 text-base font-semibold bg-green-600 hover:bg-green-700 shadow-md hover:shadow-lg transition-all"
           size="lg"
         >
           {loading ? "Loading..." : (

@@ -11,12 +11,12 @@ import { useCommit } from "@/hooks/useCommit";
 import { useAuth } from "@/contexts/AuthContext";
 import debugLogger from "@/utils/debugLogger";
 import {
-  parseTextbookSegments,
-  buildTextbookUrl,
+  parseListingSegments,
+  buildListingUrlPath,
   generateFilterTitle,
   generateFilterDescription,
   generateFilterContent,
-  type ParsedTextbookUrl,
+  type ParsedListingUrl,
 } from "@/utils/textbookUrlUtils";
 import { getCategoriesByBookType } from "@/constants/bookTypeCategories";
 
@@ -379,4 +379,3 @@ const ListingsPage = () => {
 };
 
 export default ListingsPage;
-s;

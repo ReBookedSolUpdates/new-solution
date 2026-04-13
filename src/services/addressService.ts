@@ -48,6 +48,21 @@ const encryptAddress = async (address: Address, options?: { save?: { table: stri
 
 // Decrypt an address using the improved decrypt-address edge function with retry logic
 const decryptAddress = async (params: { table: 'profiles' | 'orders' | 'books'; target_id: string; address_type?: 'pickup' | 'shipping' | 'delivery' }, retries = 2) => {
+  // Dedupe/debounce decrypt calls to protect the edge function from runaway UI loops
+  const cacheKey = `${params.table}:${params.target_id}:${params.address_type || 'pickup'}`;
+  const now = Date.now();
+  const ttlMs = 60_000;
+  (decryptAddress as any)._cache ??= new Map<string, { ts: number; value: any | null }>();
+  (decryptAddress as any)._inflight ??= new Map<string, Promise<any | null>>();
+  const cache: Map<string, { ts: number; value: any | null }> = (decryptAddress as any)._cache;
+  const inflight: Map<string, Promise<any | null>> = (decryptAddress as any)._inflight;
+
+  const cached = cache.get(cacheKey);
+  if (cached && (now - cached.ts) < ttlMs) return cached.value;
+  const existing = inflight.get(cacheKey);
+  if (existing) return await existing;
+
+  const run = (async () => {
   let lastError: any = null;
 
   for (let attempt = 0; attempt <= retries; attempt++) {
@@ -70,12 +85,15 @@ const decryptAddress = async (params: { table: 'profiles' | 'orders' | 'books'; 
           await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
           continue;
         }
+        cache.set(cacheKey, { ts: Date.now(), value: null });
         return null;
       }
 
       if (data?.success) {
+        cache.set(cacheKey, { ts: Date.now(), value: data.data || null });
         return data.data || null;
       } else {
+        cache.set(cacheKey, { ts: Date.now(), value: null });
         return null;
       }
     } catch (error) {
@@ -85,11 +103,20 @@ const decryptAddress = async (params: { table: 'profiles' | 'orders' | 'books'; 
         await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
         continue;
       }
+      cache.set(cacheKey, { ts: Date.now(), value: null });
       return null;
     }
   }
 
   return null;
+  })();
+
+  inflight.set(cacheKey, run);
+  try {
+    return await run;
+  } finally {
+    inflight.delete(cacheKey);
+  }
 };
 
 export const saveUserAddresses = async (

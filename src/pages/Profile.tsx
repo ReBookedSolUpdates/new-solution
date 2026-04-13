@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate, useLocation } from "react-router-dom";
 import Layout from "@/components/Layout";
@@ -193,6 +193,8 @@ const Profile = () => {
   const [newEmail, setNewEmail] = useState("");
   const [emailChangeState, setEmailChangeState] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [emailChangeError, setEmailChangeError] = useState("");
+  const lastLoadedListingsUserIdRef = useRef<string | null>(null);
+  const lastLoadedAddressesUserIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     setPhone((profile as any)?.phone_number || (user?.user_metadata as any)?.phone_number || (user?.user_metadata as any)?.phone || "");
@@ -245,10 +247,7 @@ const Profile = () => {
     if (!user?.id) return;
 
     try {
-      // Only show full loading state if we have no data yet
-      if (!addressData) {
-        setIsLoadingAddress(true);
-      }
+      setIsLoadingAddress(true);
 
       // Quick UI: try local cache first to avoid blank loading on mobile
       try {
@@ -299,8 +298,14 @@ const Profile = () => {
 
   useEffect(() => {
     if (user?.id) {
-      loadActiveListings();
-      loadUserAddresses();
+      if (lastLoadedListingsUserIdRef.current !== user.id) {
+        lastLoadedListingsUserIdRef.current = user.id;
+        loadActiveListings();
+      }
+      if (lastLoadedAddressesUserIdRef.current !== user.id) {
+        lastLoadedAddressesUserIdRef.current = user.id;
+        loadUserAddresses();
+      }
     }
   }, [user?.id, loadActiveListings, loadUserAddresses]);
 

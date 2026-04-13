@@ -55,11 +55,25 @@ const retryWithBackoff = async <T>(
   throw lastError;
 };
 
+// Dedupe decrypt requests (prevents runaway loops from thrashing edge functions)
+const DECRYPT_CACHE_TTL_MS = 60_000;
+const decryptCache = new Map<string, { ts: number; value: any | null }>();
+const decryptInflight = new Map<string, Promise<any | null>>();
+
 const decryptAddress = async (params: { table: string; target_id: string; address_type?: string }) => {
   const isMobile = isMobileDevice();
 
   try {
     const { table, target_id, address_type } = params;
+    const cacheKey = `${table}:${target_id}:${address_type || 'pickup'}`;
+    const cached = decryptCache.get(cacheKey);
+    if (cached && (Date.now() - cached.ts) < DECRYPT_CACHE_TTL_MS) {
+      return cached.value;
+    }
+    const inflight = decryptInflight.get(cacheKey);
+    if (inflight) return await inflight;
+
+    const run = (async () => {
     let encryptedColumn: string;
 
     switch (address_type || 'pickup') {
@@ -137,16 +151,29 @@ const decryptAddress = async (params: { table: string; target_id: string; addres
       const { data, error } = await (isMobile ? retryWithBackoff(makeRequest, 3, 1000) : makeRequest());
 
       if (error) {
+        decryptCache.set(cacheKey, { ts: Date.now(), value: null });
         return null;
       }
 
       if (data?.success && data?.data) {
+        decryptCache.set(cacheKey, { ts: Date.now(), value: data.data });
         return data.data;
       } else {
+        decryptCache.set(cacheKey, { ts: Date.now(), value: null });
         return null;
       }
     } catch (error) {
+      decryptCache.set(cacheKey, { ts: Date.now(), value: null });
       return null;
+    }
+    })();
+
+    decryptInflight.set(cacheKey, run);
+    try {
+      const result = await run;
+      return result;
+    } finally {
+      decryptInflight.delete(cacheKey);
     }
   } catch (error) {
     return null;

@@ -27,6 +27,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
+import { getOrderShippingAddress } from "@/services/addressService";
 
 interface Step4ConfirmationProps {
   orderData: OrderConfirmation;
@@ -42,6 +43,18 @@ interface BuyerProfile {
   phone_number: string | null;
 }
 
+type OrderDeliveryMeta = {
+  delivery_type: string | null;
+  delivery_locker_data: any | null;
+  selected_courier_name: string | null;
+  selected_service_name: string | null;
+};
+
+type CouponRedemptionMeta = {
+  code: string;
+  discount_applied: number;
+};
+
 const Row: React.FC<{ label: string; value?: string | number | null }> = ({ label, value }) => {
   if (!value && value !== 0) return null;
   return (
@@ -52,10 +65,10 @@ const Row: React.FC<{ label: string; value?: string | number | null }> = ({ labe
   );
 };
 
-const SectionHeader: React.FC<{ emoji: string; title: string; icon: React.ReactNode }> = ({ emoji, title, icon }) => (
+const SectionHeader: React.FC<{ title: string; icon: React.ReactNode }> = ({ title, icon }) => (
   <h3 className="font-bold text-sm uppercase text-gray-700 flex items-center gap-2 mb-3">
     {icon}
-    {emoji} {title}
+    {title}
   </h3>
 );
 
@@ -67,6 +80,10 @@ const Step4Confirmation: React.FC<Step4ConfirmationProps> = ({
   const receiptRef = useRef<HTMLDivElement>(null);
   const [isDownloading, setIsDownloading] = useState(false);
   const [buyerProfile, setBuyerProfile] = useState<BuyerProfile | null>(null);
+  const [deliveryMeta, setDeliveryMeta] = useState<OrderDeliveryMeta | null>(null);
+  const [deliveryAddress, setDeliveryAddress] = useState<any | null>(null);
+  const [orderRow, setOrderRow] = useState<any | null>(null);
+  const [couponMeta, setCouponMeta] = useState<CouponRedemptionMeta | null>(null);
 
   useEffect(() => {
     // Fetch buyer profile for full details
@@ -92,6 +109,62 @@ const Step4Confirmation: React.FC<Step4ConfirmationProps> = ({
     });
   }, [orderData.buyer_id]);
 
+  useEffect(() => {
+    let cancelled = false;
+    const fetchDelivery = async () => {
+      try {
+        if (!orderData?.id) return;
+
+        const { data } = await supabase
+          .from("orders")
+          .select("id, order_id, item_type, items, amount, total_amount, selected_shipping_cost, platform_fee, selected_courier_name, selected_service_name, delivery_type, delivery_locker_data, tracking_number, commit_deadline, payment_reference, paystack_reference")
+          .eq("id", orderData.id)
+          .maybeSingle();
+
+        if (cancelled) return;
+        if (data) {
+          setOrderRow(data as any);
+          setDeliveryMeta({
+            delivery_type: (data as any)?.delivery_type ?? null,
+            delivery_locker_data: (data as any)?.delivery_locker_data ?? null,
+            selected_courier_name: (data as any)?.selected_courier_name ?? null,
+            selected_service_name: (data as any)?.selected_service_name ?? null,
+          });
+        }
+
+        // Coupon details (join to coupons for code)
+        try {
+          const { data: red } = await supabase
+            .from("coupon_redemptions")
+            .select("discount_applied, coupons(code)")
+            .eq("order_id", orderData.id)
+            .maybeSingle();
+          const code = (red as any)?.coupons?.code;
+          const discount = Number((red as any)?.discount_applied || 0);
+          if (code && Number.isFinite(discount) && discount > 0) {
+            setCouponMeta({ code, discount_applied: discount });
+          } else {
+            setCouponMeta(null);
+          }
+        } catch {
+          setCouponMeta(null);
+        }
+
+        // Only decrypt address for door deliveries. Lockers use delivery_locker_data.
+        const type = (data as any)?.delivery_type || orderData.delivery_method;
+        const isDoor = String(type || "").toLowerCase().includes("door") || String(type || "").toLowerCase().includes("home");
+        if (isDoor) {
+          const addr = await getOrderShippingAddress(orderData.id);
+          if (!cancelled) setDeliveryAddress(addr);
+        }
+      } catch {
+        // non-blocking: confirmation page should still render
+      }
+    };
+    fetchDelivery();
+    return () => { cancelled = true; };
+  }, [orderData?.id, orderData?.delivery_method]);
+
   const buyerName = buyerProfile
     ? buyerProfile.full_name || `${buyerProfile.first_name || ''} ${buyerProfile.last_name || ''}`.trim()
     : orderData.buyer_id;
@@ -102,15 +175,53 @@ const Step4Confirmation: React.FC<Step4ConfirmationProps> = ({
     ? 'Door-to-Door'
     : orderData.delivery_method || 'Standard Delivery';
 
+  const deliverySubtitle =
+    deliveryMeta?.selected_service_name || deliveryMeta?.selected_courier_name
+      ? [deliveryMeta.selected_courier_name, deliveryMeta.selected_service_name].filter(Boolean).join(" • ")
+      : null;
+
   const book = orderData.book as any;
 
+  const firstItem = Array.isArray(orderRow?.items) ? orderRow.items[0] : null;
+  const receiptItemTitle = firstItem?.title || firstItem?.name || orderData.book_title;
+  const receiptItemType = orderRow?.item_type || (firstItem?.item_type ?? book?.itemType ?? book?.item_type) || "item";
+  const receiptCondition = firstItem?.condition || orderData.book_condition || book?.condition || null;
+  const receiptQuantity = Number(firstItem?.quantity || 1);
+
+  const itemPrice =
+    Number(firstItem?.price ?? orderData.book_price ?? book?.price ?? 0);
+  const deliveryFee =
+    typeof orderRow?.selected_shipping_cost === "number"
+      ? Number(orderRow.selected_shipping_cost) / 100
+      : Number(orderData.delivery_price || 0);
+  const buyerProtectionFee =
+    typeof orderRow?.platform_fee === "number"
+      ? Number(orderRow.platform_fee)
+      : Number(orderData.platform_fee ?? 20);
+  const discountApplied = Number(couponMeta?.discount_applied || orderData.coupon_discount || 0);
+  const computedTotal = Math.max(0, itemPrice + deliveryFee + buyerProtectionFee - discountApplied);
+  const totalPaid =
+    typeof orderRow?.total_amount === "number" && orderRow.total_amount > 0 && orderRow.total_amount >= Math.max(deliveryFee, itemPrice)
+      ? Number(orderRow.total_amount)
+      : computedTotal;
+
+  const trackingNumber = (orderRow?.tracking_number as string | null) || null;
+  const paymentRef = (orderRow?.payment_reference as string | null) || (orderRow?.paystack_reference as string | null) || orderData.payment_reference || null;
+  const commitDeadline = (orderRow?.commit_deadline as string | null) || null;
+
+  const formatDateTime = (iso?: string | null) => {
+    if (!iso) return null;
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return iso;
+    return d.toLocaleString();
+  };
+
   // ── PDF Generation ──────────────────────────────────────────
-  const downloadReceipt = async () => {
+  const generateReceiptPdfBase64 = async () => {
     if (!receiptRef.current) {
       toast.error("Receipt element not found");
-      return;
+      return null;
     }
-    setIsDownloading(true);
     try {
       const canvas = await html2canvas(receiptRef.current, {
         backgroundColor: "#ffffff",
@@ -142,8 +253,9 @@ const Step4Confirmation: React.FC<Step4ConfirmationProps> = ({
         heightLeft -= pageHeight - 20;
       }
 
-      pdf.save(`receipt-${orderData.order_id}.pdf`);
-      toast.success("Receipt PDF downloaded!");
+      const dataUri = pdf.output("datauristring");
+      const base64 = String(dataUri).split("base64,")[1] || null;
+      return base64;
 
       // Save receipt HTML to orders table (fire-and-forget)
       if (receiptRef.current && orderData.order_id) {
@@ -159,20 +271,47 @@ const Step4Confirmation: React.FC<Step4ConfirmationProps> = ({
     } catch (err) {
       console.error("[Step4] PDF generation error:", err);
       toast.error("Failed to generate PDF receipt");
+      return null;
+    }
+  };
+
+  const downloadReceipt = async () => {
+    setIsDownloading(true);
+    try {
+      const base64 = await generateReceiptPdfBase64();
+      if (!base64) return;
+      const pdf = new jsPDF();
+      // re-generate as blob for download using the base64 we already built
+      // (keeps logic simple and reliable)
+      const byteString = atob(base64);
+      const bytes = new Uint8Array(byteString.length);
+      for (let i = 0; i < byteString.length; i++) bytes[i] = byteString.charCodeAt(i);
+      const blob = new Blob([bytes], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `receipt-${orderData.order_id}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast.success("Receipt PDF downloaded!");
     } finally {
       setIsDownloading(false);
     }
   };
 
+  // Receipt emailing is handled server-side in the payment webhook to avoid duplicates.
+
   return (
     <div className="max-w-3xl mx-auto space-y-6 px-3 sm:px-0">
       {/* ── Success Header ── */}
-      <div className="text-center mb-10">
+      <div className="text-center mb-8">
         <div className="w-20 h-20 bg-gradient-to-br from-green-100 to-green-200 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
           <CheckCircle className="w-10 h-10 text-green-600" />
         </div>
-        <h1 className="text-4xl font-bold text-gray-900 mb-3">Payment Successful! 🎉</h1>
-        <p className="text-lg text-gray-600">
+        <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">Payment Successful</h1>
+        <p className="text-base sm:text-lg text-gray-600">
           Thank you for your purchase. Your order has been confirmed and the seller has been notified.
         </p>
       </div>
@@ -207,12 +346,14 @@ const Step4Confirmation: React.FC<Step4ConfirmationProps> = ({
 
           {/* Item Details */}
           <div>
-            <SectionHeader emoji="📦" title="Item Details" icon={<Package className="w-4 h-4" />} />
+            <SectionHeader title="Item Details" icon={<Package className="w-4 h-4" />} />
             <div className="bg-blue-50 rounded-lg p-4 border border-blue-100">
-              <p className="font-bold text-base text-gray-900 mb-2">{orderData.book_title}</p>
+              <p className="font-bold text-base text-gray-900 mb-2">{receiptItemTitle}</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6">
+                <Row label="Item Type" value={String(receiptItemType).split("_").join(" ")} />
+                <Row label="Condition" value={receiptCondition} />
+                <Row label="Quantity" value={receiptQuantity} />
                 <Row label="Author" value={orderData.book_author} />
-                <Row label="Condition" value={orderData.book_condition} />
                 <Row label="Category" value={book?.category} />
                 <Row label="ISBN" value={book?.isbn} />
                 <Row label="Publisher" value={book?.publisher} />
@@ -236,14 +377,14 @@ const Step4Confirmation: React.FC<Step4ConfirmationProps> = ({
               )}
               <div className="mt-3 pt-3 border-t border-blue-200 flex justify-between">
                 <span className="text-sm font-semibold text-gray-700 uppercase">Item Amount</span>
-                <span className="text-base font-bold text-green-600">R{Number(orderData.book_price).toFixed(2)}</span>
+                <span className="text-base font-bold text-green-600">R{Number(itemPrice).toFixed(2)}</span>
               </div>
             </div>
           </div>
 
           {/* Seller Info */}
           <div>
-            <SectionHeader emoji="👤" title="Seller Information" icon={<User className="w-4 h-4" />} />
+            <SectionHeader title="Seller Information" icon={<User className="w-4 h-4" />} />
             <div className="bg-green-50 rounded-lg p-4 border border-green-100">
               {orderData.seller_name && (
                 <p className="font-semibold text-gray-900 mb-2">{orderData.seller_name}</p>
@@ -257,7 +398,7 @@ const Step4Confirmation: React.FC<Step4ConfirmationProps> = ({
 
           {/* Buyer Info */}
           <div>
-            <SectionHeader emoji="🧑" title="Buyer Information" icon={<User className="w-4 h-4" />} />
+            <SectionHeader title="Buyer Information" icon={<User className="w-4 h-4" />} />
             <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
               <div className="space-y-0">
                 <Row label="Name" value={buyerName || undefined} />
@@ -269,23 +410,93 @@ const Step4Confirmation: React.FC<Step4ConfirmationProps> = ({
 
           {/* Delivery Info */}
           <div>
-            <SectionHeader emoji="🚚" title="Delivery Method" icon={<Truck className="w-4 h-4" />} />
-            <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
-              <div className="flex justify-between items-center">
-                <div>
-                  <p className="font-semibold text-gray-900">{deliveryDisplayName}</p>
-                  {orderData.delivery_method === 'locker' && (
-                    <p className="text-xs text-gray-500 mt-1">BobGo Locker Network</p>
-                  )}
-                  {orderData.delivery_method === 'door' && (
-                    <p className="text-xs text-gray-500 mt-1">Home Delivery — The Courier Guy</p>
-                  )}
+            <SectionHeader title="Delivery" icon={<Truck className="w-4 h-4" />} />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
+                <div className="flex justify-between items-start gap-3">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-gray-900">{deliveryDisplayName}</p>
+                    {deliverySubtitle && (
+                      <p className="text-xs text-gray-500 mt-1 truncate">{deliverySubtitle}</p>
+                    )}
+                    {!deliverySubtitle && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        You’ll receive tracking info once shipped
+                      </p>
+                    )}
+                  </div>
+                  <span className="text-base font-bold text-gray-800 whitespace-nowrap">
+                    R{Number(deliveryFee).toFixed(2)}
+                  </span>
                 </div>
-                <span className="text-base font-bold text-gray-800">
-                  R{Number(orderData.delivery_price).toFixed(2)}
-                </span>
               </div>
-              <p className="text-xs text-gray-500 mt-2">You'll receive tracking info once the item is shipped.</p>
+
+              <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
+                <div className="flex items-start gap-3">
+                  <div className="p-2 bg-white rounded-lg border border-gray-200">
+                    <MapPin className="w-4 h-4 text-book-600" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold text-gray-900">Delivery address</p>
+
+                    {/* Locker delivery */}
+                    {deliveryMeta?.delivery_locker_data && (
+                      <div className="mt-1 text-sm text-gray-700">
+                        <p className="font-medium text-gray-900 truncate">
+                          {(deliveryMeta.delivery_locker_data as any)?.name || "Locker"}
+                        </p>
+                        <p className="text-xs text-gray-600 line-clamp-2">
+                          {(deliveryMeta.delivery_locker_data as any)?.full_address ||
+                            (deliveryMeta.delivery_locker_data as any)?.address ||
+                            (deliveryMeta.delivery_locker_data as any)?.street ||
+                            ""}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Door delivery */}
+                    {!deliveryMeta?.delivery_locker_data && deliveryAddress && (
+                      <div className="mt-1 text-sm text-gray-700">
+                        <p className="text-sm text-gray-900 font-medium truncate">
+                          {deliveryAddress.street || deliveryAddress.streetAddress || ""}
+                        </p>
+                        <p className="text-xs text-gray-600">
+                          {[deliveryAddress.suburb, deliveryAddress.city].filter(Boolean).join(", ")}
+                        </p>
+                        <p className="text-xs text-gray-600">
+                          {[deliveryAddress.province, deliveryAddress.postal_code || deliveryAddress.postalCode].filter(Boolean).join(" • ")}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Fallback */}
+                    {!deliveryMeta?.delivery_locker_data && !deliveryAddress && (
+                      <p className="mt-1 text-xs text-gray-500">
+                        We’ll show your delivery address here once it’s available.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="mt-3 bg-gray-50 rounded-lg p-4 border border-gray-100">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6">
+                <Row label="Courier" value={deliveryMeta?.selected_courier_name || null} />
+                <Row label="Service" value={deliveryMeta?.selected_service_name || null} />
+                <Row
+                  label="Delivery Type"
+                  value={
+                    orderRow?.delivery_type
+                      ? String(orderRow.delivery_type).toLowerCase() === "locker"
+                        ? "Locker-to-Locker"
+                        : "Door-to-Door"
+                      : deliveryDisplayName
+                  }
+                />
+                <Row label="Tracking Number" value={trackingNumber || "Pending"} />
+                <Row label="Commit Deadline" value={formatDateTime(commitDeadline)} />
+                <Row label="Payment Reference" value={paymentRef || "Pending"} />
+              </div>
             </div>
           </div>
 
@@ -293,30 +504,30 @@ const Step4Confirmation: React.FC<Step4ConfirmationProps> = ({
 
           {/* Price Breakdown */}
           <div>
-            <SectionHeader emoji="💰" title="Price Breakdown" icon={<CreditCard className="w-4 h-4" />} />
+            <SectionHeader title="Price Breakdown" icon={<CreditCard className="w-4 h-4" />} />
             <div className="bg-gray-50 rounded-lg p-4 border border-gray-100 space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-gray-600">Item Price</span>
-                <span>R{Number(orderData.book_price).toFixed(2)}</span>
+                <span>R{Number(itemPrice).toFixed(2)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Delivery Fee</span>
-                <span>R{Number(orderData.delivery_price).toFixed(2)}</span>
+                <span>R{Number(deliveryFee).toFixed(2)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Buyer's Protection Fee</span>
-                <span>R{Number(orderData.platform_fee || 20).toFixed(2)}</span>
+                <span>R{Number(buyerProtectionFee).toFixed(2)}</span>
               </div>
-              {orderData.coupon_discount && Number(orderData.coupon_discount) > 0 && (
-                <div className="flex justify-between text-green-600">
-                  <span>Coupon Discount</span>
-                  <span>-R{Number(orderData.coupon_discount).toFixed(2)}</span>
+              {discountApplied > 0 && (
+                <div className="flex justify-between text-green-700">
+                  <span>Coupon / Discount {couponMeta?.code ? `(${couponMeta.code})` : ""}</span>
+                  <span>-R{Number(discountApplied).toFixed(2)}</span>
                 </div>
               )}
               <Separator />
               <div className="flex justify-between font-bold text-lg">
                 <span>Total Paid</span>
-                <span className="text-green-600">R{Number(orderData.total_paid).toFixed(2)}</span>
+                <span className="text-green-600">R{Number(totalPaid).toFixed(2)}</span>
               </div>
             </div>
           </div>
@@ -384,7 +595,7 @@ const Step4Confirmation: React.FC<Step4ConfirmationProps> = ({
 
         <Button
           onClick={onContinueShopping}
-          className="w-full py-3 text-base font-semibold bg-blue-600 hover:bg-blue-700"
+          className="w-full py-3 text-base font-semibold bg-green-600 hover:bg-green-700"
           size="lg"
         >
           <ShoppingBag className="w-5 h-5 mr-2" />
@@ -421,145 +632,176 @@ const Step4Confirmation: React.FC<Step4ConfirmationProps> = ({
         }}
       >
         {/* Receipt Header */}
-        <div style={{ background: "linear-gradient(135deg, #3ab26f, #2d8f58)", padding: "30px 40px", borderRadius: "10px 10px 0 0", textAlign: "center", color: "white", marginBottom: "30px" }}>
-          <h1 style={{ margin: 0, fontSize: "28px", fontWeight: "bold" }}>ReBooked Solutions</h1>
-          <p style={{ margin: "8px 0 0", fontSize: "16px", opacity: 0.9 }}>Purchase Receipt</p>
-          <p style={{ margin: "5px 0 0", fontSize: "13px", opacity: 0.8, fontStyle: "italic" }}>"Pre-Loved Pages, New Adventures"</p>
+        <div style={{ background: "linear-gradient(135deg, #2d8f58, #3ab26f)", padding: "28px 36px", borderRadius: "12px 12px 0 0", textAlign: "left", color: "white", marginBottom: "18px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "16px" }}>
+            <div>
+              <h1 style={{ margin: 0, fontSize: "26px", fontWeight: 800, letterSpacing: "0.2px" }}>ReBooked Solutions</h1>
+              <p style={{ margin: "6px 0 0", fontSize: "14px", opacity: 0.92 }}>Purchase receipt</p>
+            </div>
+            <div style={{ textAlign: "right" }}>
+              <div style={{ fontSize: "11px", opacity: 0.9, letterSpacing: "0.5px", textTransform: "uppercase" }}>Status</div>
+              <div style={{ marginTop: "4px", display: "inline-block", background: "rgba(255,255,255,0.16)", border: "1px solid rgba(255,255,255,0.25)", padding: "6px 10px", borderRadius: "999px", fontWeight: 800, fontSize: "12px" }}>
+                PAID
+              </div>
+            </div>
+          </div>
         </div>
 
-        {/* Order Meta */}
-        <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: "25px", fontSize: "13px" }}>
-          <tbody>
-            <tr>
-              <td style={{ padding: "8px 5px", color: "#6b7280", fontWeight: 600 }}>Order ID</td>
-              <td style={{ padding: "8px 5px", fontFamily: "monospace", fontWeight: "bold" }}>{orderData.order_id}</td>
-              <td style={{ padding: "8px 5px", color: "#6b7280", fontWeight: 600 }}>Payment Ref</td>
-              <td style={{ padding: "8px 5px", fontFamily: "monospace" }}>{orderData.payment_reference}</td>
-            </tr>
-            <tr>
-              <td style={{ padding: "8px 5px", color: "#6b7280", fontWeight: 600 }}>Date</td>
-              <td style={{ padding: "8px 5px" }}>{new Date(orderData.created_at).toLocaleString()}</td>
-              <td style={{ padding: "8px 5px", color: "#6b7280", fontWeight: 600 }}>Status</td>
-              <td style={{ padding: "8px 5px", fontWeight: "bold", color: "#16a34a" }}>✅ PAID</td>
-            </tr>
-          </tbody>
-        </table>
-
-        <hr style={{ border: "none", borderTop: "2px solid #3ab26f", marginBottom: "25px" }} />
-
-        {/* Item Details */}
-        <div style={{ background: "#f3fef7", border: "1px solid #3ab26f", borderRadius: "8px", padding: "20px", marginBottom: "20px" }}>
-          <h2 style={{ margin: "0 0 15px 0", fontSize: "16px", color: "#1f4e3d" }}>📦 Item Details</h2>
-          <p style={{ margin: "0 0 8px 0", fontWeight: "bold", fontSize: "16px" }}>{orderData.book_title}</p>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
-              <tbody>
-                {[
-                  ["Author", orderData.book_author],
-                  ["Condition", orderData.book_condition],
-                  ["Category", book?.category],
-                  ["ISBN", book?.isbn],
-                  ["Publisher", book?.publisher],
-                  ["Language", book?.language],
-                  ["Curriculum", book?.curriculum],
-                ].filter(([, v]) => v).map(([label, val]) => (
-                  <tr key={String(label)}>
-                    <td style={{ padding: "4px 0", color: "#6b7280", fontWeight: 600, width: "40%" }}>{label}</td>
-                    <td style={{ padding: "4px 0" }}>{val}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
-              <tbody>
-                {[
-                  ["Grade / Year", book?.grade || book?.universityYear],
-                  ["School Name", book?.school_name],
-                  ["Gender", book?.gender],
-                  ["Size", book?.size],
-                  ["Color", book?.color],
-                  ["Subject", book?.subject],
-                  ["Province", book?.province],
-                ].filter(([, v]) => v).map(([label, val]) => (
-                  <tr key={String(label)}>
-                    <td style={{ padding: "4px 0", color: "#6b7280", fontWeight: 600, width: "45%" }}>{label}</td>
-                    <td style={{ padding: "4px 0" }}>{val}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        {/* Meta */}
+        <div style={{ border: "1px solid #e5e7eb", borderRadius: "12px", padding: "14px 16px", marginBottom: "16px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 18px", fontSize: "12px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: "10px" }}>
+              <span style={{ color: "#6b7280", fontWeight: 700 }}>Order</span>
+              <span style={{ fontFamily: "monospace", fontWeight: 800, color: "#111827" }}>{orderData.order_id}</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: "10px" }}>
+              <span style={{ color: "#6b7280", fontWeight: 700 }}>Payment Ref</span>
+              <span style={{ fontFamily: "monospace", color: "#111827" }}>{paymentRef || orderData.payment_reference || "Pending"}</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: "10px" }}>
+              <span style={{ color: "#6b7280", fontWeight: 700 }}>Date</span>
+              <span style={{ color: "#111827" }}>{new Date(orderData.created_at).toLocaleString()}</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: "10px" }}>
+              <span style={{ color: "#6b7280", fontWeight: 700 }}>Tracking</span>
+              <span style={{ color: "#111827", fontWeight: 700 }}>{trackingNumber || "Pending"}</span>
+            </div>
+            {commitDeadline && (
+              <div style={{ display: "flex", justifyContent: "space-between", gap: "10px", gridColumn: "1 / -1" }}>
+                <span style={{ color: "#6b7280", fontWeight: 700 }}>Commit Deadline</span>
+                <span style={{ color: "#111827", fontWeight: 700 }}>{formatDateTime(commitDeadline)}</span>
+              </div>
+            )}
           </div>
+        </div>
+
+        {/* Item */}
+        <div style={{ border: "1px solid #d1fae5", background: "#f0fdf4", borderRadius: "12px", padding: "16px", marginBottom: "14px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "16px", marginBottom: "10px" }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: "11px", color: "#166534", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.6px" }}>Item</div>
+              <div style={{ marginTop: "4px", fontSize: "16px", fontWeight: 800, color: "#0f172a" }}>{receiptItemTitle}</div>
+              {orderData.book_author && (
+                <div style={{ marginTop: "4px", fontSize: "12px", color: "#334155" }}>by {orderData.book_author}</div>
+              )}
+            </div>
+            <div style={{ textAlign: "right", minWidth: "160px" }}>
+              <div style={{ fontSize: "11px", color: "#166534", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.6px" }}>Item amount</div>
+              <div style={{ marginTop: "4px", fontSize: "18px", fontWeight: 900, color: "#16a34a" }}>R{Number(itemPrice).toFixed(2)}</div>
+            </div>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 18px", fontSize: "12px" }}>
+            {[
+              ["Item Type", String(receiptItemType).split("_").join(" ")],
+              ["Condition", receiptCondition],
+              ["Quantity", String(receiptQuantity)],
+              ["Province", book?.province],
+              ["Category", book?.category],
+              ["ISBN", book?.isbn],
+              ["Grade / Year", book?.grade || book?.universityYear],
+              ["School Name", book?.school_name],
+              ["Size", book?.size],
+              ["Color", book?.color],
+              ["Gender", book?.gender],
+              ["Subject", book?.subject],
+            ].filter(([, v]) => v).map(([label, val]) => (
+              <div key={String(label)} style={{ display: "flex", justifyContent: "space-between", gap: "10px" }}>
+                <span style={{ color: "#6b7280", fontWeight: 700 }}>{label}</span>
+                <span style={{ color: "#111827", fontWeight: 700, textAlign: "right" }}>{String(val)}</span>
+              </div>
+            ))}
+          </div>
+
           {orderData.book_description && (
-            <p style={{ margin: "12px 0 0 0", fontSize: "11px", color: "#4e7a63", paddingTop: "12px", borderTop: "1px solid #d1fae5", fontStyle: "italic" }}>
-              <strong>Description:</strong> {orderData.book_description}
-            </p>
+            <div style={{ marginTop: "12px", paddingTop: "10px", borderTop: "1px solid #bbf7d0" }}>
+              <div style={{ fontSize: "11px", color: "#6b7280", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.6px", marginBottom: "6px" }}>Description</div>
+              <div style={{ fontSize: "12px", color: "#334155", lineHeight: 1.5 }}>{orderData.book_description}</div>
+            </div>
           )}
         </div>
 
-        {/* Buyer Info */}
-        <div style={{ background: "#f0fdf4", border: "1px solid #10b981", borderRadius: "8px", padding: "20px", marginBottom: "20px" }}>
-          <h2 style={{ margin: "0 0 15px 0", fontSize: "16px", color: "#1f4e3d" }}>🧑 Buyer Information</h2>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
-            <tbody>
-              {[
-                ["Name", buyerName],
-                ["Email", buyerProfile?.email],
-                ["Phone", buyerProfile?.phone_number],
-              ].filter(([, v]) => v).map(([label, val]) => (
-                <tr key={String(label)}>
-                  <td style={{ padding: "5px 0", color: "#6b7280", fontWeight: 600, width: "35%" }}>{label}</td>
-                  <td style={{ padding: "5px 0" }}>{val}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        {/* Buyer */}
+        <div style={{ border: "1px solid #e5e7eb", background: "#ffffff", borderRadius: "12px", padding: "16px", marginBottom: "14px" }}>
+          <div style={{ fontSize: "11px", color: "#374151", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.6px", marginBottom: "10px" }}>Buyer</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 18px", fontSize: "12px" }}>
+            {[
+              ["Name", buyerName],
+              ["Email", buyerProfile?.email],
+              ["Phone", buyerProfile?.phone_number],
+            ].filter(([, v]) => v).map(([label, val]) => (
+              <div key={String(label)} style={{ display: "flex", justifyContent: "space-between", gap: "10px" }}>
+                <span style={{ color: "#6b7280", fontWeight: 700 }}>{label}</span>
+                <span style={{ color: "#111827", fontWeight: 700, textAlign: "right" }}>{String(val)}</span>
+              </div>
+            ))}
+          </div>
         </div>
 
-        {/* Delivery & Price */}
-        <div style={{ background: "#f3fef7", border: "1px solid #3ab26f", borderRadius: "8px", padding: "20px", marginBottom: "20px" }}>
-          <h2 style={{ margin: "0 0 15px 0", fontSize: "16px", color: "#1f4e3d" }}>🚚 Delivery & Pricing</h2>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
-            <tbody>
-              <tr>
-                <td style={{ padding: "6px 0", color: "#6b7280", fontWeight: 600 }}>Delivery Method</td>
-                <td style={{ padding: "6px 0", textAlign: "right" }}>{deliveryDisplayName}</td>
-              </tr>
-              <tr>
-                <td style={{ padding: "6px 0", color: "#6b7280", fontWeight: 600 }}>Item Price</td>
-                <td style={{ padding: "6px 0", textAlign: "right" }}>R{Number(orderData.book_price).toFixed(2)}</td>
-              </tr>
-              <tr>
-                <td style={{ padding: "6px 0", color: "#6b7280", fontWeight: 600 }}>Delivery Fee</td>
-                <td style={{ padding: "6px 0", textAlign: "right" }}>R{Number(orderData.delivery_price).toFixed(2)}</td>
-              </tr>
-              <tr>
-                <td style={{ padding: "6px 0", color: "#6b7280", fontWeight: 600 }}>Buyer's Protection Fee</td>
-                <td style={{ padding: "6px 0", textAlign: "right" }}>R{Number(orderData.platform_fee || 20).toFixed(2)}</td>
-              </tr>
-              {orderData.coupon_discount && Number(orderData.coupon_discount) > 0 && (
-                <tr>
-                  <td style={{ padding: "6px 0", color: "#16a34a", fontWeight: 600 }}>Coupon Discount</td>
-                  <td style={{ padding: "6px 0", textAlign: "right", color: "#16a34a" }}>-R{Number(orderData.coupon_discount).toFixed(2)}</td>
-                </tr>
-              )}
-              <tr style={{ borderTop: "2px solid #3ab26f" }}>
-                <td style={{ padding: "10px 0", fontWeight: "bold", fontSize: "16px" }}>Total Paid</td>
-                <td style={{ padding: "10px 0", textAlign: "right", fontWeight: "bold", fontSize: "16px", color: "#3ab26f" }}>
-                  R{Number(orderData.total_paid).toFixed(2)}
-                </td>
-              </tr>
-            </tbody>
-          </table>
+        {/* Delivery */}
+        <div style={{ border: "1px solid #e5e7eb", background: "#ffffff", borderRadius: "12px", padding: "16px", marginBottom: "14px" }}>
+          <div style={{ fontSize: "11px", color: "#374151", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.6px", marginBottom: "10px" }}>Delivery</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 18px", fontSize: "12px" }}>
+            {[
+              ["Delivery Method", deliveryDisplayName],
+              ["Delivery Type", orderRow?.delivery_type ? (String(orderRow.delivery_type).toLowerCase() === "locker" ? "Locker-to-Locker" : "Door-to-Door") : deliveryDisplayName],
+              ["Courier", deliveryMeta?.selected_courier_name],
+              ["Service", deliveryMeta?.selected_service_name],
+              ["Tracking Number", trackingNumber || "Pending"],
+            ].filter(([, v]) => v).map(([label, val]) => (
+              <div key={String(label)} style={{ display: "flex", justifyContent: "space-between", gap: "10px" }}>
+                <span style={{ color: "#6b7280", fontWeight: 700 }}>{label}</span>
+                <span style={{ color: "#111827", fontWeight: 700, textAlign: "right" }}>{String(val)}</span>
+              </div>
+            ))}
+          </div>
+          {orderRow?.delivery_type && String(orderRow.delivery_type).toLowerCase() === "locker" && deliveryMeta?.delivery_locker_data && (
+            <div style={{ marginTop: "12px", paddingTop: "10px", borderTop: "1px solid #e5e7eb" }}>
+              <div style={{ fontSize: "11px", color: "#6b7280", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.6px", marginBottom: "6px" }}>Locker</div>
+              <div style={{ fontSize: "12px", color: "#111827", fontWeight: 800 }}>
+                {(deliveryMeta.delivery_locker_data as any)?.name || "Locker"}
+              </div>
+              <div style={{ marginTop: "2px", fontSize: "12px", color: "#334155", lineHeight: 1.4 }}>
+                {(deliveryMeta.delivery_locker_data as any)?.full_address || (deliveryMeta.delivery_locker_data as any)?.address || ""}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Pricing */}
+        <div style={{ border: "1px solid #bbf7d0", background: "#f0fdf4", borderRadius: "12px", padding: "16px", marginBottom: "16px" }}>
+          <div style={{ fontSize: "11px", color: "#166534", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.6px", marginBottom: "10px" }}>Pricing</div>
+          <div style={{ fontSize: "12px" }}>
+            {[
+              ["Item Price", `R${Number(itemPrice).toFixed(2)}`],
+              ["Delivery Fee", `R${Number(deliveryFee).toFixed(2)}`],
+              ["Buyer's Protection Fee", `R${Number(buyerProtectionFee).toFixed(2)}`],
+            ].map(([label, val]) => (
+              <div key={label} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid #dcfce7" }}>
+                <span style={{ color: "#166534", fontWeight: 700 }}>{label}</span>
+                <span style={{ color: "#0f172a", fontWeight: 800 }}>{val}</span>
+              </div>
+            ))}
+            {discountApplied > 0 && (
+              <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid #dcfce7" }}>
+                <span style={{ color: "#166534", fontWeight: 700 }}>Coupon / Discount{couponMeta?.code ? ` (${couponMeta.code})` : ""}</span>
+                <span style={{ color: "#16a34a", fontWeight: 900 }}>-R{Number(discountApplied).toFixed(2)}</span>
+              </div>
+            )}
+            <div style={{ display: "flex", justifyContent: "space-between", paddingTop: "10px" }}>
+              <span style={{ color: "#0f172a", fontWeight: 900, fontSize: "14px" }}>Total Paid</span>
+              <span style={{ color: "#16a34a", fontWeight: 900, fontSize: "16px" }}>R{Number(totalPaid).toFixed(2)}</span>
+            </div>
+          </div>
         </div>
 
         {/* Footer */}
-        <div style={{ textAlign: "center", paddingTop: "20px", borderTop: "2px solid #3ab26f", fontSize: "12px", color: "#4e7a63" }}>
-          <p style={{ margin: "5px 0", fontWeight: "bold", color: "#3ab26f" }}>ReBooked Solutions</p>
-          <p style={{ margin: "5px 0" }}>support@rebookedsolutions.co.za | rebookedsolutions.co.za</p>
-          <p style={{ margin: "5px 0", fontStyle: "italic" }}>"Pre-Loved Pages, New Adventures"</p>
-          <p style={{ margin: "10px 0 0", fontSize: "11px", color: "#9ca3af" }}>
-            This is an automated receipt. Please do not reply to this document. © {new Date().getFullYear()} ReBooked Solutions.
-          </p>
+        <div style={{ textAlign: "center", paddingTop: "14px", borderTop: "1px solid #e5e7eb", fontSize: "11px", color: "#6b7280" }}>
+          <div style={{ fontWeight: 900, color: "#16a34a", marginBottom: "4px" }}>ReBooked Solutions</div>
+          <div>support@rebookedsolutions.co.za • rebookedsolutions.co.za</div>
+          <div style={{ marginTop: "6px", color: "#9ca3af" }}>
+            Automated receipt • © {new Date().getFullYear()} ReBooked Solutions
+          </div>
         </div>
       </div>
     </div>

@@ -248,7 +248,7 @@ const Step1point5DeliveryMethod: React.FC<Step1point5DeliveryMethodProps> = ({
       <div className="max-w-2xl mx-auto">
         <Card>
           <CardContent className="p-8 text-center">
-            <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-blue-500" />
+            <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-green-600" />
             <h3 className="text-lg font-semibold mb-2">Loading your preferences...</h3>
             <p className="text-gray-600">Checking for saved locker location</p>
           </CardContent>
@@ -272,9 +272,9 @@ const Step1point5DeliveryMethod: React.FC<Step1point5DeliveryMethodProps> = ({
 
       {/* Provider Incompatibility Alert */}
       {hasLockerMismatch && (
-        <Alert className="bg-blue-50 border-blue-200">
-          <Info className="h-4 w-4 text-blue-600" />
-          <AlertDescription className="text-blue-800">
+        <Alert className="bg-amber-50 border-amber-200">
+          <Info className="h-4 w-4 text-amber-700" />
+          <AlertDescription className="text-amber-900">
             Locker-to-locker delivery is currently unavailable because the seller's locker provider is different from yours. <strong>Home Delivery</strong> has been selected for you instead.
           </AlertDescription>
         </Alert>
@@ -327,8 +327,8 @@ const Step1point5DeliveryMethod: React.FC<Step1point5DeliveryMethodProps> = ({
         <div
           className={`p-5 sm:p-6 border-2 rounded-xl cursor-pointer transition-all shadow-sm hover:shadow-md ${
             deliveryMethod === "home"
-              ? "bg-blue-50 border-blue-400 shadow-md"
-              : "bg-white border-gray-200 hover:border-blue-300"
+              ? "bg-green-50 border-green-400 shadow-md"
+              : "bg-white border-gray-200 hover:border-green-300"
           }`}
           onClick={() => {
             setDeliveryMethod("home");
@@ -347,12 +347,12 @@ const Step1point5DeliveryMethod: React.FC<Step1point5DeliveryMethodProps> = ({
         >
           <div className="flex items-start gap-4">
             <div className="mt-1 flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center"
-              style={deliveryMethod === "home" ? { borderColor: "#3b82f6", backgroundColor: "#3b82f6" } : { borderColor: "#d1d5db" }}>
+              style={deliveryMethod === "home" ? { borderColor: "#16a34a", backgroundColor: "#16a34a" } : { borderColor: "#d1d5db" }}>
               {deliveryMethod === "home" && <div className="w-2.5 h-2.5 bg-white rounded-full"></div>}
             </div>
             <div className="flex-1">
               <div className="flex items-center gap-2 font-semibold mb-1">
-                <Home className="w-5 h-5 text-blue-600 flex-shrink-0" />
+                <Home className="w-5 h-5 text-green-700 flex-shrink-0" />
                 <span className="text-base sm:text-lg">Home Delivery</span>
               </div>
               <p className="text-sm sm:text-base text-gray-600 leading-relaxed">
@@ -414,10 +414,10 @@ const Step1point5DeliveryMethod: React.FC<Step1point5DeliveryMethodProps> = ({
 
             {/* Selected Different Locker or New Locker Selection */}
             {selectedLocker && (!savedLocker || selectedLocker.id !== savedLocker.id) && (
-              <div className="p-4 sm:p-5 bg-white border-2 border-blue-200 rounded-lg shadow-sm">
+              <div className="p-4 sm:p-5 bg-white border-2 border-green-200 rounded-lg shadow-sm">
                 <div className="flex items-center gap-2 font-semibold text-sm text-gray-900 mb-3">
-                  <div className="p-1 bg-blue-100 rounded-full flex-shrink-0">
-                    <CheckCircle className="w-4 h-4 text-blue-600" />
+                  <div className="p-1 bg-green-100 rounded-full flex-shrink-0">
+                    <CheckCircle className="w-4 h-4 text-green-600" />
                   </div>
                   <span>{selectedLocker.name}</span>
                 </div>
@@ -426,7 +426,7 @@ const Step1point5DeliveryMethod: React.FC<Step1point5DeliveryMethodProps> = ({
                     onClick={handleSaveLockerToProfile}
                     disabled={isSavingLocker}
                     size="sm"
-                    className="w-full bg-blue-600 hover:bg-blue-700 py-2 text-sm font-medium"
+                    className="w-full bg-green-600 hover:bg-green-700 py-2 text-sm font-medium"
                   >
                     {isSavingLocker ? (
                       <>
@@ -467,7 +467,7 @@ const Step1point5DeliveryMethod: React.FC<Step1point5DeliveryMethodProps> = ({
             <Button
               variant="outline"
               onClick={onCancel}
-              className="px-5 py-3 sm:py-4 text-base font-medium border-2"
+              className="px-5 py-3 sm:py-4 text-base font-medium border-2 text-red-600 border-red-300 hover:bg-red-50 hover:border-red-400"
             >
               <X className="w-4 h-4 mr-2" />
               <span className="hidden sm:inline">Cancel</span>
@@ -478,7 +478,7 @@ const Step1point5DeliveryMethod: React.FC<Step1point5DeliveryMethodProps> = ({
           <Button
             onClick={handleProceed}
             disabled={loading || (deliveryMethod === "locker" && !selectedLocker && !(savedLocker && !wantToChangeLocker))}
-            className="flex-1 px-6 py-3 sm:py-4 text-base font-semibold bg-blue-600 hover:bg-blue-700 shadow-md hover:shadow-lg transition-all"
+            className="flex-1 px-6 py-3 sm:py-4 text-base font-semibold bg-green-600 hover:bg-green-700 shadow-md hover:shadow-lg transition-all"
           >
             Next
             <ArrowRight className="w-5 h-5 ml-2" />

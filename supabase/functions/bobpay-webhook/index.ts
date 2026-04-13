@@ -287,6 +287,12 @@ Deno.serve(async (req) => {
     if (webhookData.status === 'paid') {
       console.log('✅ Payment confirmed! Marking item as sold and finalizing order...');
 
+      // Idempotency guard: BobPay can retry webhooks.
+      // If we've already processed payment, do not send emails again.
+      if (orders.payment_status === 'paid') {
+        return new Response('OK', { status: 200, headers: corsHeaders });
+      }
+
       // Mark cart as recovered
       if (cartRecoveryEmail) {
         try {
@@ -331,13 +337,14 @@ Deno.serve(async (req) => {
       }
 
       // STEP 2: Update order to pending_commit
+      const commitDeadlineIso = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
       const { error: updateError } = await supabaseClient
         .from('orders')
         .update({
           status: 'pending_commit',
           payment_status: 'paid',
           payment_confirmed_at: new Date().toISOString(),
-          commit_deadline: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(),
+          commit_deadline: commitDeadlineIso,
           payment_data: webhookData,
           updated_at: new Date().toISOString(),
         })
@@ -403,6 +410,8 @@ Deno.serve(async (req) => {
       const sellerName = sellerProfile?.full_name || sellerProfile?.name || 'Seller';
       const supabaseUrl = Deno.env.get('SUPABASE_URL');
       const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+      const paymentReference = orders.payment_reference || orders.paystack_reference || webhookData.custom_payment_id;
+      const commitDeadlineText = new Date(commitDeadlineIso).toLocaleString('en-ZA', { year: 'numeric', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' });
 
       const FOOTER = `
         <div style="margin-top:32px;padding-top:20px;border-top:2px solid #3ab26f;text-align:center;font-size:12px;color:#4e7a63;">
@@ -417,18 +426,20 @@ Deno.serve(async (req) => {
           <div style="font-family:Arial,sans-serif;background:#f3fef7;padding:20px;color:#1f4e3d;">
             <div style="max-width:500px;margin:auto;background:#ffffff;padding:30px;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,0.05);">
               <div style="background:linear-gradient(135deg,#3ab26f,#2d8f58);padding:24px;border-radius:8px 8px 0 0;text-align:center;color:white;margin:-30px -30px 24px;">
-                <h1 style="margin:0;font-size:22px;">✅ Payment Confirmed!</h1>
+                <h1 style="margin:0;font-size:22px;">Payment Confirmed!</h1>
                 <p style="margin:6px 0 0;opacity:0.9;">Your order is on its way</p>
               </div>
               <p>Hello <strong>${buyerName}</strong>,</p>
               <p>Your payment has been processed successfully. The seller has been notified and has 48 hours to confirm your order.</p>
               <div style="background:#f3fef7;border:1px solid #3ab26f;border-radius:8px;padding:16px;margin:20px 0;">
-                <h3 style="margin:0 0 12px;color:#1f4e3d;font-size:14px;">📦 Order Summary</h3>
+                <h3 style="margin:0 0 12px;color:#1f4e3d;font-size:14px;">🧾 Receipt</h3>
                 <table style="width:100%;border-collapse:collapse;font-size:13px;">
                   <tr><td style="padding:4px 0;color:#6b7280;font-weight:600;width:40%;">Item</td><td style="padding:4px 0;">${bookTitle}</td></tr>
                   <tr><td style="padding:4px 0;color:#6b7280;font-weight:600;">Seller</td><td style="padding:4px 0;">${sellerName}</td></tr>
                   <tr><td style="padding:4px 0;color:#6b7280;font-weight:600;">Order ID</td><td style="padding:4px 0;font-family:monospace;font-size:11px;">${orders.id}</td></tr>
-                  <tr><td style="padding:4px 0;color:#6b7280;font-weight:600;">Amount Paid</td><td style="padding:4px 0;font-weight:bold;color:#3ab26f;">R${webhookData.paid_amount.toFixed(2)}</td></tr>
+                  <tr><td style="padding:4px 0;color:#6b7280;font-weight:600;">Payment Reference</td><td style="padding:4px 0;font-family:monospace;font-size:11px;">${paymentReference}</td></tr>
+                  <tr><td style="padding:4px 0;color:#6b7280;font-weight:600;">Total Paid</td><td style="padding:4px 0;font-weight:bold;color:#3ab26f;">R${webhookData.paid_amount.toFixed(2)}</td></tr>
+                  <tr><td style="padding:4px 0;color:#6b7280;font-weight:600;">Seller Commit Deadline</td><td style="padding:4px 0;">${commitDeadlineText}</td></tr>
                 </table>
               </div>
               <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:14px;margin:16px 0;">
@@ -445,7 +456,7 @@ Deno.serve(async (req) => {
           await fetch(`${supabaseUrl}/functions/v1/send-email`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseServiceKey}` },
-            body: JSON.stringify({ to: buyerEmail, subject: '✅ Payment Confirmed – ReBooked Solutions', html: buyerEmailHtml }),
+            body: JSON.stringify({ to: buyerEmail, subject: 'Payment Confirmed – ReBooked Solutions', html: buyerEmailHtml }),
           });
           console.log('✅ Buyer email sent');
         } catch (emailError) {
@@ -458,13 +469,13 @@ Deno.serve(async (req) => {
           <div style="font-family:Arial,sans-serif;background:#f3fef7;padding:20px;color:#1f4e3d;">
             <div style="max-width:500px;margin:auto;background:#ffffff;padding:30px;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,0.05);">
               <div style="background:linear-gradient(135deg,#e17055,#c0392b);padding:24px;border-radius:8px 8px 0 0;text-align:center;color:white;margin:-30px -30px 24px;">
-                <h1 style="margin:0;font-size:22px;">🚨 New Sale – Action Required!</h1>
+                <h1 style="margin:0;font-size:22px;">New Sale – Action Required!</h1>
                 <p style="margin:6px 0 0;opacity:0.9;">Confirm within 48 hours</p>
               </div>
               <p>Hello <strong>${sellerName}</strong>,</p>
               <p>Great news! Someone just purchased your item and is waiting for your confirmation.</p>
               <div style="background:#fff3cd;border:1px solid #fbbf24;border-radius:8px;padding:14px;margin:16px 0;text-align:center;">
-                <p style="margin:0;font-weight:bold;color:#b45309;font-size:14px;">⏰ You must confirm within 48 hours or the order will be automatically cancelled.</p>
+                <p style="margin:0;font-weight:bold;color:#b45309;font-size:14px;">You must confirm within 48 hours or the order will be automatically cancelled.</p>
               </div>
               <div style="background:#f3fef7;border:1px solid #3ab26f;border-radius:8px;padding:16px;margin:20px 0;">
                 <h3 style="margin:0 0 12px;color:#1f4e3d;font-size:14px;">📋 Sale Details</h3>
@@ -489,7 +500,7 @@ Deno.serve(async (req) => {
           await fetch(`${supabaseUrl}/functions/v1/send-email`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseServiceKey}` },
-            body: JSON.stringify({ to: sellerEmail, subject: '🚨 New Sale – Confirm Within 48 Hours | ReBooked Solutions', html: sellerEmailHtml }),
+            body: JSON.stringify({ to: sellerEmail, subject: 'New Sale – Confirm Within 48 Hours | ReBooked Solutions', html: sellerEmailHtml }),
           });
           console.log('✅ Seller email sent');
         } catch (emailError) {

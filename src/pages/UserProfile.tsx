@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import Layout from "@/components/Layout";
 import ProfileHeader from "@/components/ProfileHeader";
@@ -31,14 +31,7 @@ const UserProfile = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
 
-  useEffect(() => {
-    if (userId) {
-      loadUserProfile();
-      loadUserBooks();
-    }
-  }, [userId, loadUserProfile, loadUserBooks]);
-
-  const loadUserProfile = async () => {
+  const loadUserProfile = useCallback(async () => {
     if (!userId) return;
 
     try {
@@ -59,9 +52,9 @@ const UserProfile = () => {
       logError("Error loading profile", error);
       toast.error(getErrorMessage(error, "Failed to load user profile"));
     }
-  };
+  }, [userId]);
 
-  const loadUserBooks = async () => {
+  const loadUserBooks = useCallback(async () => {
     if (!userId) return;
 
     try {
@@ -75,7 +68,13 @@ const UserProfile = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [userId]);
+
+  useEffect(() => {
+    if (!userId) return;
+    loadUserProfile();
+    loadUserBooks();
+  }, [userId, loadUserProfile, loadUserBooks]);
 
   const handleViewBook = (bookId: string) => {
     navigate(`/books/${bookId}`);

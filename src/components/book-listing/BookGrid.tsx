@@ -234,9 +234,11 @@ const BookGrid = ({
                           {book.universityYear}
                         </span>
                       )}
-                      <span className="text-gray-500 text-xs ml-auto">
-                        {book.category}
-                      </span>
+                      {book.itemType !== "uniform" && book.itemType !== "school_supply" && (
+                        <span className="text-gray-500 text-xs ml-auto">
+                          {book.category}
+                        </span>
+                      )}
                     </div>
 
 
@@ -345,9 +347,11 @@ const BookGrid = ({
                           {book.universityYear}
                         </span>
                       )}
-                      <span className="text-gray-500 text-xs ml-auto">
-                        {book.category}
-                      </span>
+                      {book.itemType !== "uniform" && book.itemType !== "school_supply" && (
+                        <span className="text-gray-500 text-xs ml-auto">
+                          {book.category}
+                        </span>
+                      )}
                     </div>
 
 
