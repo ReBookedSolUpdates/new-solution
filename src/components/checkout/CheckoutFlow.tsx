@@ -539,9 +539,9 @@ const CheckoutFlow: React.FC<CheckoutFlowProps> = ({ book }) => {
 
     // Track purchase (non-blocking)
     try {
-      const orderId = orderData.orderId || book.id;
-      const orderTotal = orderData.totalAmount || book.price;
-      const itemCount = checkoutState.order_summary?.items?.length || 1;
+      const orderId = orderData.order_id || book.id;
+      const orderTotal = orderData.total_paid || book.price;
+      const itemCount = 1;
 
       await ActivityService.trackPurchase(
         user?.id,
@@ -575,15 +575,15 @@ const CheckoutFlow: React.FC<CheckoutFlowProps> = ({ book }) => {
     // Send purchase confirmation emails with multiple fallback layers
     try {
       const purchaseEmailData = {
-        orderId: orderData.orderId || book.id,
+        orderId: orderData.order_id || book.id,
         bookId: book.id,
         bookTitle: book.title,
         bookPrice: book.price,
         sellerName: book.seller?.name || "Seller",
         sellerEmail: book.seller?.email || "",
-        buyerName: user?.name || "Buyer",
+        buyerName: (user as any)?.name || user?.email?.split("@")[0] || "Buyer",
         buyerEmail: user?.email || "",
-        orderTotal: orderData.totalAmount || book.price,
+        orderTotal: orderData.total_paid || book.price,
         orderDate: new Date().toISOString()
       };
 
