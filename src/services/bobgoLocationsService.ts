@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 export interface PickupPointLocation {
   id?: string | number;
   name: string;
-  address: string;
+  address?: string;
   latitude: number;
   longitude: number;
   distance?: number;
@@ -11,6 +11,7 @@ export interface PickupPointLocation {
   phone?: string;
   type?: string;
   provider?: string;
+  provider_slug?: string;
   [key: string]: any;
 }
 

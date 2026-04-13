@@ -130,7 +130,7 @@ const CheckoutFlow: React.FC<CheckoutFlowProps> = ({ book }) => {
         // 2. Fetch subaccount (for payment, non-critical)
         supabase
           .from("banking_subaccounts")
-          .select("subaccount_code")
+          .select("recipient_code")
           .eq("user_id", bookData.seller_id)
           .maybeSingle(),
         // 3. Fetch seller address (encrypted, may be slow)
@@ -152,8 +152,8 @@ const CheckoutFlow: React.FC<CheckoutFlowProps> = ({ book }) => {
       }
 
       // Process subaccount result (non-critical)
-      if (subaccountResult.status === 'fulfilled' && subaccountResult.value.data?.subaccount_code) {
-        sellerSubaccountCode = subaccountResult.value.data.subaccount_code;
+      if (subaccountResult.status === 'fulfilled' && (subaccountResult.value.data as any)?.recipient_code) {
+        sellerSubaccountCode = (subaccountResult.value.data as any).recipient_code;
       }
 
       // Process seller address result
@@ -170,7 +170,7 @@ const CheckoutFlow: React.FC<CheckoutFlowProps> = ({ book }) => {
 
         // Load preferred pickup method
         if (profile.preferred_pickup_method) {
-          sellerPreferredPickupMethod = profile.preferred_pickup_method;
+          sellerPreferredPickupMethod = profile.preferred_pickup_method as "locker" | "pickup";
         }
 
         // Only load locker if preferred method is locker
@@ -322,12 +322,12 @@ const CheckoutFlow: React.FC<CheckoutFlowProps> = ({ book }) => {
               province: normalized.province,
               postal_code: normalized.postalCode,
               country: normalized.country || "South Africa",
-              suburb: normalized.suburb || "",
-              latitude: normalized.latitude || null,
-              longitude: normalized.longitude || null,
-              type: normalized.type || "residential",
+              suburb: (normalized as any).suburb || "",
+              latitude: (normalized as any).latitude || null,
+              longitude: (normalized as any).longitude || null,
+              type: (normalized as any).type || "residential",
               additional_info: (sa as any).company || (sa as any).additional_info || ""
-            };
+            } as CheckoutAddress;
           }
         } catch (err) {
         }
@@ -462,7 +462,7 @@ const CheckoutFlow: React.FC<CheckoutFlowProps> = ({ book }) => {
         ActivityService.trackCheckoutStep(user?.id, "payment_initiated", {
           step: 3,
           step_name: "payment_initiated",
-          order_value: checkoutState.order_summary?.total || book.price,
+          order_value: checkoutState.order_summary?.total_price || book.price,
         });
       }
     } catch (trackingError) {
@@ -655,7 +655,7 @@ const CheckoutFlow: React.FC<CheckoutFlowProps> = ({ book }) => {
 
     // Track checkout abandoned at payment step (non-blocking)
     try {
-      const cartValue = checkoutState.order_summary?.total || book.price;
+      const cartValue = checkoutState.order_summary?.total_price || book.price;
       ActivityService.trackCheckoutAbandoned(user?.id, "payment_initiated", cartValue);
     } catch (trackingError) {
       debugLogger.error("CheckoutFlow", "Error tracking checkout abandoned:", trackingError);
@@ -679,7 +679,7 @@ const CheckoutFlow: React.FC<CheckoutFlowProps> = ({ book }) => {
   const handleCancelCheckout = () => {
     // Track checkout abandoned (non-blocking)
     try {
-      const cartValue = checkoutState.order_summary?.total || book.price;
+      const cartValue = checkoutState.order_summary?.total_price || book.price;
       const currentStep = checkoutState.step.current;
       const stepName = currentStep === 1 ? "order_summary" : currentStep === 2 ? "delivery_options" : currentStep === 3 ? "payment_initiated" : "unknown";
       ActivityService.trackCheckoutAbandoned(user?.id, stepName, cartValue);
@@ -885,14 +885,14 @@ const CheckoutFlow: React.FC<CheckoutFlowProps> = ({ book }) => {
               setCheckoutState((prev) => ({
                 ...prev,
                 delivery_method: method,
-                selected_locker: locker || null,
+                selected_locker: locker ? { ...locker, id: String(locker.id ?? ''), address: locker.address || '' } as any : null,
               }));
               goToStep(3);
             }}
             onBack={() => goToStep(1)}
             onCancel={handleCancelCheckout}
             loading={checkoutState.loading}
-            sellerLockerData={checkoutState.seller_locker_data}
+             sellerLockerData={checkoutState.seller_locker_data as any}
             sellerAddress={checkoutState.seller_address}
           />
         )}
@@ -905,20 +905,20 @@ const CheckoutFlow: React.FC<CheckoutFlowProps> = ({ book }) => {
                 <Step2DeliveryOptions
                   buyerAddress={checkoutState.buyer_address}
                   sellerAddress={checkoutState.seller_address}
-                  sellerLockerData={checkoutState.seller_locker_data}
+                   sellerLockerData={checkoutState.seller_locker_data as any}
                   sellerPreferredPickupMethod={checkoutState.seller_preferred_pickup_method}
                   onSelectDelivery={handleDeliverySelection}
                   onBack={() => goToStep(2)}
                   onCancel={handleCancelCheckout}
                   onEditAddress={handleEditAddress}
                   selectedDelivery={checkoutState.selected_delivery}
-                  preSelectedLocker={checkoutState.selected_locker}
+                  preSelectedLocker={checkoutState.selected_locker as any}
                 />
               ) : checkoutState.buyer_address ? (
                 <Step2DeliveryOptions
                   buyerAddress={checkoutState.buyer_address}
                   sellerAddress={checkoutState.seller_address}
-                  sellerLockerData={checkoutState.seller_locker_data}
+                  sellerLockerData={checkoutState.seller_locker_data as any}
                   sellerPreferredPickupMethod={checkoutState.seller_preferred_pickup_method}
                   onSelectDelivery={handleDeliverySelection}
                   onBack={() => goToStep(2)}
