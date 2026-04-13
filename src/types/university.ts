@@ -20,7 +20,7 @@ export interface StudyResource {
 export interface StudyTip {
   id: string;
   title: string;
-  description: string;
+  description?: string;
   category?: string;
   [key: string]: any;
 }
