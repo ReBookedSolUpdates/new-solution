@@ -28,6 +28,8 @@ import Index from "./pages/Index";
 import BookDetails from "./pages/BookDetails";
 import Textbooks from "./pages/Items";
 import EditBook from "./pages/EditBook";
+import EditUniform from "./pages/EditUniform";
+import EditSupply from "./pages/EditSupply";
 import Profile from "./pages/Profile";
 import CreateListing from "./pages/CreateListing";
 import Cart from "./pages/Cart";
@@ -129,6 +131,22 @@ function AppRoutes() {
           element={
             <ProtectedRoute>
               <EditBook />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/edit-uniform/:id"
+          element={
+            <ProtectedRoute>
+              <EditUniform />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/edit-supply/:id"
+          element={
+            <ProtectedRoute>
+              <EditSupply />
             </ProtectedRoute>
           }
         />

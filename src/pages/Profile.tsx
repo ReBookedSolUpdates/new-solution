@@ -295,7 +295,7 @@ const Profile = () => {
     } finally {
       setIsLoadingAddress(false);
     }
-  }, [user?.id, addressData]);
+  }, [user?.id]);
 
   useEffect(() => {
     if (user?.id) {
@@ -367,12 +367,19 @@ const Profile = () => {
     }
   };
 
-  const handleEditBook = (bookId: string) => {
+  const handleEditBook = (bookId: string, book?: Book) => {
     if (!bookId) {
       toast.error("Book ID is missing");
       return;
     }
-    navigate(`/edit-book/${bookId}`);
+    // Route to the appropriate edit page based on item type
+    if (book?.itemType === 'uniform') {
+      navigate(`/edit-uniform/${bookId}`);
+    } else if (book?.itemType === 'school_supply') {
+      navigate(`/edit-supply/${bookId}`);
+    } else {
+      navigate(`/edit-book/${bookId}`);
+    }
   };
 
   const handleSaveAddresses = async (
@@ -687,7 +694,7 @@ const Profile = () => {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => handleEditBook(book.id)}
+                              onClick={() => handleEditBook(book.id, book)}
                               className="flex-1 h-8 text-xs"
                             >
                               <Edit className="w-3 h-3 mr-1" />

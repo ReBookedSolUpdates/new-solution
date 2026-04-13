@@ -28,7 +28,7 @@ const ALL_CATEGORIES = Array.from(
   ]),
 ).sort();
 
-const Textbooks = () => {
+const ListingsPage = () => {
   const { "*": splat } = useParams();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -38,14 +38,14 @@ const Textbooks = () => {
     [splat],
   );
 
-  const parsed: ParsedTextbookUrl = useMemo(
-    () => parseTextbookSegments(segments, ALL_CATEGORIES),
+  const parsed: ParsedListingUrl = useMemo(
+    () => parseListingSegments(segments, ALL_CATEGORIES),
     [segments],
   );
 
   useEffect(() => {
     if (parsed.listingId) {
-      navigate(`/textbooks/book/${parsed.listingId}`, { replace: true });
+      navigate(`/listings/item/${parsed.listingId}`, { replace: true });
     }
   }, [parsed.listingId, navigate]);
 
@@ -94,7 +94,7 @@ const Textbooks = () => {
   const seoTitle = generateFilterTitle(parsed);
   const seoDescription = generateFilterDescription(parsed, totalBooks);
   const seoContent = generateFilterContent(parsed, totalBooks);
-  const canonicalUrl = `https://www.rebookedsolutions.co.za${buildTextbookUrl({
+  const canonicalUrl = `https://www.rebookedsolutions.co.za${buildListingUrlPath({
     category: parsed.category || undefined,
     grade: parsed.grade || undefined,
     province: parsed.province || undefined,
@@ -189,8 +189,8 @@ const Textbooks = () => {
       const startIndex = (currentPage - 1) * booksPerPage;
       setBooks(booksArray.slice(startIndex, startIndex + booksPerPage));
     } catch (error) {
-      debugLogger.error("Textbooks", "Failed to load books", error);
-      toast.error("Failed to load books. Please try again later.");
+      debugLogger.error("Listings", "Failed to load listings", error);
+      toast.error("Failed to load listings. Please try again later.");
       setBooks([]);
     } finally {
       setIsLoading(false);
@@ -213,7 +213,7 @@ const Textbooks = () => {
     }
     if (!initialSyncDone.current) return;
 
-    const newPath = buildTextbookUrl({
+    const newPath = buildListingUrlPath({
       category: selectedCategory || undefined,
       grade: selectedGrade || undefined,
       province: selectedProvince || undefined,
@@ -232,7 +232,7 @@ const Textbooks = () => {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    const newPath = buildTextbookUrl({
+    const newPath = buildListingUrlPath({
       category: selectedCategory || undefined,
       grade: selectedGrade || undefined,
       province: selectedProvince || undefined,
@@ -266,7 +266,7 @@ const Textbooks = () => {
     setPriceRange([0, 2000]);
     setBookType("all");
     setCurrentPage(1);
-    navigate("/textbooks", { replace: true });
+    navigate("/listings", { replace: true });
   }, [navigate]);
 
   const handleCommitBook = async (bookId: string) => {
@@ -298,7 +298,7 @@ const Textbooks = () => {
       <SEO
         title={seoTitle}
         description={seoDescription}
-        keywords={`textbooks, ${parsed.category || "used books"}, ${parsed.grade || "school books"}, ${parsed.universityYear || "university books"}, ${parsed.genre || "readers"}, ${parsed.province || "south africa"}, buy textbooks, sell textbooks`}
+        keywords={`listings, ${parsed.category || "items"}, ${parsed.grade || "school"}, ${parsed.universityYear || "university"}, ${parsed.genre || "readers"}, ${parsed.province || "south africa"}, uniforms, school supplies, buy listings, sell listings, ReBooked Solutions`}
         url={canonicalUrl}
         canonical={canonicalUrl}
       />
@@ -317,7 +317,7 @@ const Textbooks = () => {
               {[parsed.grade, parsed.universityYear, parsed.category, parsed.genre]
                 .filter(Boolean)
                 .join(" ")}{" "}
-              {parsed.genre && !parsed.grade && !parsed.universityYear ? "Books" : "Textbooks"}
+              Listings
               {parsed.province ? ` in ${parsed.province}` : ""}
             </h1>
             <p>{seoContent}</p>
@@ -378,4 +378,5 @@ const Textbooks = () => {
   );
 };
 
-export default Textbooks;
+export default ListingsPage;
+s;

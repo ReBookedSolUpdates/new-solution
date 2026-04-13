@@ -35,7 +35,7 @@ const BookDetails = () => {
     if (!id) {
       toast.error("Invalid item link - redirecting to browse");
       setTimeout(() => {
-        navigate("/textbooks");
+        navigate("/listings");
       }, 2000);
       return;
     }
@@ -129,7 +129,14 @@ const BookDetails = () => {
 
   const handleEditBook = () => {
     if (!book) return;
-    navigate(`/edit-book/${book.id}`);
+    // Route to the appropriate edit page based on item type
+    if (book.itemType === 'uniform') {
+      navigate(`/edit-uniform/${book.id}`);
+    } else if (book.itemType === 'school_supply') {
+      navigate(`/edit-supply/${book.id}`);
+    } else {
+      navigate(`/edit-book/${book.id}`);
+    }
   };
 
   const handleShare = async () => {
@@ -220,16 +227,16 @@ const BookDetails = () => {
             <p className="text-gray-600 mb-6">{errorMessage}</p>
             <div className="space-y-3 w-full">
               <Button
-                onClick={() => navigate("/textbooks")}
+                onClick={() => navigate("/listings")}
                 className="bg-book-600 hover:bg-book-700 w-full min-h-[48px]"
                 size="lg"
               >
                 <BookOpen className="mr-2 h-4 w-4" />
-                Browse All Books
+                Browse All Listings
               </Button>
               <BackButton
                 variant="outline"
-                fallbackPath="/textbooks"
+                fallbackPath="/listings"
                 className="w-full min-h-[48px]"
                 size="lg"
               >
@@ -286,7 +293,7 @@ const BookDetails = () => {
         {/* Back button */}
         <div className="mb-3 sm:mb-4">
           <BackButton
-            fallbackPath="/textbooks"
+            fallbackPath="/listings"
             className="text-book-600 hover:bg-book-50 p-2 sm:p-3 min-h-[44px]"
           >
             <span className="hidden sm:inline">Back</span>

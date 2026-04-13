@@ -1,9 +1,9 @@
 /**
- * Utilities for converting between textbook/reader filter values and URL-friendly slugs.
+ * Utilities for converting between listing filter values and URL-friendly slugs.
  *
- * URL pattern: /textbooks/:segment1/:segment2/...
+ * URL pattern: /listings/:segment1/:segment2/...
  * Segments can be: subject (category), grade, province, university-year, genre, or a listing slug.
- * A listing slug ends with a UUID: "book-name-author/listing-id"
+ * A listing slug ends with a UUID: "item-name-author/listing-id"
  */
 
 const PROVINCES = [
@@ -42,7 +42,7 @@ export const fromSlug = (slug: string, options: string[]): string | null => {
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export interface ParsedTextbookUrl {
+export interface ParsedListingUrl {
   category: string | null;
   grade: string | null;
   province: string | null;
@@ -53,13 +53,13 @@ export interface ParsedTextbookUrl {
 }
 
 /**
- * Parse URL segments after /textbooks/ into filter values.
+ * Parse URL segments after /listings/ into filter values.
  */
-export const parseTextbookSegments = (
+export const parseListingSegments = (
   segments: string[],
   allCategories: string[],
-): ParsedTextbookUrl => {
-  const result: ParsedTextbookUrl = {
+): ParsedListingUrl => {
+  const result: ParsedListingUrl = {
     category: null,
     grade: null,
     province: null,
@@ -113,16 +113,16 @@ export const parseTextbookSegments = (
 };
 
 /**
- * Build a /textbooks/... URL from active filters.
+ * Build a /listings/... URL from active filters.
  */
-export const buildTextbookUrl = (filters: {
+export const buildListingUrlPath = (filters: {
   category?: string;
   grade?: string;
   province?: string;
   universityYear?: string;
   genre?: string;
 }): string => {
-  const parts: string[] = ["/textbooks"];
+  const parts: string[] = ["/listings"];
 
   // Order: province, category, grade, universityYear, genre
   if (filters.province) parts.push(toSlug(filters.province));
@@ -135,21 +135,21 @@ export const buildTextbookUrl = (filters: {
 };
 
 /**
- * Build a listing URL within the textbook path.
+ * Build a listing URL within the listings path.
  */
-export const buildListingUrl = (
-  book: { title: string; author: string; id: string },
+export const buildSingleListingUrl = (
+  item: { title: string; author?: string; id: string },
   filters?: { category?: string; grade?: string; province?: string; universityYear?: string; genre?: string },
 ): string => {
-  const base = filters ? buildTextbookUrl(filters) : "/textbooks";
-  const bookSlug = toSlug(`${book.title} ${book.author}`);
-  return `${base}/${bookSlug}/${book.id}`;
+  const base = filters ? buildListingUrlPath(filters) : "/listings";
+  const itemSlug = toSlug(`${item.title} ${item.author || ""}`);
+  return `${base}/${itemSlug}/${item.id}`;
 };
 
 /**
  * Generate dynamic SEO title based on active filters.
  */
-export const generateFilterTitle = (filters: ParsedTextbookUrl): string => {
+export const generateFilterTitle = (filters: ParsedListingUrl): string => {
   const parts: string[] = [];
 
   if (filters.grade) parts.push(filters.grade);
@@ -158,11 +158,11 @@ export const generateFilterTitle = (filters: ParsedTextbookUrl): string => {
   if (filters.genre) parts.push(filters.genre);
 
   const isReader = !!filters.genre && !filters.grade && !filters.universityYear;
-  const itemLabel = isReader ? "Books" : "Textbooks";
+  const itemLabel = isReader ? "Books" : "Items";
 
   let title = parts.length > 0
     ? `Buy ${parts.join(" ")} ${itemLabel}`
-    : "Buy & Sell Used Textbooks & Books";
+    : "Buy & Sell Used Items, Textbooks & Uniforms";
 
   if (filters.province) title += ` in ${filters.province}`;
 
@@ -173,7 +173,7 @@ export const generateFilterTitle = (filters: ParsedTextbookUrl): string => {
  * Generate dynamic SEO description based on active filters.
  */
 export const generateFilterDescription = (
-  filters: ParsedTextbookUrl,
+  filters: ParsedListingUrl,
   listingCount?: number,
 ): string => {
   const parts: string[] = [];
@@ -183,19 +183,18 @@ export const generateFilterDescription = (
   if (filters.genre) parts.push(filters.genre);
 
   const subject = parts.length > 0 ? parts.join(" ") : "used";
-  const isReader = !!filters.genre && !filters.grade && !filters.universityYear;
-  const itemLabel = isReader ? "books" : "textbooks";
+  const label = "listings";
   const location = filters.province ? ` in ${filters.province}` : " in South Africa";
   const count = listingCount !== undefined ? `${listingCount} listings` : "listings";
 
-  return `Looking to buy or sell ${subject} ${itemLabel}${location}? ReBooked has ${count} available from verified student sellers. Save up to 70% on your costs.`;
+  return `Looking to buy or sell ${subject} ${label}${location}? ReBooked has ${count} available from verified sellers. Save on your costs.`;
 };
 
 /**
  * Generate the SEO content paragraph for filter pages.
  */
 export const generateFilterContent = (
-  filters: ParsedTextbookUrl,
+  filters: ParsedListingUrl,
   listingCount?: number,
 ): string => {
   const parts: string[] = [];
@@ -207,16 +206,20 @@ export const generateFilterContent = (
   const subject = parts.length > 0 ? parts.join(" ") : "";
   const location = filters.province || "South Africa";
   const count = listingCount !== undefined ? String(listingCount) : "many";
-  const isReader = !!filters.genre && !filters.grade && !filters.universityYear;
-  const itemLabel = isReader ? "books" : "textbooks";
 
   if (subject) {
-    return `Looking to buy or sell ${subject} ${itemLabel} in ${location}? ReBooked has ${count} listings available from students across Gauteng, Western Cape, KwaZulu-Natal and more. Browse affordable second-hand ${subject} books and save up to 70% compared to buying new.`;
+    return `Looking to buy or sell ${subject} items in ${location}? ReBooked Solutions has ${count} listings available from sellers across South Africa. Browse affordable second-hand ${subject} items and save up to 70% compared to buying new.`;
   }
 
   if (filters.province) {
-    return `Browse ${count} second-hand textbooks and books available in ${location}. ReBooked connects students to buy and sell used school, university textbooks and readers locally. Find affordable books for every grade, year and genre.`;
+    return `Browse ${count} second-hand listings available in ${location}. ReBooked Solutions connects people to buy and sell used uniforms, school supplies and textbooks locally. Find affordable items for every grade and year.`;
   }
 
-  return `Browse all ${count} second-hand textbooks and books on ReBooked Solutions. South Africa's trusted marketplace for buying and selling used school textbooks, university textbooks and readers. Save up to 70% on your study materials.`;
+  return `Browse all ${count} second-hand listings on ReBooked Solutions. South Africa's trusted marketplace for buying and selling used school uniforms, school supplies and textbooks. Save up to 70% on your school essentials.`;
 };
+
+// Backward compatibility aliases
+export type ParsedTextbookUrl = ParsedListingUrl;
+export const parseTextbookSegments = parseListingSegments;
+export const buildTextbookUrl = buildListingUrlPath;
+export const buildListingUrl = buildSingleListingUrl;

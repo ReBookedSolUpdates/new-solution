@@ -4,7 +4,7 @@ import { useChatMessages } from "@/hooks/useChat";
 import { Conversation, reportConversation, checkForPersonalInfo, archiveConversation } from "@/services/chatService";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Send, ArrowLeft, Flag, AlertTriangle, Loader2, User, Shield, Check, CheckCheck, Archive, Package } from "lucide-react";
+import { Send, ArrowLeft, Flag, AlertTriangle, Loader2, User, Shield, Check, CheckCheck, Archive, Package, Image, X as XIcon } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
@@ -60,8 +60,11 @@ const ChatView = ({ conversation, onBack, onArchived }: ChatViewProps) => {
   const [isReporting, setIsReporting] = useState(false);
   const [isArchiving, setIsArchiving] = useState(false);
   const [activeOrder, setActiveOrder] = useState<any | null>(null);
+  const [mediaPreview, setMediaPreview] = useState<{ url: string; type: string } | null>(null);
+  const [isUploadingMedia, setIsUploadingMedia] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const mediaInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
 
   const otherParty = user?.id === conversation.buyer_id ? conversation.seller : conversation.buyer;
@@ -118,12 +121,38 @@ const ChatView = ({ conversation, onBack, onArchived }: ChatViewProps) => {
 
   const handleSend = async () => {
     const trimmed = newMessage.trim();
-    if (!trimmed) return;
+    if (!trimmed && !mediaPreview) return;
     setNewMessage("");
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
     }
-    await send(trimmed);
+    const mUrl = mediaPreview?.url;
+    const mType = mediaPreview?.type;
+    setMediaPreview(null);
+    await send(trimmed, mUrl, mType);
+  };
+
+  const handleMediaSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 25 * 1024 * 1024) { toast.error("File must be under 25MB"); return; }
+    const isImage = file.type.startsWith("image/");
+    const isVideo = file.type.startsWith("video/");
+    if (!isImage && !isVideo) { toast.error("Only images and videos are supported"); return; }
+    setIsUploadingMedia(true);
+    try {
+      const ext = file.name.split(".").pop() || "bin";
+      const path = `chat-media/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+      const { error: upErr } = await supabase.storage.from("chat-media").upload(path, file, { upsert: false });
+      if (upErr) throw upErr;
+      const { data: { publicUrl } } = supabase.storage.from("chat-media").getPublicUrl(path);
+      setMediaPreview({ url: publicUrl, type: isImage ? "image" : "video" });
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to upload media");
+    } finally {
+      setIsUploadingMedia(false);
+      e.target.value = "";
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -348,7 +377,42 @@ const ChatView = ({ conversation, onBack, onArchived }: ChatViewProps) => {
               <span className="text-xs">Your message may contain personal information.</span>
             </div>
           )}
+          {/* Media preview */}
+          {mediaPreview && (
+            <div className="relative inline-block mb-2 ml-1">
+              {mediaPreview.type === "image" ? (
+                <img src={mediaPreview.url} alt="Media" className="h-20 w-20 rounded-lg object-cover border border-book-200" />
+              ) : (
+                <video src={mediaPreview.url} className="h-20 w-20 rounded-lg object-cover border border-book-200" />
+              )}
+              <button
+                onClick={() => setMediaPreview(null)}
+                className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full h-5 w-5 flex items-center justify-center hover:bg-red-600"
+              >
+                <XIcon className="h-3 w-3" />
+              </button>
+            </div>
+          )}
           <div className="flex items-end gap-2">
+            {/* Hidden file input for media */}
+            <input
+              ref={mediaInputRef}
+              type="file"
+              accept="image/*,video/*"
+              onChange={handleMediaSelect}
+              className="hidden"
+            />
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => mediaInputRef.current?.click()}
+              disabled={isSending || isUploadingMedia}
+              className="h-10 w-10 rounded-xl shrink-0 text-book-400 hover:text-book-700 hover:bg-book-100"
+              title="Attach photo or video"
+            >
+              {isUploadingMedia ? <Loader2 className="h-4 w-4 animate-spin" /> : <Image className="h-4 w-4" />}
+            </Button>
             <textarea
               ref={textareaRef}
               value={newMessage}
@@ -365,7 +429,7 @@ const ChatView = ({ conversation, onBack, onArchived }: ChatViewProps) => {
             />
             <Button
               onClick={handleSend}
-              disabled={!newMessage.trim() || isSending}
+              disabled={(!newMessage.trim() && !mediaPreview) || isSending || isUploadingMedia}
               size="icon"
               className="bg-book-600 hover:bg-book-700 h-10 w-10 rounded-xl shrink-0"
             >

@@ -23,6 +23,8 @@ import { getProvinceFromLocker } from "@/utils/provinceExtractorUtils";
 import SellerRating from "@/components/reviews/SellerRating";
 import ReviewList from "@/components/reviews/ReviewList";
 
+import { getUserBooks } from "@/services/book/bookQueries";
+
 interface SellerProfile {
   id: string;
   name: string;
@@ -39,10 +41,10 @@ const SellerProfile = () => {
   const navigate = useNavigate();
   const { addToCart } = useCart();
   const [seller, setSeller] = useState<SellerProfile | null>(null);
-  const [books, setBooks] = useState<Book[]>([]);
+  const [listings, setListings] = useState<Book[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState("books");
+  const [activeTab, setActiveTab] = useState("listings");
 
   useEffect(() => {
     if (!sellerId) {
@@ -66,58 +68,19 @@ const SellerProfile = () => {
         .maybeSingle();
 
       const displayName = [sellerData?.first_name, sellerData?.last_name].filter(Boolean).join(" ") || (sellerData as any)?.name || (sellerData as any)?.full_name || sellerData?.email?.split("@")[0] || "";
+      
       if (sellerData) {
         setSeller({ ...(sellerData as any), name: displayName, province: undefined, hasName: Boolean(displayName) });
       } else {
         setSeller({ id: sellerId!, name: displayName, email: "", created_at: new Date().toISOString(), province: undefined, hasName: false });
       }
 
-      // Fetch seller's books
-      const { data: booksData, error: booksError } = await supabase
-        .from("books")
-        .select(
-          `
-          id, title, author, description, price, category, condition,
-          image_url, front_cover, back_cover, inside_pages, sold,
-          created_at, grade, university_year, province
-        `,
-        )
-        .eq("seller_id", sellerId)
-        .eq("sold", false)
-        .order("created_at", { ascending: false });
+      // Fetch seller's items using the unified service
+      const fetchedListings = await getUserBooks(sellerId!);
+      const activeListings = fetchedListings.filter(item => !item.sold);
+      setListings(activeListings);
 
-      if (booksError) {
-        throw new Error("Failed to fetch seller's books");
-      }
-
-      // Transform books data to match Book interface
-      const transformedBooks: Book[] = (booksData || []).map((book) => ({
-        id: book.id,
-        title: book.title,
-        author: book.author,
-        description: book.description,
-        price: book.price,
-        category: book.category,
-        condition: book.condition as Book["condition"],
-        imageUrl: book.image_url,
-        frontCover: book.front_cover,
-        backCover: book.back_cover,
-        insidePages: book.inside_pages,
-        sold: book.sold,
-        createdAt: book.created_at,
-        grade: book.grade,
-        universityYear: book.university_year,
-        province: book.province,
-        seller: {
-          id: sellerId!,
-          name: displayName,
-          email: sellerData?.email || "",
-        },
-      }));
-
-      setBooks(transformedBooks);
-
-      // Resolve province with proper fallback logic (same as bookMapper)
+      // Resolve province with proper fallback logic
       let resolvedProvince: string | null = null;
 
       // First, try to get province from seller's locker data
@@ -125,16 +88,16 @@ const SellerProfile = () => {
         resolvedProvince = getProvinceFromLocker(sellerData.preferred_delivery_locker_data);
       }
 
-      // Fallback to first book's province if no locker province
+      // Fallback to first item's province if no locker province
       if (!resolvedProvince) {
-        resolvedProvince = transformedBooks.find((b) => !!b.province)?.province || null;
+        resolvedProvince = activeListings.find((b) => !!b.province)?.province || null;
       }
 
       if (resolvedProvince) {
         setSeller((prev) => (prev ? { ...prev, province: resolvedProvince } : prev));
       }
 
-      if (!sellerData && transformedBooks.length === 0) {
+      if (!sellerData && activeListings.length === 0) {
         throw new Error("Seller not found");
       }
     } catch (err) {
@@ -144,16 +107,23 @@ const SellerProfile = () => {
     }
   };
 
-  const handleAddToCart = (book: Book) => {
-    addToCart(book);
+  const handleAddToCart = (item: Book) => {
+    addToCart(item);
   };
 
-  const handleBookClick = (bookId: string) => {
-    navigate(`/books/${bookId}`);
+  const handleItemClick = (itemId: string, itemType?: string) => {
+    // Navigate to the appropriate detail page
+    if (itemType === 'uniform') {
+      navigate(`/school-uniform/${itemId}`);
+    } else if (itemType === 'school_supply') {
+      navigate(`/supplies/${itemId}`);
+    } else {
+      navigate(`/textbook/${itemId}`);
+    }
   };
 
   const handleBackToMarketplace = () => {
-    navigate("/textbooks");
+    navigate("/listings");
   };
 
   const handleShareProfile = async () => {
@@ -164,8 +134,8 @@ const SellerProfile = () => {
     const shareData = {
       title: titleText,
       text: seller.hasName && seller.name
-        ? `Check out ${seller.name}'s books on ReBooked! They have ${books.length} books available.`
-        : `Check out this seller's books on ReBooked! They have ${books.length} books available.`,
+        ? `Check out ${seller.name}'s items on ReBooked! They have ${listings.length} items available.`
+        : `Check out this seller's listings on ReBooked! They have ${listings.length} items available.`,
       url: profileUrl,
     };
 
@@ -209,8 +179,8 @@ const SellerProfile = () => {
                 {error ||
                   "The seller profile you're looking for doesn't exist."}
               </p>
-              <Button onClick={() => navigate("/textbooks")} variant="outline">
-                Browse All Books
+              <Button onClick={() => navigate("/listings")} variant="outline">
+                Browse All Listings
               </Button>
             </CardContent>
           </Card>
@@ -281,8 +251,8 @@ const SellerProfile = () => {
                 <div className="flex flex-col sm:flex-row md:flex-col items-stretch sm:items-start md:items-start gap-3 md:gap-4">
                   <div className="flex sm:block justify-between text-left sm:text-left gap-4 sm:gap-0">
                     <div>
-                      <div className="text-xs sm:text-sm text-gray-500">Books Available</div>
-                      <div className="text-xl sm:text-2xl font-bold text-book-700">{books.length}</div>
+                      <div className="text-xs sm:text-sm text-gray-500">Items Available</div>
+                      <div className="text-xl sm:text-2xl font-bold text-book-700">{listings.length}</div>
                     </div>
                     <div>
                       <div className="text-xs sm:text-sm text-gray-500">Seller Rating</div>
@@ -311,9 +281,9 @@ const SellerProfile = () => {
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             {/* Tab Navigation */}
             <TabsList className="grid w-full max-w-xs grid-cols-2 mb-6">
-              <TabsTrigger value="books" className="flex items-center gap-2">
+              <TabsTrigger value="listings" className="flex items-center gap-2">
                 <BookOpen className="h-4 w-4" />
-                Books {books.length > 0 && `(${books.length})`}
+                Listings {listings.length > 0 && `(${listings.length})`}
               </TabsTrigger>
               <TabsTrigger value="reviews" className="flex items-center gap-2">
                 <Star className="h-4 w-4" />
@@ -321,20 +291,20 @@ const SellerProfile = () => {
               </TabsTrigger>
             </TabsList>
 
-            {/* Books Tab */}
-            <TabsContent value="books" className="space-y-6">
-              {books.length === 0 ? (
+            {/* Listings Tab */}
+            <TabsContent value="listings" className="space-y-6">
+              {listings.length === 0 ? (
                 <Card>
                   <CardContent className="p-12 text-center">
                     <BookOpen className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                     <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                      No Books Available
+                      No Listings Available
                     </h3>
                     <p className="text-gray-600 mb-4">
-                      {seller.name} doesn't have any books for sale at the moment.
+                      {seller.name} doesn't have any items for sale at the moment.
                     </p>
-                    <Button onClick={() => navigate("/textbooks")} variant="outline">
-                      Browse Other Books
+                    <Button onClick={() => navigate("/listings")} variant="outline">
+                      Browse Other Listings
                     </Button>
                   </CardContent>
                 </Card>
@@ -342,58 +312,60 @@ const SellerProfile = () => {
                 <>
                   <div className="mb-6">
                     <h2 className="text-xl font-semibold text-gray-900 mb-2">
-                      Books for Sale
+                      Items for Sale
                     </h2>
                     <p className="text-gray-600">
-                      All books listed by {seller.name}
+                      All listings by {seller.name}
                     </p>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    {books.map((book) => (
+                    {listings.map((item) => (
                       <Card
-                        key={book.id}
+                        key={item.id}
                         className="hover:shadow-lg transition-shadow cursor-pointer group"
-                        onClick={() => handleBookClick(book.id)}
+                        onClick={() => handleItemClick(item.id, item.itemType)}
                       >
                         <CardContent className="p-4">
                           <img
-                            src={book.frontCover || book.imageUrl}
-                            alt={book.title}
+                            src={item.frontCover || item.imageUrl || "/placeholder.svg"}
+                            alt={item.title}
                             className="w-full h-48 object-cover rounded-lg mb-4 group-hover:scale-105 transition-transform duration-200"
                           />
 
                           <h3 className="font-semibold text-lg mb-2 line-clamp-2">
-                            {book.title}
+                            {item.title}
                           </h3>
 
-                          <p className="text-gray-600 text-sm mb-3">
-                            by {book.author}
-                          </p>
+                          {item.author && (
+                            <p className="text-gray-600 text-sm mb-3">
+                              by {item.author}
+                            </p>
+                          )}
 
                           <div className="flex flex-wrap gap-2 mb-4">
                             <Badge variant="secondary" className="text-xs">
-                              {book.condition} {book.itemType === "reader" && "reader"}
+                              {item.condition} {item.itemType === "reader" && "reader"}
                             </Badge>
                             <Badge variant="outline" className="text-xs">
-                              {book.category}
+                              {item.category}
                             </Badge>
-                            {book.grade && (
+                            {item.grade && (
                               <Badge variant="outline" className="text-xs">
-                                Grade {book.grade}
+                                Grade {item.grade}
                               </Badge>
                             )}
                           </div>
 
                           <div className="flex items-center justify-between">
                             <span className="text-lg font-bold text-book-600">
-                              R{book.price}
+                              R{item.price}
                             </span>
                             <Button
                               size="sm"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                handleAddToCart(book);
+                                handleAddToCart(item);
                               }}
                               className="bg-book-600 hover:bg-book-700"
                             >
@@ -428,3 +400,4 @@ const SellerProfile = () => {
 };
 
 export default SellerProfile;
+

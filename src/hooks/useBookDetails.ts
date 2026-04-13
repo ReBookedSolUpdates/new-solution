@@ -126,18 +126,25 @@ export const useBookDetails = (bookId: string | undefined) => {
 
   const handleEditBook = () => {
     if (!isAuthenticated) {
-      toast.error("Please log in to edit books");
+      toast.error("Please log in to edit items");
       navigate("/login");
       return;
     }
 
     if (user?.id !== book?.seller?.id) {
-      toast.error("You can only edit your own books");
+      toast.error("You can only edit your own items");
       return;
     }
 
     if (bookId) {
-      navigate(`/edit-book/${bookId}`);
+      // Route to the appropriate edit page based on item type
+      if (book?.itemType === 'uniform') {
+        navigate(`/edit-uniform/${bookId}`);
+      } else if (book?.itemType === 'school_supply') {
+        navigate(`/edit-supply/${bookId}`);
+      } else {
+        navigate(`/edit-book/${bookId}`);
+      }
     }
   };
 

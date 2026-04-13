@@ -198,7 +198,7 @@ const ShareProfileDialog = ({
               </div>
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-book-900 truncate">{userName}</p>
-                <p className="text-xs text-book-600">ReBooked Seller</p>
+                <p className="text-xs text-book-600">ReBooked Solutions</p>
                 <div className="flex gap-1 mt-1">
                   <div className="h-1 w-8 bg-book-200 rounded-full"></div>
                   <div className="h-1 w-8 bg-book-200 rounded-full opacity-50"></div>
