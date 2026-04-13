@@ -34,7 +34,7 @@ import { toast } from "sonner";
 import ManualAddressInput from "@/components/ManualAddressInput";
 import type { AddressData as GoogleAddressData } from "@/components/ManualAddressInput";
 import { AddressData, Address } from "@/types/address";
-import { bobpayCheckoutHelper } from "@/utils/bobpayCheckoutHelper";
+import { initializeBobPayCheckout } from "@/utils/bobpayCheckoutHelper";
 import PudoLocationsSection from "./BobGoLocationsSection";
 import SavedLockersCard from "./SavedLockersCard";
 

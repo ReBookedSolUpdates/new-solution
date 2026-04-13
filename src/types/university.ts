@@ -13,4 +13,14 @@ export interface StudyResource {
   university?: string;
   subject?: string;
   url?: string;
+  type?: string;
+  [key: string]: any;
+}
+
+export interface StudyTip {
+  id: string;
+  title: string;
+  description: string;
+  category?: string;
+  [key: string]: any;
 }
