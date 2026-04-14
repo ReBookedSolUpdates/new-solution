@@ -120,32 +120,7 @@ const AuthCallback = () => {
           return;
         }
 
-        // Enhanced URL parameter extraction - handle multiple formats
-        const getParam = (name: string) => {
-          // Check search params first
-          let value = searchParams.get(name);
-          if (value) return value;
-
-          // Check hash params
-          value = new URLSearchParams(window.location.hash.substring(1)).get(name);
-          if (value) return value;
-
-          // Check for URL-encoded parameters (some email clients encode URLs)
-          const fullUrl = window.location.href;
-          const decodedUrl = decodeURIComponent(fullUrl);
-
-          // Try to extract from decoded URL
-          const regex = new RegExp(`[?&#]${name}=([^&#]*)`);
-          const match = decodedUrl.match(regex);
-          if (match) return match[1];
-
-          return null;
-        };
-        const isRecoveryHint = () => {
-          const r = (getParam("recovery") || "").toLowerCase();
-          const flow = (getParam("flow") || "").toLowerCase();
-          return r === "1" || r === "true" || flow === "recovery";
-        };
+        // Enhanced URL parameter extraction already defined above as getParam/isRecoveryHint
 
         const access_token = getParam("access_token");
         const refresh_token = getParam("refresh_token");

@@ -269,7 +269,8 @@ export function useFallbackService(config?: Partial<FallbackConfig>) {
 
 // Service status hook
 export function useServiceStatus() {
-  const [status, setStatus] = React.useState<{
+  const { useState: useStateHook, useCallback: useCallbackHook, useEffect: useEffectHook } = require('react');
+  const [status, setStatus] = useStateHook<{
     supabase: boolean;
     vercel: boolean;
     lastChecked: Date | null;
@@ -279,7 +280,7 @@ export function useServiceStatus() {
     lastChecked: null,
   });
 
-  const checkStatus = React.useCallback(async () => {
+  const checkStatus = useCallbackHook(async () => {
     try {
       const health = await fallbackService.healthCheck();
       setStatus({
@@ -290,9 +291,9 @@ export function useServiceStatus() {
     }
   }, []);
 
-  React.useEffect(() => {
+  useEffectHook(() => {
     checkStatus();
-    const interval = setInterval(checkStatus, 60000); // Check every minute
+    const interval = setInterval(checkStatus, 60000);
     return () => clearInterval(interval);
   }, [checkStatus]);
 

@@ -228,7 +228,7 @@ const EditBook = () => {
         description: formData.description,
         price: formData.price,
         category: formData.category,
-        curriculum: formData.curriculum,
+        curriculum: formData.curriculum as any,
         isbn: formData.isbn,
         quantity: formData.quantity,
         frontCover: bookImages.frontCover,
@@ -330,7 +330,6 @@ const EditBook = () => {
                 formData={{ ...formData, imageUrl: bookImages.frontCover || "" } as any}
                 errors={errors}
                 onInputChange={handleInputChange}
-                showAIWarning={false}
               />
 
               <div className="space-y-3 md:space-y-4">
