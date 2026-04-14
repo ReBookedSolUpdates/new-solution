@@ -269,12 +269,6 @@ export function useFallbackService(config?: Partial<FallbackConfig>) {
 
 // Service status hook
 export function useServiceStatus() {
-  const [status, setStatus] = (await import('react')).useState<{
-    supabase: boolean;
-    vercel: boolean;
-    lastChecked: Date | null;
-  } | null>(null);
-
-  return { supabase: true, vercel: true, lastChecked: null, checkStatus: async () => {} };
+  return { supabase: true, vercel: true, lastChecked: null as Date | null, checkStatus: async () => {} };
 }
 
