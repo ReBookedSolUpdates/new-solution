@@ -125,7 +125,7 @@ export const getBuyerCheckoutData = async (userId: string) => {
             suburb: normalized.suburb || "",
             latitude: normalized.latitude || null,
             longitude: normalized.longitude || null,
-            type: normalized.type || "residential",
+            type: (normalized.type || "residential") as "business" | "residential",
             additional_info: (addr as any).company || (addr as any).additional_info || ""
           };
         }

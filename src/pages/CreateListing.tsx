@@ -699,6 +699,10 @@ const CreateListing = () => {
                 setShowShareProfileDialog(true);
               }
             }}
+            onShareProfile={() => {
+              setShowFirstUploadDialog(false);
+              setShowShareProfileDialog(true);
+            }}
           />
           <PostListingSuccessDialog
             isOpen={showPostListingDialog}
@@ -726,6 +730,7 @@ const CreateListing = () => {
               markPopupAsShown(user.id, 'commitReminderShown');
               handlePostListingFlow();
             }}
+            type="seller"
           />
         </BankingRequirementCheck>
       </div>

@@ -232,7 +232,7 @@ export const getSellerDeliveryAddress = async (
           suburb: normalized.suburb || "",
           latitude: normalized.latitude || null,
           longitude: normalized.longitude || null,
-          type: normalized.type || "residential",
+          type: (normalized.type || "residential") as "business" | "residential",
           additional_info: (decryptedAddress as any).company || (decryptedAddress as any).additional_info || ""
         };
         return address;
@@ -255,7 +255,7 @@ export const getSellerDeliveryAddress = async (
             suburb: normalized.suburb || "",
             latitude: normalized.latitude || null,
             longitude: normalized.longitude || null,
-            type: normalized.type || "residential",
+            type: (normalized.type || "residential") as "business" | "residential",
             additional_info: (fallbackAddress as any).company || (fallbackAddress as any).additional_info || ""
           };
           return mappedAddress;

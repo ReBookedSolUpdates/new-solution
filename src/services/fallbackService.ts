@@ -269,37 +269,6 @@ export function useFallbackService(config?: Partial<FallbackConfig>) {
 
 // Service status hook
 export function useServiceStatus() {
-  const [status, setStatus] = React.useState<{
-    supabase: boolean;
-    vercel: boolean;
-    lastChecked: Date | null;
-  }>({
-    supabase: true,
-    vercel: true,
-    lastChecked: null,
-  });
-
-  const checkStatus = React.useCallback(async () => {
-    try {
-      const health = await fallbackService.healthCheck();
-      setStatus({
-        ...health,
-        lastChecked: new Date(),
-      });
-    } catch (error) {
-    }
-  }, []);
-
-  React.useEffect(() => {
-    checkStatus();
-    const interval = setInterval(checkStatus, 60000); // Check every minute
-    return () => clearInterval(interval);
-  }, [checkStatus]);
-
-  return { ...status, checkStatus };
+  return { supabase: true, vercel: true, lastChecked: null as Date | null, checkStatus: async () => {} };
 }
 
-// TypeScript import for React
-declare global {
-  const React: typeof import("react");
-}

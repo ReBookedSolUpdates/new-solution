@@ -17,6 +17,7 @@ export const fallbackBooksData: Book[] = [
     frontCover: "/placeholder.svg",
     createdAt: "2024-01-15T10:00:00Z",
     sold: false,
+    itemType: "textbook",
     seller: {
       id: "fallback-seller-1",
       name: "Book Seller",
@@ -38,6 +39,7 @@ export const fallbackBooksData: Book[] = [
     frontCover: "/placeholder.svg",
     createdAt: "2024-01-14T14:30:00Z",
     sold: false,
+    itemType: "textbook",
     seller: {
       id: "fallback-seller-2",
       name: "Math Student",
@@ -59,6 +61,7 @@ export const fallbackBooksData: Book[] = [
     frontCover: "/placeholder.svg",
     createdAt: "2024-01-13T09:15:00Z",
     sold: false,
+    itemType: "textbook",
     seller: {
       id: "fallback-seller-3",
       name: "Business Student",

@@ -259,7 +259,7 @@ export const withTimeout = <T>(
   timeoutMs: number,
   errorMessage?: string,
 ): Promise<T> => {
-  return Promise.race([promise, createTimeoutPromise(timeoutMs, errorMessage)]);
+  return Promise.race([promise, createTimeoutPromise(timeoutMs, errorMessage) as Promise<T>]);
 };
 
 /**

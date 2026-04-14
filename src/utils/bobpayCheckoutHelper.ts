@@ -117,6 +117,7 @@ export const initializeBobPayCheckout = async (
 
       // Return a temporary confirmation (actual will come from webhook)
       return {
+        id: orderId,
         order_id: orderId,
         payment_reference: paymentData.data.reference,
         book_id: orderSummary.book.id,

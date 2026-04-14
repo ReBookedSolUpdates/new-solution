@@ -24,6 +24,7 @@ import { ActivityService } from "@/services/activityService";
 import { toggleWishlistItem, getWishlistIds } from "@/services/wishlistService";
 import { useBookTracking } from "@/hooks/useBookTracking";
 import debugLogger from "@/utils/debugLogger";
+import { supabase } from "@/integrations/supabase/client";
 
 const BookDetails = () => {
   const { id } = useParams<{ id: string }>();

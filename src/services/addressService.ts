@@ -189,8 +189,8 @@ export const saveUserAddresses = async (
     if (!isPickupDeleted) {
       result = await updateAddressValidation(
         userId,
-        normalizedPickup,
-        normalizedShipping,
+        normalizedPickup as any,
+        normalizedShipping as any,
         addressesSame,
       );
     }

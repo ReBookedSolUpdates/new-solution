@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { getUserBooks } from "@/services/book/bookQueries";
 import { Book } from "@/types/book";
-import { ArrowLeft, Eye } from "lucide-react";
+import { ArrowLeft, Eye, Share2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";

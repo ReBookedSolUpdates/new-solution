@@ -20,13 +20,7 @@ const Verify = () => {
     "loading" | "success" | "error" | "debug"
   >("loading");
   const [message, setMessage] = useState("");
-  const [debugInfo, setDebugInfo] = useState<{
-    url: string;
-    params: URLSearchParams;
-    queryString: string;
-    userAgent: string;
-    timestamp: string;
-  } | null>(null);
+  const [debugInfo, setDebugInfo] = useState<any>(null);
   const [resendEmail, setResendEmail] = useState("");
   const [isResending, setIsResending] = useState(false);
 

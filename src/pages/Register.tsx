@@ -133,7 +133,7 @@ const Register = () => {
       }
 
       // Call Brevo to create contact after successful signup (non-blocking)
-      if (result?.needsVerification || result?.emailWarning) {
+      if (result?.needsVerification || (result as any)?.emailWarning) {
         try {
           await callEdgeFunction('create-brevo-contact', {
             method: 'POST',
@@ -192,7 +192,7 @@ const Register = () => {
             },
           });
         }, 3000);
-      } else if (result?.emailWarning) {
+      } else if ((result as any)?.emailWarning) {
         // Registration successful but email confirmation may have failed
         toast.success("Account created successfully! You can now log in.", {
           duration: 4000,

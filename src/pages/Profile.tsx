@@ -363,7 +363,7 @@ const Profile = () => {
       // If deletion failed due to active orders, offer force delete option for admins
       const errorMessage = error instanceof Error ? error.message : String(error);
 
-      if (errorMessage.includes("active order(s)") && profile?.is_admin) {
+      if (errorMessage.includes("active order(s)") && profile?.isAdmin) {
         const forceConfirm = confirm(
           `${errorMessage}\n\nAs an admin, you can force delete this book which will:\n` +
           "• Cancel all active orders for this book\n" +
@@ -503,7 +503,7 @@ const Profile = () => {
                     <AvatarImage src={profilePictureUrl} className="object-cover" />
                     <AvatarFallback className="bg-book-50 text-book-600 text-2xl font-bold">
                       {(
-                        (profile.full_name || profile.name || "U")
+                        (profile.name || "U")
                         .charAt(0)
                         ?.toUpperCase()
                       )}
@@ -522,7 +522,7 @@ const Profile = () => {
                 <div className="space-y-4 w-full">
                   <div>
                     <h1 className="text-3xl font-bold text-gray-900">
-                      {profile.full_name || profile.name || "Anonymous User"}
+                      {profile.name || "Anonymous User"}
                     </h1>
                     <div className="flex flex-wrap items-center justify-center gap-4 text-sm text-gray-500 mt-2">
                       <div className="flex items-center gap-1.5">
@@ -1081,8 +1081,8 @@ const Profile = () => {
                             await supabase.functions.invoke("send-email", {
                               body: {
                                 to: row.wishlist_email,
-                                subject: `Good news — ${profile?.full_name || profile?.name || "Seller"} is back!`,
-                                html: `<p>Good news — ${profile?.full_name || profile?.name || "Seller"} is back!</p><p>Grab <strong>${row.listing_title}</strong> before someone else does.</p>`,
+                                subject: `Good news — ${profile?.name || "Seller"} is back!`,
+                                html: `<p>Good news — ${profile?.name || "Seller"} is back!</p><p>Grab <strong>${row.listing_title}</strong> before someone else does.</p>`,
                               },
                             });
                           }

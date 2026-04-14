@@ -335,7 +335,7 @@ const NotificationsNew = () => {
         }
       } catch (error) {
         const safeConnectionErrorMessage = getSafeErrorMessage(error, 'Connection test failed');
-        const errorMessage = getConnectionErrorMessage(error);
+        const errorMessage = getConnectionErrorMessage();
         setConnectionStatus({
           isOnline: navigator.onLine,
           supabaseReachable: false,

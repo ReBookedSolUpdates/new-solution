@@ -173,11 +173,12 @@ export const createBook = async (bookData: BookFormData, aiAssisted: boolean = f
 
     // Log activity for book listing
     try {
-      await ActivityService.logBookListing(
+      await ActivityService.logActivity(
+        "listing_created",
+        "book",
         user.id,
         book.id,
-        bookData.title,
-        bookData.price,
+        { title: bookData.title, price: bookData.price },
       );
     } catch (activityError) {
       // Don't throw here - book creation was successful, activity logging is secondary

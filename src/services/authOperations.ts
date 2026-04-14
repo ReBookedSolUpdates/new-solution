@@ -309,7 +309,7 @@ export const fetchUserProfile = async (user: User): Promise<Profile | null> => {
       },
     );
 
-    const { data: profile, error: profileError } = result;
+    const { data: profile, error: profileError } = result as any;
 
     if (profileError) {
       logError("Error fetching profile", profileError);

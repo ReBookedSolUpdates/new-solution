@@ -76,9 +76,25 @@ const AuthCallback = () => {
     }
     const handleAuthCallback = async () => {
       try {
+        // Helper to extract params from multiple sources
+        const getParam = (name: string) => {
+          let value = searchParams.get(name);
+          if (value) return value;
+          value = new URLSearchParams(window.location.hash.substring(1)).get(name);
+          if (value) return value;
+          const fullUrl = window.location.href;
+          const decodedUrl = decodeURIComponent(fullUrl);
+          const regex = new RegExp(`[?&#]${name}=([^&#]*)`);
+          const match = decodedUrl.match(regex);
+          return match ? match[1] : null;
+        };
+        const isRecoveryHint = () => {
+          const r = (getParam("recovery") || "").toLowerCase();
+          const flow = (getParam("flow") || "").toLowerCase();
+          return r === "1" || r === "true" || flow === "recovery";
+        };
 
         // FIRST: Check if Supabase has already authenticated the user automatically
-        // This happens in many cases where the callback URL contains valid tokens
         const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
 
         if (!sessionError && sessionData.session && sessionData.user) {
@@ -104,32 +120,7 @@ const AuthCallback = () => {
           return;
         }
 
-        // Enhanced URL parameter extraction - handle multiple formats
-        const getParam = (name: string) => {
-          // Check search params first
-          let value = searchParams.get(name);
-          if (value) return value;
-
-          // Check hash params
-          value = new URLSearchParams(window.location.hash.substring(1)).get(name);
-          if (value) return value;
-
-          // Check for URL-encoded parameters (some email clients encode URLs)
-          const fullUrl = window.location.href;
-          const decodedUrl = decodeURIComponent(fullUrl);
-
-          // Try to extract from decoded URL
-          const regex = new RegExp(`[?&#]${name}=([^&#]*)`);
-          const match = decodedUrl.match(regex);
-          if (match) return match[1];
-
-          return null;
-        };
-        const isRecoveryHint = () => {
-          const r = (getParam("recovery") || "").toLowerCase();
-          const flow = (getParam("flow") || "").toLowerCase();
-          return r === "1" || r === "true" || flow === "recovery";
-        };
+        // Enhanced URL parameter extraction already defined above as getParam/isRecoveryHint
 
         const access_token = getParam("access_token");
         const refresh_token = getParam("refresh_token");

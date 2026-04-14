@@ -128,20 +128,6 @@ export type Database = {
             foreignKeyName: "affiliate_earnings_affiliate_id_fkey"
             columns: ["affiliate_id"]
             isOneToOne: false
-            referencedRelation: "account_details"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "affiliate_earnings_affiliate_id_fkey"
-            columns: ["affiliate_id"]
-            isOneToOne: false
-            referencedRelation: "account_details"
-            referencedColumns: ["user_id"]
-          },
-          {
-            foreignKeyName: "affiliate_earnings_affiliate_id_fkey"
-            columns: ["affiliate_id"]
-            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -158,20 +144,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "orders"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "affiliate_earnings_referred_user_id_fkey"
-            columns: ["referred_user_id"]
-            isOneToOne: false
-            referencedRelation: "account_details"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "affiliate_earnings_referred_user_id_fkey"
-            columns: ["referred_user_id"]
-            isOneToOne: false
-            referencedRelation: "account_details"
-            referencedColumns: ["user_id"]
           },
           {
             foreignKeyName: "affiliate_earnings_referred_user_id_fkey"
@@ -244,36 +216,8 @@ export type Database = {
             foreignKeyName: "affiliates_referrals_affiliate_id_fkey"
             columns: ["affiliate_id"]
             isOneToOne: false
-            referencedRelation: "account_details"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "affiliates_referrals_affiliate_id_fkey"
-            columns: ["affiliate_id"]
-            isOneToOne: false
-            referencedRelation: "account_details"
-            referencedColumns: ["user_id"]
-          },
-          {
-            foreignKeyName: "affiliates_referrals_affiliate_id_fkey"
-            columns: ["affiliate_id"]
-            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "affiliates_referrals_referred_user_id_fkey"
-            columns: ["referred_user_id"]
-            isOneToOne: true
-            referencedRelation: "account_details"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "affiliates_referrals_referred_user_id_fkey"
-            columns: ["referred_user_id"]
-            isOneToOne: true
-            referencedRelation: "account_details"
-            referencedColumns: ["user_id"]
           },
           {
             foreignKeyName: "affiliates_referrals_referred_user_id_fkey"
@@ -574,20 +518,6 @@ export type Database = {
             foreignKeyName: "articles_author_id_fkey"
             columns: ["author_id"]
             isOneToOne: false
-            referencedRelation: "account_details"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "articles_author_id_fkey"
-            columns: ["author_id"]
-            isOneToOne: false
-            referencedRelation: "account_details"
-            referencedColumns: ["user_id"]
-          },
-          {
-            foreignKeyName: "articles_author_id_fkey"
-            columns: ["author_id"]
-            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -773,36 +703,8 @@ export type Database = {
             foreignKeyName: "books_affiliate_ref_id_fkey"
             columns: ["affiliate_ref_id"]
             isOneToOne: false
-            referencedRelation: "account_details"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "books_affiliate_ref_id_fkey"
-            columns: ["affiliate_ref_id"]
-            isOneToOne: false
-            referencedRelation: "account_details"
-            referencedColumns: ["user_id"]
-          },
-          {
-            foreignKeyName: "books_affiliate_ref_id_fkey"
-            columns: ["affiliate_ref_id"]
-            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fk_books_seller_profile"
-            columns: ["seller_id"]
-            isOneToOne: false
-            referencedRelation: "account_details"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fk_books_seller_profile"
-            columns: ["seller_id"]
-            isOneToOne: false
-            referencedRelation: "account_details"
-            referencedColumns: ["user_id"]
           },
           {
             foreignKeyName: "fk_books_seller_profile"
@@ -904,20 +806,6 @@ export type Database = {
             foreignKeyName: "buyer_feedback_orders_buyer_id_fkey"
             columns: ["buyer_id"]
             isOneToOne: false
-            referencedRelation: "account_details"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "buyer_feedback_orders_buyer_id_fkey"
-            columns: ["buyer_id"]
-            isOneToOne: false
-            referencedRelation: "account_details"
-            referencedColumns: ["user_id"]
-          },
-          {
-            foreignKeyName: "buyer_feedback_orders_buyer_id_fkey"
-            columns: ["buyer_id"]
-            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -927,20 +815,6 @@ export type Database = {
             isOneToOne: true
             referencedRelation: "orders"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "buyer_feedback_orders_seller_id_fkey"
-            columns: ["seller_id"]
-            isOneToOne: false
-            referencedRelation: "account_details"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "buyer_feedback_orders_seller_id_fkey"
-            columns: ["seller_id"]
-            isOneToOne: false
-            referencedRelation: "account_details"
-            referencedColumns: ["user_id"]
           },
           {
             foreignKeyName: "buyer_feedback_orders_seller_id_fkey"
@@ -1062,36 +936,8 @@ export type Database = {
             foreignKeyName: "cashout_request_affiliate_id_fkey"
             columns: ["affiliate_id"]
             isOneToOne: false
-            referencedRelation: "account_details"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "cashout_request_affiliate_id_fkey"
-            columns: ["affiliate_id"]
-            isOneToOne: false
-            referencedRelation: "account_details"
-            referencedColumns: ["user_id"]
-          },
-          {
-            foreignKeyName: "cashout_request_affiliate_id_fkey"
-            columns: ["affiliate_id"]
-            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "cashout_request_processed_by_fkey"
-            columns: ["processed_by"]
-            isOneToOne: false
-            referencedRelation: "account_details"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "cashout_request_processed_by_fkey"
-            columns: ["processed_by"]
-            isOneToOne: false
-            referencedRelation: "account_details"
-            referencedColumns: ["user_id"]
           },
           {
             foreignKeyName: "cashout_request_processed_by_fkey"
@@ -1256,20 +1102,6 @@ export type Database = {
             foreignKeyName: "coupon_affiliate_earnings_affiliate_id_fkey"
             columns: ["affiliate_id"]
             isOneToOne: false
-            referencedRelation: "account_details"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "coupon_affiliate_earnings_affiliate_id_fkey"
-            columns: ["affiliate_id"]
-            isOneToOne: false
-            referencedRelation: "account_details"
-            referencedColumns: ["user_id"]
-          },
-          {
-            foreignKeyName: "coupon_affiliate_earnings_affiliate_id_fkey"
-            columns: ["affiliate_id"]
-            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -1401,20 +1233,6 @@ export type Database = {
             foreignKeyName: "coupons_affiliate_id_fkey"
             columns: ["affiliate_id"]
             isOneToOne: false
-            referencedRelation: "account_details"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "coupons_affiliate_id_fkey"
-            columns: ["affiliate_id"]
-            isOneToOne: false
-            referencedRelation: "account_details"
-            referencedColumns: ["user_id"]
-          },
-          {
-            foreignKeyName: "coupons_affiliate_id_fkey"
-            columns: ["affiliate_id"]
-            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -1422,7 +1240,6 @@ export type Database = {
       }
       messages: {
         Row: {
-          content: string | null
           content_encrypted: string | null
           conversation_id: string
           created_at: string
@@ -1435,7 +1252,6 @@ export type Database = {
           sender_id: string
         }
         Insert: {
-          content?: string | null
           content_encrypted?: string | null
           conversation_id: string
           created_at?: string
@@ -1448,7 +1264,6 @@ export type Database = {
           sender_id: string
         }
         Update: {
-          content?: string | null
           content_encrypted?: string | null
           conversation_id?: string
           created_at?: string
@@ -1973,7 +1788,6 @@ export type Database = {
           address_encryption_version: number | null
           addresses_same: boolean | null
           affiliate_code: string | null
-          aps_profile: Json | null
           auto_commit: boolean
           bio: string | null
           created_at: string
@@ -1993,7 +1807,6 @@ export type Database = {
           phone_verification_code: string | null
           phone_verified: boolean | null
           pickup_address_encrypted: string | null
-          preferences: Json | null
           preferred_delivery_locker_data: Json | null
           preferred_delivery_locker_location_id: number | null
           preferred_delivery_locker_provider_slug: string | null
@@ -2023,7 +1836,6 @@ export type Database = {
           address_encryption_version?: number | null
           addresses_same?: boolean | null
           affiliate_code?: string | null
-          aps_profile?: Json | null
           auto_commit?: boolean
           bio?: string | null
           created_at?: string
@@ -2043,7 +1855,6 @@ export type Database = {
           phone_verification_code?: string | null
           phone_verified?: boolean | null
           pickup_address_encrypted?: string | null
-          preferences?: Json | null
           preferred_delivery_locker_data?: Json | null
           preferred_delivery_locker_location_id?: number | null
           preferred_delivery_locker_provider_slug?: string | null
@@ -2073,7 +1884,6 @@ export type Database = {
           address_encryption_version?: number | null
           addresses_same?: boolean | null
           affiliate_code?: string | null
-          aps_profile?: Json | null
           auto_commit?: boolean
           bio?: string | null
           created_at?: string
@@ -2093,7 +1903,6 @@ export type Database = {
           phone_verification_code?: string | null
           phone_verified?: boolean | null
           pickup_address_encrypted?: string | null
-          preferences?: Json | null
           preferred_delivery_locker_data?: Json | null
           preferred_delivery_locker_location_id?: number | null
           preferred_delivery_locker_provider_slug?: string | null
@@ -2358,36 +2167,8 @@ export type Database = {
             foreignKeyName: "school_supplies_affiliate_ref_id_fkey"
             columns: ["affiliate_ref_id"]
             isOneToOne: false
-            referencedRelation: "account_details"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "school_supplies_affiliate_ref_id_fkey"
-            columns: ["affiliate_ref_id"]
-            isOneToOne: false
-            referencedRelation: "account_details"
-            referencedColumns: ["user_id"]
-          },
-          {
-            foreignKeyName: "school_supplies_affiliate_ref_id_fkey"
-            columns: ["affiliate_ref_id"]
-            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "school_supplies_seller_id_fkey"
-            columns: ["seller_id"]
-            isOneToOne: false
-            referencedRelation: "account_details"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "school_supplies_seller_id_fkey"
-            columns: ["seller_id"]
-            isOneToOne: false
-            referencedRelation: "account_details"
-            referencedColumns: ["user_id"]
           },
           {
             foreignKeyName: "school_supplies_seller_id_fkey"
@@ -2434,36 +2215,8 @@ export type Database = {
             foreignKeyName: "seller_reviews_reviewer_id_fkey"
             columns: ["reviewer_id"]
             isOneToOne: false
-            referencedRelation: "account_details"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "seller_reviews_reviewer_id_fkey"
-            columns: ["reviewer_id"]
-            isOneToOne: false
-            referencedRelation: "account_details"
-            referencedColumns: ["user_id"]
-          },
-          {
-            foreignKeyName: "seller_reviews_reviewer_id_fkey"
-            columns: ["reviewer_id"]
-            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "seller_reviews_seller_id_fkey"
-            columns: ["seller_id"]
-            isOneToOne: false
-            referencedRelation: "account_details"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "seller_reviews_seller_id_fkey"
-            columns: ["seller_id"]
-            isOneToOne: false
-            referencedRelation: "account_details"
-            referencedColumns: ["user_id"]
           },
           {
             foreignKeyName: "seller_reviews_seller_id_fkey"
@@ -2647,36 +2400,8 @@ export type Database = {
             foreignKeyName: "uniforms_affiliate_ref_id_fkey"
             columns: ["affiliate_ref_id"]
             isOneToOne: false
-            referencedRelation: "account_details"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "uniforms_affiliate_ref_id_fkey"
-            columns: ["affiliate_ref_id"]
-            isOneToOne: false
-            referencedRelation: "account_details"
-            referencedColumns: ["user_id"]
-          },
-          {
-            foreignKeyName: "uniforms_affiliate_ref_id_fkey"
-            columns: ["affiliate_ref_id"]
-            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "uniforms_seller_id_fkey"
-            columns: ["seller_id"]
-            isOneToOne: false
-            referencedRelation: "account_details"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "uniforms_seller_id_fkey"
-            columns: ["seller_id"]
-            isOneToOne: false
-            referencedRelation: "account_details"
-            referencedColumns: ["user_id"]
           },
           {
             foreignKeyName: "uniforms_seller_id_fkey"
@@ -2823,60 +2548,6 @@ export type Database = {
       }
     }
     Views: {
-      account_details: {
-        Row: {
-          bio: string | null
-          created_at: string | null
-          date_of_birth: string | null
-          email: string | null
-          email_verified: boolean | null
-          first_name: string | null
-          full_name: string | null
-          id: string | null
-          last_name: string | null
-          phone_number: string | null
-          phone_verified: boolean | null
-          preferences: Json | null
-          profile_picture_url: string | null
-          updated_at: string | null
-          user_id: string | null
-        }
-        Insert: {
-          bio?: string | null
-          created_at?: string | null
-          date_of_birth?: string | null
-          email?: string | null
-          email_verified?: boolean | null
-          first_name?: string | null
-          full_name?: string | null
-          id?: string | null
-          last_name?: string | null
-          phone_number?: string | null
-          phone_verified?: boolean | null
-          preferences?: Json | null
-          profile_picture_url?: string | null
-          updated_at?: string | null
-          user_id?: string | null
-        }
-        Update: {
-          bio?: string | null
-          created_at?: string | null
-          date_of_birth?: string | null
-          email?: string | null
-          email_verified?: boolean | null
-          first_name?: string | null
-          full_name?: string | null
-          id?: string | null
-          last_name?: string | null
-          phone_number?: string | null
-          phone_verified?: boolean | null
-          preferences?: Json | null
-          profile_picture_url?: string | null
-          updated_at?: string | null
-          user_id?: string | null
-        }
-        Relationships: []
-      }
       public_profiles: {
         Row: {
           bio: string | null

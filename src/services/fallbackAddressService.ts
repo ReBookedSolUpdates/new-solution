@@ -343,7 +343,7 @@ class FallbackAddressService {
       country: googleData?.country || manualData?.country || 'South Africa',
       latitude: googleData?.latitude || manualData?.latitude,
       longitude: googleData?.longitude || manualData?.longitude,
-      source: googleData ? 'google_maps' : 'manual_entry',
+      source: (googleData ? 'google_maps' : 'manual_entry') as "google_maps" | "manual_entry",
       timestamp: new Date().toISOString(),
     };
 
