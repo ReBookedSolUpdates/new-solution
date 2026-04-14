@@ -32,7 +32,7 @@ serve(async (req) => {
     const expired = expiredOrders || [];
     for (const order of expired) {
       try {
-        await fetch(`${supabaseUrl}/functions/v1/cancel-order-with-refund`, {
+        const cancelResponse = await fetch(`${supabaseUrl}/functions/v1/cancel-order-with-refund`, {
           method: "POST",
           headers: {
             "Authorization": `Bearer ${supabaseServiceKey}`,
@@ -40,10 +40,16 @@ serve(async (req) => {
           },
           body: JSON.stringify({
             order_id: order.id,
-            cancelled_by: "ReBooked Solutions",
+            cancelled_by: "admin",
             reason: "Order auto-cancelled: seller did not commit within 48 hours",
           }),
         });
+
+        if (!cancelResponse.ok) {
+          const errorText = await cancelResponse.text();
+          console.error(`[check-expired-orders] Failed to auto-cancel order ${order.id}: ${errorText}`);
+          continue;
+        }
       } catch (cancelError) {
         console.error(`[check-expired-orders] Failed to auto-cancel order ${order.id}:`, cancelError);
         continue;
@@ -59,7 +65,7 @@ serve(async (req) => {
       const tableName = tableMap[order.item_type] || order.item_type;
       const { error: relistError } = await supabase
         .from(tableName)
-        .update({ sold: false, is_available: true })
+        .update({ sold: false })
         .eq('id', order.item_id);
       if (relistError) {
         console.error(`[check-expired-orders] Failed to relist item ${order.item_id}:`, relistError);

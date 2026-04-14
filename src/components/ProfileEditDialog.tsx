@@ -102,7 +102,6 @@ const ProfileEditDialog = ({ isOpen, onClose }: ProfileEditDialogProps) => {
           full_name: `${firstName.trim()} ${lastName.trim()}`.trim(),
           name: `${firstName.trim()} ${lastName.trim()}`.trim(),
           profile_picture_url: profilePictureUrl,
-          avatar_url: profilePictureUrl,
           updated_at: new Date().toISOString(),
         })
         .eq("id", user.id);
@@ -149,7 +148,7 @@ const ProfileEditDialog = ({ isOpen, onClose }: ProfileEditDialogProps) => {
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form id="profile-edit-form" onSubmit={handleSubmit} className="space-y-6">
           {/* Profile Picture Upload */}
           <div className="flex flex-col items-center space-y-3">
             <div className="relative">
@@ -265,7 +264,8 @@ const ProfileEditDialog = ({ isOpen, onClose }: ProfileEditDialogProps) => {
             Cancel
           </Button>
           <Button
-            onClick={handleSubmit}
+            type="submit"
+            form="profile-edit-form"
             disabled={isLoading}
             className="bg-book-600 hover:bg-book-700"
           >

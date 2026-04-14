@@ -311,6 +311,9 @@ function AppRoutes() {
         <Route path="/shipping" element={<Shipping />} />
         <Route path="/tracking" element={<Tracking />} />
         <Route path="/getting-started" element={<GettingStarted />} />
+        <Route path="/textbook-guide" element={<CategoryInfoPage />} />
+        <Route path="/uniform-guide" element={<CategoryInfoPage />} />
+        <Route path="/school-supplies-guide" element={<CategoryInfoPage />} />
         <Route path="/category/:slug" element={<CategoryInfoPage />} />
 
         <Route path="/report" element={<Report />} />

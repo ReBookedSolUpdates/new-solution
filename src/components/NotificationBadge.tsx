@@ -66,11 +66,11 @@ const NotificationBadge = ({
 
   const getNotificationIcon = () => {
     if (hasError) {
-      return <BellOff className={`${iconSize} text-gray-400`} />;
+      return <BellOff className={iconSize} />;
     }
 
     if (notificationsLoading) {
-      return <Bell className={`${iconSize} animate-pulse text-gray-500`} />;
+      return <Bell className={`${iconSize} animate-pulse`} />;
     }
 
     return <Bell className={iconSize} />;

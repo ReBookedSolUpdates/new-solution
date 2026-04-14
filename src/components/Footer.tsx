@@ -48,7 +48,7 @@ const Footer = () => {
               </li>
               <li>
                 <Link
-                  to="/category/textbooks"
+                  to="/textbook-guide"
                   className="text-gray-600 hover:text-book-600 text-sm"
                   onClick={handleLinkClick}
                 >
@@ -57,7 +57,7 @@ const Footer = () => {
               </li>
               <li>
                 <Link
-                  to="/category/uniforms"
+                  to="/uniform-guide"
                   className="text-gray-600 hover:text-book-600 text-sm"
                   onClick={handleLinkClick}
                 >
@@ -66,7 +66,7 @@ const Footer = () => {
               </li>
               <li>
                 <Link
-                  to="/category/school-supplies"
+                  to="/school-supplies-guide"
                   className="text-gray-600 hover:text-book-600 text-sm"
                   onClick={handleLinkClick}
                 >

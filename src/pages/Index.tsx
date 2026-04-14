@@ -62,7 +62,7 @@ const Index = () => {
         url="https://www.rebookedsolutions.co.za/"
       />
 
-      {/* Hero Section - image right on desktop, below text on mobile/tablet */}
+      {/* Hero Section */}
       <section className="py-12 sm:py-16 bg-gradient-to-r from-book-100 to-white">
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-1 lg:grid-cols-2 items-center gap-8 lg:gap-12">
@@ -79,14 +79,18 @@ const Index = () => {
                 buy affordable secondhand school items or sell what you no longer need,
                 all handled securely through ReBooked Solutions.
               </p>
-              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center lg:justify-start items-center">
-                <Button size="lg" className="bg-book-600 hover:bg-book-700" onClick={() => navigate("/textbooks")}>
+              <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:gap-4 sm:justify-center lg:justify-start">
+                <Button
+                  size="lg"
+                  className="w-full sm:w-auto sm:min-w-[190px] bg-book-600 hover:bg-book-700"
+                  onClick={() => navigate("/textbooks")}
+                >
                   Browse Listings
                 </Button>
                 <Button
                   size="lg"
                   variant="outline"
-                  className="border-book-600 text-book-700 hover:bg-book-100"
+                  className="w-full sm:w-auto sm:min-w-[190px] border-book-600 text-book-700 hover:bg-book-100"
                   onClick={() => navigate("/create-listing")}
                 >
                   Sell Your Items

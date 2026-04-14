@@ -35,22 +35,20 @@ serve(async (req) => {
   try {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
-    // Get the authorization header (might be in Authorization or from req itself)
     const authHeader = req.headers.get('Authorization');
+    const authToken = authHeader?.replace('Bearer ', '') || '';
+    const isServiceRoleRequest = authToken === SUPABASE_SERVICE_KEY;
 
     let user = null;
     let authError = null;
 
-    // Try to get user from auth header
-    if (authHeader) {
-      const token = authHeader.replace('Bearer ', '');
-      const result = await supabase.auth.getUser(token);
+    if (!isServiceRoleRequest && authHeader) {
+      const result = await supabase.auth.getUser(authToken);
       user = result.data?.user;
       authError = result.error;
     }
 
-    // If no auth header or invalid token, try with the request itself
-    if (!user) {
+    if (!user && !isServiceRoleRequest) {
       console.error('Authentication failed:', authError?.message || 'No authorization header');
       return new Response(
         JSON.stringify({
@@ -85,18 +83,21 @@ serve(async (req) => {
       );
     }
 
-    // Check if user is authorized (admin, buyer, or seller)
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single();
+    let profile = null;
+    if (user?.id) {
+      const { data } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+      profile = data;
+    }
 
-    const isAuthorized =
+    const isAuthorized = isServiceRoleRequest ||
       profile?.role === 'admin' ||
       profile?.role === 'super_admin' ||
-      order.buyer_id === user.id ||
-      order.seller_id === user.id;
+      order.buyer_id === user?.id ||
+      order.seller_id === user?.id;
 
     if (!isAuthorized) {
       return new Response(
@@ -155,9 +156,9 @@ serve(async (req) => {
         const shipmentResponse = await fetch(cancelShipmentUrl, {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+            'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
             'Content-Type': 'application/json',
-            'apikey': SUPABASE_ANON_KEY,
+            'apikey': SUPABASE_SERVICE_KEY,
           },
           body: JSON.stringify({
             tracking_reference: order.tracking_number,
@@ -188,7 +189,7 @@ serve(async (req) => {
       const refundResponse = await fetch(refundUrl, {
         method: 'POST',
         headers: {
-          'Authorization': authHeader!,
+          'Authorization': isServiceRoleRequest ? `Bearer ${SUPABASE_SERVICE_KEY}` : authHeader!,
           'Content-Type': 'application/json',
           'apikey': SUPABASE_ANON_KEY,
         },
@@ -257,7 +258,7 @@ serve(async (req) => {
     // STEP 5: Send cancellation emails to buyer and seller.
     const actor =
       cancelled_by ||
-      (order.buyer_id === user.id ? "buyer" : order.seller_id === user.id ? "seller" : "admin");
+      (order.buyer_id === user?.id ? "buyer" : order.seller_id === user?.id ? "seller" : "admin");
     const actorText = actor === "buyer" ? "buyer" : actor === "seller" ? "seller" : "platform team";
     const cancelReason = reason || "Order cancelled by user";
 

@@ -1315,6 +1315,27 @@ export type Database = {
         }
         Relationships: []
       }
+      wishlists: {
+        Row: {
+          created_at: string
+          id: string
+          listing_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          listing_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          listing_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       order_notifications: {
         Row: {
           action_required: boolean | null
@@ -1801,6 +1822,7 @@ export type Database = {
           id: string
           is_admin: boolean | null
           is_affiliate: boolean
+          is_away: boolean
           last_name: string | null
           name: string | null
           phone_number: string | null
@@ -1849,6 +1871,7 @@ export type Database = {
           id: string
           is_admin?: boolean | null
           is_affiliate?: boolean
+          is_away?: boolean
           last_name?: string | null
           name?: string | null
           phone_number?: string | null
@@ -1897,6 +1920,7 @@ export type Database = {
           id?: string
           is_admin?: boolean | null
           is_affiliate?: boolean
+          is_away?: boolean
           last_name?: string | null
           name?: string | null
           phone_number?: string | null
@@ -2853,6 +2877,16 @@ export type Database = {
         Returns: {
           average_rating: number
           review_count: number
+        }[]
+      }
+      get_seller_wishlist_contacts: {
+        Args: { p_seller_id: string }
+        Returns: {
+          listing_id: string
+          listing_title: string
+          wishlist_email: string
+          wishlist_name: string
+          wishlist_user_id: string
         }[]
       }
       get_seller_profile_for_checkout: {

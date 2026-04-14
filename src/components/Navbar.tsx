@@ -194,7 +194,7 @@ const Navbar = () => {
                 <CartButton />
                 <Link
                   to="/notifications"
-                  className="relative p-2 text-gray-600 hover:text-book-600 transition-colors"
+                  className="relative p-2 text-gray-700 hover:text-book-600 transition-colors"
                   title="View notifications"
                 >
                   <NotificationBadge

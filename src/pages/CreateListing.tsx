@@ -167,7 +167,7 @@ const CreateListing = () => {
       try {
         const { data: profileData } = await supabase
           .from("profiles")
-          .select("preferred_delivery_locker_data, phone_number")
+          .select("preferred_delivery_locker_data, preferred_pickup_locker_data, pickup_address_encrypted, phone_number")
           .eq("id", user.id)
           .maybeSingle();
 
@@ -175,23 +175,27 @@ const CreateListing = () => {
         const hasPhone = !!profileData?.phone_number;
         setHasPhoneNumber(hasPhone);
 
-        // Check locker
-        let hasLocker = false;
-        if (profileData?.preferred_delivery_locker_data) {
-          const lockerData = profileData.preferred_delivery_locker_data as any;
-          if (lockerData.id && lockerData.name) {
-            setSavedLocker(lockerData);
-            hasLocker = true;
-            
-            // Auto-populate province if available
-            if (lockerData.province) {
-              setBookFormData(prev => ({ ...prev, province: lockerData.province }));
-              setUniformFormData(prev => ({ ...prev, province: lockerData.province }));
-              setSupplyFormData(prev => ({ ...prev, province: lockerData.province }));
-            }
+        const deliveryLocker = profileData?.preferred_delivery_locker_data as any;
+        const pickupLocker = profileData?.preferred_pickup_locker_data as any;
+        const usableLocker =
+          deliveryLocker?.id && deliveryLocker?.name
+            ? deliveryLocker
+            : pickupLocker?.id && pickupLocker?.name
+              ? pickupLocker
+              : null;
+        const hasPickupAddress = !!profileData?.pickup_address_encrypted;
+
+        if (usableLocker) {
+          setSavedLocker(usableLocker);
+
+          if (usableLocker.province) {
+            setBookFormData(prev => ({ ...prev, province: usableLocker.province }));
+            setUniformFormData(prev => ({ ...prev, province: usableLocker.province }));
+            setSupplyFormData(prev => ({ ...prev, province: usableLocker.province }));
           }
         }
-        setCanListItems(hasLocker);
+
+        setCanListItems(Boolean(usableLocker || hasPickupAddress));
       } catch {
         setCanListItems(false);
         setHasPhoneNumber(false);
@@ -201,7 +205,7 @@ const CreateListing = () => {
     };
 
     checkRequirementsStatus();
-  }, [user?.id, profile?.preferred_delivery_locker_data]);
+  }, [user?.id, profile]);
 
   // ── Input handlers ────────────────────────────────────────────────────────
   const handleBookInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -309,7 +313,7 @@ const CreateListing = () => {
     e.preventDefault();
     if (isSubmitting) return;
     if (!user) { toast.error("You must be logged in to create a listing"); return; }
-    if (canListItems === false) { toast.error("❌ Please select and save a Pudo locker before listing."); return; }
+      if (canListItems === false) { toast.error("Please add a pickup option before listing."); return; }
     if (!validateForm()) {
       toast.error("Please fill in all required fields and upload photos");
       return;
@@ -325,7 +329,7 @@ const CreateListing = () => {
 
       if (!userProfile?.phone_number) {
         toast.error("Please add your phone number in your profile before listing items. It's used for shipping.");
-        navigate("/profile");
+        navigate("/profile?tab=settings");
         return;
       }
     } catch (error) {
@@ -495,7 +499,7 @@ const CreateListing = () => {
                   <AlertDescription className="space-y-3">
                     <p>A phone number is required for courier collection purposes. You cannot list items without one.</p>
                     <Button 
-                      onClick={() => navigate("/profile")}
+                      onClick={() => navigate("/profile?tab=settings")}
                       className="bg-red-600 hover:bg-red-700 text-white mt-2"
                     >
                       Add Phone Number to Profile
@@ -508,9 +512,9 @@ const CreateListing = () => {
                 <>
                   <Alert className="bg-amber-50 border-amber-200 text-amber-900 mb-6">
                     <AlertTriangle className="h-5 w-5 text-amber-600" />
-                    <AlertTitle className="font-bold">Locker Information Needed</AlertTitle>
+                    <AlertTitle className="font-bold">Pickup Information Needed</AlertTitle>
                     <AlertDescription>
-                      Please search for and save a Pudo locker below. This is where you will drop off your items once they are sold. <strong>You must click "Save to Profile" on your chosen locker.</strong>
+                      Add either a saved locker or a pickup address before listing. If you want to use lockers, search and save one below.
                     </AlertDescription>
                   </Alert>
                   <PudoLockerSelector

@@ -495,89 +495,86 @@ const Profile = () => {
       <div className="container mx-auto px-4 py-8 max-w-6xl">
         {/* Profile Header */}
         <div className="mb-8">
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex flex-col items-center text-center gap-6">
-                <div className="relative group">
-                  <Avatar className="w-24 h-24 border-2 border-book-100 shadow-md">
-                    <AvatarImage src={profilePictureUrl} className="object-cover" />
-                    <AvatarFallback className="bg-book-50 text-book-600 text-2xl font-bold">
-                      {(
-                        (profile.name || "U")
-                        .charAt(0)
-                        ?.toUpperCase()
-                      )}
-                    </AvatarFallback>
-                  </Avatar>
-                  <Button
-                    onClick={() => setIsEditDialogOpen(true)}
-                    size="icon"
-                    variant="secondary"
-                    className="absolute -bottom-1 -right-1 h-8 w-8 rounded-full shadow-lg border-2 border-white scale-90 opacity-0 group-hover:opacity-100 transition-all"
-                  >
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                </div>
-
-                <div className="space-y-4 w-full">
-                  <div>
-                    <h1 className="text-3xl font-bold text-gray-900">
-                      {profile.name || "Anonymous User"}
-                    </h1>
-                    <div className="flex flex-wrap items-center justify-center gap-4 text-sm text-gray-500 mt-2">
-                      <div className="flex items-center gap-1.5">
-                        <Mail className="w-4 h-4 text-book-400" />
-                        {user.email}
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <Calendar className="w-4 h-4 text-book-400" />
-                        Joined{" "}
-                        {profile?.created_at
-                          ? new Date(profile.created_at).toLocaleDateString("en-US", {
-                              year: "numeric",
-                              month: "long",
-                            })
-                          : "Unknown"}
-                      </div>
-                    </div>
+          <Card className="border-gray-200 shadow-sm">
+            <CardContent className="p-6 sm:p-8">
+              <div className="flex flex-col gap-6 text-center md:flex-row md:items-center md:justify-between md:text-left">
+                <div className="flex flex-col items-center gap-5 md:flex-row md:items-center md:gap-6">
+                  <div className="relative group">
+                    <Avatar className="w-24 h-24 border-2 border-book-100 shadow-md">
+                      <AvatarImage src={profilePictureUrl} className="object-cover" />
+                      <AvatarFallback className="bg-book-50 text-book-600 text-2xl font-bold">
+                        {(
+                          (profile.name || "U")
+                          .charAt(0)
+                          ?.toUpperCase()
+                        )}
+                      </AvatarFallback>
+                    </Avatar>
+                    <Button
+                      onClick={() => setIsEditDialogOpen(true)}
+                      size="icon"
+                      variant="secondary"
+                      className="absolute -bottom-1 -right-1 h-8 w-8 rounded-full shadow-lg border-2 border-white scale-90 opacity-0 group-hover:opacity-100 transition-all"
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
                   </div>
 
-                  {/* Quick Stats - Centered */}
-                  <div className="flex flex-wrap justify-center gap-8 py-2">
-                    <div className="flex flex-col items-center">
-                      <div className="flex items-center gap-2 mb-1">
+                  <div className="space-y-4">
+                    <div>
+                      <h1 className="text-3xl font-bold text-gray-900">
+                        {profile.name || "Anonymous User"}
+                      </h1>
+                      <div className="mt-2 flex flex-wrap items-center justify-center gap-4 text-sm text-gray-500 md:justify-start">
+                        <div className="flex items-center gap-1.5">
+                          <Mail className="w-4 h-4 text-book-400" />
+                          {user.email}
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <Calendar className="w-4 h-4 text-book-400" />
+                          Joined{" "}
+                          {profile?.created_at
+                            ? new Date(profile.created_at).toLocaleDateString("en-US", {
+                                year: "numeric",
+                                month: "long",
+                              })
+                            : "Unknown"}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center justify-center gap-6 md:justify-start">
+                      <div className="flex items-center gap-2">
                         <Package className="w-4 h-4 text-book-600" />
                         <span className="text-xl font-bold text-gray-900">{stats.totalBooks}</span>
+                        <span className="text-lg text-gray-700">Books Listed</span>
                       </div>
-                      <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Items Listed</span>
-                    </div>
-                    
-                    <div className="flex flex-col items-center">
-                      <div className="flex items-center gap-2 mb-1">
+
+                      <div className="flex items-center gap-2">
                         <TrendingUp className="w-4 h-4 text-green-600" />
                         <span className="text-xl font-bold text-gray-900">R{stats.totalValue.toFixed(0)}</span>
+                        <span className="text-lg text-gray-700">Total Value</span>
                       </div>
-                      <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Total Value</span>
                     </div>
                   </div>
+                </div>
 
-                  <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
-                    <Button
-                      onClick={() => navigate("/create-listing")}
-                      className="bg-book-600 hover:bg-book-700 h-10 px-6 font-semibold shadow-sm"
-                    >
-                      <Plus className="w-4 h-4 mr-2" />
-                      List an Item
-                    </Button>
-                    <Button
-                      onClick={() => setIsShareDialogOpen(true)}
-                      variant="outline"
-                      className="border-book-200 text-book-600 hover:bg-book-50 h-10 px-6 font-semibold"
-                    >
-                      <Share2 className="w-4 h-4 mr-2" />
-                      Share Profile
-                    </Button>
-                  </div>
+                <div className="flex flex-col items-stretch gap-3 sm:flex-row md:flex-col md:items-end">
+                  <Button
+                    onClick={() => navigate("/create-listing")}
+                    className="bg-book-600 hover:bg-book-700 h-11 px-6 font-semibold shadow-sm md:min-w-[190px]"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    List an Item
+                  </Button>
+                  <Button
+                    onClick={() => setIsShareDialogOpen(true)}
+                    variant="outline"
+                    className="border-book-200 text-book-600 hover:bg-book-50 h-11 px-6 font-semibold md:min-w-[190px]"
+                  >
+                    <Share2 className="w-4 h-4 mr-2" />
+                    Share Profile
+                  </Button>
                 </div>
               </div>
             </CardContent>
@@ -904,7 +901,7 @@ const Profile = () => {
                                 if (user?.id) {
                                   const { error: profileError } = await supabase
                                     .from("profiles")
-                                    .update({ avatar_url: publicUrl, profile_picture_url: publicUrl })
+                                    .update({ profile_picture_url: publicUrl })
                                     .eq("id", user.id);
 
                                   if (profileError) throw profileError;

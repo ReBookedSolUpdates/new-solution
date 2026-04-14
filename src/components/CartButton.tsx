@@ -13,7 +13,7 @@ const CartButton = () => {
   return (
     <Button
       variant="ghost"
-      className="relative"
+      className="relative text-gray-700 hover:text-book-600"
       onClick={() => navigate('/cart')}
     >
       <ShoppingCart className="h-5 w-5" />

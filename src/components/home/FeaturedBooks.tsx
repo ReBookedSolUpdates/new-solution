@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Star, ArrowRight, MapPin } from "lucide-react";
+import { Star, ArrowRight, MapPin, Shirt, Backpack, BookOpen } from "lucide-react";
 import { getBooks } from "@/services/book/bookQueries";
 import { Book } from "@/types/book";
 import { logErrorSafely } from "@/utils/errorHandling";
@@ -37,7 +37,6 @@ const FeaturedBooks = () => {
     const fetchFeaturedBooks = async () => {
       try {
         setIsLoading(true);
-        // Fetch all available books
         const allBooks = await getBooks({});
 
         if (allBooks.length === 0) {
@@ -52,9 +51,37 @@ const FeaturedBooks = () => {
                           String(today.getDate()).padStart(2, '0');
         const dailySeed = dateString.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
 
-        // Shuffle books using daily seed and take first 4
         const shuffledBooks = shuffleArrayWithSeed(allBooks, dailySeed);
-        setBooks(shuffledBooks.slice(0, 8));
+
+        const textbooks = shuffledBooks.filter(
+          (item) => item.itemType !== "uniform" && item.itemType !== "school_supply",
+        );
+        const uniforms = shuffledBooks.filter((item) => item.itemType === "uniform");
+        const supplies = shuffledBooks.filter((item) => item.itemType === "school_supply");
+
+        const featuredMix: Book[] = [];
+        const takeFromBucket = (bucket: Book[], count: number) => {
+          bucket.slice(0, count).forEach((item) => {
+            if (!featuredMix.find((entry) => entry.id === item.id)) {
+              featuredMix.push(item);
+            }
+          });
+        };
+
+        takeFromBucket(textbooks, 4);
+        takeFromBucket(uniforms, 2);
+        takeFromBucket(supplies, 2);
+
+        if (featuredMix.length < 8) {
+          shuffledBooks.forEach((item) => {
+            if (featuredMix.length >= 8) return;
+            if (!featuredMix.find((entry) => entry.id === item.id)) {
+              featuredMix.push(item);
+            }
+          });
+        }
+
+        setBooks(featuredMix.slice(0, 8));
       } catch (error) {
         logErrorSafely("Error fetching featured books:", error);
         setBooks([]);
@@ -136,6 +163,13 @@ const FeaturedBooks = () => {
 };
 
 const FeaturedBookCard = ({ book }: { book: Book }) => {
+  const typeBadge =
+    book.itemType === "uniform"
+      ? { label: "Uniform", icon: <Shirt className="h-3 w-3" /> }
+      : book.itemType === "school_supply"
+        ? { label: "School Supply", icon: <Backpack className="h-3 w-3" /> }
+        : { label: "Textbook", icon: <BookOpen className="h-3 w-3" /> };
+
   return (
     <Card className="overflow-hidden hover:shadow-lg transition-shadow duration-300 group">
       <Link to={`/books/${book.id}`} className="block">
@@ -153,8 +187,9 @@ const FeaturedBookCard = ({ book }: { book: Book }) => {
             R{book.price.toLocaleString()}
           </div>
           <div className="absolute top-2 left-2">
-            <Badge className="bg-book-600 text-white hover:bg-book-700">
-              {book.condition} {book.itemType === "reader" && "reader"}
+            <Badge className="flex items-center gap-1 bg-book-600 text-white hover:bg-book-700">
+              {typeBadge.icon}
+              {typeBadge.label}
             </Badge>
           </div>
         </div>
@@ -163,7 +198,9 @@ const FeaturedBookCard = ({ book }: { book: Book }) => {
           <h3 className="font-bold text-lg mb-1 text-gray-900 line-clamp-1 group-hover:text-book-600 transition-colors">
             {book.title}
           </h3>
-          <p className="text-gray-600 mb-2 text-sm">by {book.author}</p>
+          <p className="text-gray-600 mb-2 text-sm">
+            {book.itemType === "uniform" ? (book.schoolName || "School uniform") : book.itemType === "school_supply" ? (book.subject || book.schoolName || "School supply") : `by ${book.author}`}
+          </p>
           <p className="text-gray-500 text-sm mb-3 line-clamp-2">
             {book.description}
           </p>
@@ -178,7 +215,7 @@ const FeaturedBookCard = ({ book }: { book: Book }) => {
 
           <div className="flex items-center justify-between">
             <Badge variant="outline" className="text-xs">
-              {book.category}
+              {book.itemType === "uniform" ? book.condition : book.itemType === "school_supply" ? (book.condition || "Supply") : book.category}
             </Badge>
             {book.grade && (
               <Badge variant="secondary" className="text-xs">
