@@ -73,6 +73,15 @@ const Footer = () => {
                   School Supplies
                 </Link>
               </li>
+              <li>
+                <Link
+                  to="/rebooked-business"
+                  className="text-gray-600 hover:text-book-600 text-sm"
+                  onClick={handleLinkClick}
+                >
+                  ReBooked Business
+                </Link>
+              </li>
             </ul>
           </div>
 

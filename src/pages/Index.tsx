@@ -3,7 +3,9 @@ import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import Layout from "@/components/Layout";
 import SEO from "@/components/SEO";
 import { Button } from "@/components/ui/button";
-import { Search, BookOpen, Shirt, Backpack, Palette, Landmark, FlaskConical, Trophy, Sigma, CheckCircle, Leaf, ShieldCheck, Truck } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Search, BookOpen, Shirt, Backpack, Palette, Landmark, FlaskConical, Trophy, Sigma, CheckCircle, Leaf, ShieldCheck, Truck, ArrowRight, Building2, BarChart3, Zap, BadgeCheck, Percent } from "lucide-react";
 import FeaturedBooks from "@/components/home/FeaturedBooks";
 import HowItWorks from "@/components/home/HowItWorks";
 import ReadyToGetStarted from "@/components/home/ReadyToGetStarted";
@@ -112,49 +114,49 @@ const Index = () => {
       </section>
 
       {/* Mobile-Optimized Search Section */}
-      <section className="py-8 sm:py-12 bg-white">
-        <div className="container mx-auto px-4">
-          <h2 className="text-2xl sm:text-3xl font-bold text-center mb-6 sm:mb-8 text-gray-900">
-            Find What You Need
-          </h2>
-          <form onSubmit={handleSearch} className="max-w-3xl mx-auto relative">
+      <section className="py-10 sm:py-14 bg-white border-b border-stone-200">
+        <div className="container mx-auto px-4 max-w-3xl">
+          <form onSubmit={handleSearch} className="relative">
             <div className="flex flex-col sm:flex-row gap-2 sm:gap-0">
               <input
                 type="text"
                 placeholder="Search for textbooks, uniforms, school supplies..."
-                className="w-full p-3 sm:p-4 sm:pr-16 rounded-lg sm:rounded-r-none border border-gray-300 focus:outline-none focus:ring-2 focus:ring-book-500 focus:border-transparent text-base sm:text-lg"
+                className="w-full px-5 py-3 sm:py-4 sm:pr-16 rounded-2xl sm:rounded-r-none border border-stone-300 focus:outline-none focus:ring-2 focus:ring-book-500 focus:border-transparent text-base bg-white transition-all"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
               <button
                 type="submit"
-                className="bg-book-600 text-white p-3 sm:p-2 rounded-lg sm:rounded-l-none sm:absolute sm:right-2 sm:top-2 hover:bg-book-700 transition duration-200 flex items-center justify-center"
+                className="bg-book-600 text-white px-6 py-3 rounded-2xl sm:rounded-l-none sm:absolute sm:right-2 sm:top-[6px] hover:bg-book-700 transition duration-200 flex items-center justify-center gap-2 font-medium"
               >
-                <Search className="h-5 w-5 sm:h-6 sm:w-6 sm:mr-2" />
-                <span className="sm:hidden">Search</span>
+                <Search className="h-5 w-5" />
+                <span className="hidden sm:inline text-sm">Search</span>
               </button>
             </div>
           </form>
         </div>
       </section>
 
-      {/* Categories Section */}
-      <section className="py-12 sm:py-16 bg-white">
-        <div className="container mx-auto px-4">
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-center mb-8 sm:mb-12 text-gray-900">
-            Browse All Listings
-          </h2>
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-4 sm:gap-6 max-w-7xl mx-auto">
+      {/* Categories Section - Improved Layout */}
+      <section className="py-16 sm:py-20 bg-white">
+        <div className="container mx-auto px-4 max-w-6xl">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl sm:text-4xl font-bold text-stone-900 mb-3">
+              Shop by Category
+            </h2>
+            <p className="text-stone-600">Browse curated collections across all school essentials</p>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3 sm:gap-4">
             {categories.map((category) => (
               <Link
                 key={category.name}
-                to={`/books?category=${encodeURIComponent(category.name)}`}
-                className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6 text-center hover:shadow-lg transition-shadow"
+                to={`/listings`}
+                className="group rounded-2xl border border-stone-200 p-4 sm:p-5 text-center hover:shadow-md hover:border-book-300 transition-all duration-200 bg-white hover:bg-stone-50"
               >
-                <span className="mb-2 sm:mb-4 block flex items-center justify-center">
+                <span className="mb-3 block flex items-center justify-center text-stone-700 group-hover:text-book-700 transition-colors">
                   {category.icon}
                 </span>
-                <h3 className="font-semibold text-gray-900 text-xs sm:text-base leading-tight">
+                <h3 className="font-semibold text-stone-900 text-xs sm:text-sm leading-tight">
                   {category.name}
                 </h3>
               </Link>
@@ -162,109 +164,157 @@ const Index = () => {
           </div>
         </div>
       </section>
-
-
-      {/* Why Choose ReBooked Section */}
-      <section className="py-16 sm:py-24 bg-white">
-        <div className="container mx-auto px-4">
+      {/* Why Choose ReBooked Section - Improved */}
+      <section className="py-16 sm:py-24 bg-stone-50">
+        <div className="container mx-auto px-4 max-w-6xl">
           <div className="text-center max-w-3xl mx-auto mb-16">
-            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-gray-900 mb-6">
-              Why <span className="text-book-600">ReBooked Solutions?</span>
+            <h2 className="text-3xl sm:text-4xl font-bold text-stone-900 mb-4">
+              Why Choose <span className="text-book-600">ReBooked Solutions?</span>
             </h2>
-            <p className="text-lg text-gray-600 leading-relaxed">
-              We're building more than just a marketplace; we're creating a sustainable ecosystem for South African students to thrive.
+            <p className="text-base text-stone-600">
+              We're building a sustainable ecosystem where South African students thrive — affordable access, secure transactions, and real support every step of the way.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto mb-12">
+          {/* Three Main Features */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
             {/* Feature 1 */}
-            <div className="p-8 rounded-lg bg-white border border-gray-200 transition-shadow hover:shadow-lg">
-              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mb-4">
-                <Leaf className="h-6 w-6 text-green-600" />
-              </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-3">Sustainable Learning</h3>
-              <p className="text-gray-600 text-sm leading-relaxed">
-                Give your items a second life. We help reduce the environmental impact of education while making school essentials affordable for everyone.
-              </p>
-            </div>
+            <Card className="rounded-2xl border border-stone-200 bg-white hover:shadow-lg transition-shadow duration-300">
+              <CardContent className="p-8">
+                <div className="w-14 h-14 bg-green-100 rounded-xl flex items-center justify-center mb-5">
+                  <Leaf className="h-7 w-7 text-green-600" />
+                </div>
+                <h3 className="text-lg font-bold text-stone-900 mb-3">Sustainable Learning</h3>
+                <p className="text-stone-600 text-sm leading-relaxed">
+                  Give items a second life. We reduce education's environmental impact while keeping school essentials affordable for everyone.
+                </p>
+              </CardContent>
+            </Card>
 
             {/* Feature 2 */}
-            <div className="p-8 rounded-lg bg-white border border-gray-200 transition-shadow hover:shadow-lg">
-              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
-                <ShieldCheck className="h-6 w-6 text-blue-600" />
-              </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-3">Guaranteed Security</h3>
-              <p className="text-gray-600 text-sm leading-relaxed">
-                Shop with confidence. Our BobPay integration ensures your funds are only released when the transaction is successfully completed.
-              </p>
-            </div>
+            <Card className="rounded-2xl border border-stone-200 bg-white hover:shadow-lg transition-shadow duration-300">
+              <CardContent className="p-8">
+                <div className="w-14 h-14 bg-blue-100 rounded-xl flex items-center justify-center mb-5">
+                  <ShieldCheck className="h-7 w-7 text-blue-600" />
+                </div>
+                <h3 className="text-lg font-bold text-stone-900 mb-3">Guaranteed Security</h3>
+                <p className="text-stone-600 text-sm leading-relaxed">
+                  Shop with complete confidence. Our BobPay integration ensures funds are only released when transactions complete successfully.
+                </p>
+              </CardContent>
+            </Card>
 
             {/* Feature 3 */}
-            <div className="p-8 rounded-lg bg-white border border-gray-200 transition-shadow hover:shadow-lg">
-              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mb-4">
-                <Truck className="h-6 w-6 text-purple-600" />
-              </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-3">Smart Logistics</h3>
-              <p className="text-gray-600 text-sm leading-relaxed">
-                Nationwide door-to-door and locker shipping powered by The Courier Guy and Pudo. Reliable tracking and fast pickups for sellers across South Africa.
-              </p>
-            </div>
+            <Card className="rounded-2xl border border-stone-200 bg-white hover:shadow-lg transition-shadow duration-300">
+              <CardContent className="p-8">
+                <div className="w-14 h-14 bg-purple-100 rounded-xl flex items-center justify-center mb-5">
+                  <Truck className="h-7 w-7 text-purple-600" />
+                </div>
+                <h3 className="text-lg font-bold text-stone-900 mb-3">Smart Logistics</h3>
+                <p className="text-stone-600 text-sm leading-relaxed">
+                  Nationwide door-to-door and locker shipping via The Courier Guy and Pudo. Fast pickups and reliable tracking across South Africa.
+                </p>
+              </CardContent>
+            </Card>
           </div>
 
           {/* Trust & Safety Section */}
-          <div className="bg-book-50 rounded-lg p-8 sm:p-12 border border-book-200">
-            <div className="flex flex-col lg:flex-row items-center gap-10">
-              <div className="lg:w-1/2 text-center lg:text-left">
-                <h3 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-4">
-                  Your Security is Our Priority
-                </h3>
-                <p className="text-gray-600 leading-relaxed">
-                  We've built a multi-layered protection system to ensure every transaction on ReBooked is safe, transparent, and fair for both students and parents.
-                </p>
+          <div className="rounded-3xl border border-stone-300 bg-white p-8 sm:p-12 shadow-sm">
+            <h3 className="text-2xl font-bold text-stone-900 mb-8 text-center">
+              Multi-Layered Protection
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="rounded-2xl bg-green-50 border border-green-200 p-5 text-center">
+                <div className="inline-flex p-3 bg-green-100 rounded-lg mb-3">
+                  <CheckCircle className="h-6 w-6 text-green-600" />
+                </div>
+                <h4 className="font-bold text-stone-900 text-sm mb-1">Buyer Protection</h4>
+                <p className="text-stone-600 text-xs">Funds held secure until you confirm receipt</p>
               </div>
 
-              <div className="lg:w-1/2 w-full grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="bg-white p-4 rounded-lg border border-gray-200 flex items-start gap-3">
-                  <div className="p-2 bg-green-50 rounded-lg flex-shrink-0">
-                    <CheckCircle className="h-5 w-5 text-green-600" />
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-gray-900 text-sm">Buyer Protection</h4>
-                    <p className="text-gray-500 text-xs mt-1">Funds are held securely until you confirm receipt.</p>
-                  </div>
+              <div className="rounded-2xl bg-blue-50 border border-blue-200 p-5 text-center">
+                <div className="inline-flex p-3 bg-blue-100 rounded-lg mb-3">
+                  <CheckCircle className="h-6 w-6 text-blue-600" />
                 </div>
+                <h4 className="font-bold text-stone-900 text-sm mb-1">Verified Listings</h4>
+                <p className="text-stone-600 text-xs">All reviewed for accuracy and authenticity</p>
+              </div>
 
-                <div className="bg-white p-4 rounded-lg border border-gray-200 flex items-start gap-3">
-                  <div className="p-2 bg-blue-50 rounded-lg flex-shrink-0">
-                    <CheckCircle className="h-5 w-5 text-blue-600" />
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-gray-900 text-sm">Verified Listings</h4>
-                    <p className="text-gray-500 text-xs mt-1">All listings are reviewed to ensure accuracy and authenticity.</p>
-                  </div>
+              <div className="rounded-2xl bg-purple-50 border border-purple-200 p-5 text-center">
+                <div className="inline-flex p-3 bg-purple-100 rounded-lg mb-3">
+                  <CheckCircle className="h-6 w-6 text-purple-600" />
                 </div>
+                <h4 className="font-bold text-stone-900 text-sm mb-1">Human Support</h4>
+                <p className="text-stone-600 text-xs">Dedicated team for dispute resolution</p>
+              </div>
 
-                <div className="bg-white p-4 rounded-lg border border-gray-200 flex items-start gap-3">
-                  <div className="p-2 bg-purple-50 rounded-lg flex-shrink-0">
-                    <CheckCircle className="h-5 w-5 text-purple-600" />
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-gray-900 text-sm">Human Support</h4>
-                    <p className="text-gray-500 text-xs mt-1">Dedicated support team for dispute resolution.</p>
-                  </div>
+              <div className="rounded-2xl bg-amber-50 border border-amber-200 p-5 text-center">
+                <div className="inline-flex p-3 bg-amber-100 rounded-lg mb-3">
+                  <CheckCircle className="h-6 w-6 text-amber-600" />
                 </div>
-
-                <div className="bg-white p-4 rounded-lg border border-gray-200 flex items-start gap-3">
-                  <div className="p-2 bg-amber-50 rounded-lg flex-shrink-0">
-                    <CheckCircle className="h-5 w-5 text-amber-600" />
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-gray-900 text-sm">Secure Payouts</h4>
-                    <p className="text-gray-500 text-xs mt-1">PCI-compliant payment processing via BobPay.</p>
-                  </div>
-                </div>
+                <h4 className="font-bold text-stone-900 text-sm mb-1">Secure Payouts</h4>
+                <p className="text-stone-600 text-xs">PCI-compliant payment via BobPay</p>
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ReBooked Business Section - Nice & Simple */}
+      <section className="py-16 sm:py-20 bg-white">
+        <div className="container mx-auto px-4 max-w-6xl">
+          {/* Header */}
+          <div className="mb-12 text-center">
+            <Badge className="mb-4 bg-book-100 text-book-700 hover:bg-book-200">For Businesses</Badge>
+            <h2 className="text-3xl sm:text-4xl font-bold text-stone-900 mb-3">
+              ReBooked Business
+            </h2>
+            <p className="text-stone-600 max-w-2xl mx-auto">
+              Verified seller programme for registered South African businesses wanting to scale
+            </p>
+          </div>
+
+          {/* 3 Simple Benefit Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+            <div className="rounded-2xl border border-stone-200 bg-white p-6 text-center hover:shadow-md transition-shadow">
+              <div className="flex justify-center mb-4">
+                <div className="flex items-center justify-center h-12 w-12 rounded-full bg-amber-100">
+                  <Percent className="h-6 w-6 text-amber-700" />
+                </div>
+              </div>
+              <h3 className="font-bold text-stone-900 mb-2">6.5% Commission</h3>
+              <p className="text-sm text-stone-600">vs 10% for standard sellers — save 35% on fees</p>
+            </div>
+
+            <div className="rounded-2xl border border-stone-200 bg-white p-6 text-center hover:shadow-md transition-shadow">
+              <div className="flex justify-center mb-4">
+                <div className="flex items-center justify-center h-12 w-12 rounded-full bg-green-100">
+                  <Zap className="h-6 w-6 text-green-700" />
+                </div>
+              </div>
+              <h3 className="font-bold text-stone-900 mb-2">Instant Listings</h3>
+              <p className="text-sm text-stone-600">Auto-commit with zero waiting period</p>
+            </div>
+
+            <div className="rounded-2xl border border-stone-200 bg-white p-6 text-center hover:shadow-md transition-shadow">
+              <div className="flex justify-center mb-4">
+                <div className="flex items-center justify-center h-12 w-12 rounded-full bg-blue-100">
+                  <BadgeCheck className="h-6 w-6 text-blue-700" />
+                </div>
+              </div>
+              <h3 className="font-bold text-stone-900 mb-2">Verified Badge</h3>
+              <p className="text-sm text-stone-600">Build buyer trust on every listing</p>
+            </div>
+          </div>
+
+          {/* CTA */}
+          <div className="text-center">
+            <Button asChild size="lg" className="bg-book-600 hover:bg-book-700 rounded-lg">
+              <Link to="/rebooked-business">
+                Learn More
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
           </div>
         </div>
       </section>

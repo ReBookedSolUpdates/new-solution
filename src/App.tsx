@@ -64,6 +64,7 @@ import Report from "./pages/Report";
 import SellerProfile from "./pages/SellerProfile";
 import GettingStarted from "./pages/GettingStarted";
 import CategoryInfoPage from "./pages/CategoryInfoPage";
+import ReBookedBusiness from "./pages/ReBookedBusiness";
 
 
 // Other Pages
@@ -304,6 +305,7 @@ function AppRoutes() {
 
         {/* Support Routes */}
         <Route path="/contact" element={<ContactUs />} />
+        <Route path="/contact-us" element={<ContactUs />} />
         <Route path="/faq" element={<FAQ />} />
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/terms" element={<Terms />} />
@@ -315,6 +317,7 @@ function AppRoutes() {
         <Route path="/uniform-guide" element={<CategoryInfoPage />} />
         <Route path="/school-supplies-guide" element={<CategoryInfoPage />} />
         <Route path="/category/:slug" element={<CategoryInfoPage />} />
+        <Route path="/rebooked-business" element={<ReBookedBusiness />} />
 
         <Route path="/report" element={<Report />} />
         <Route path="/webhook-test" element={<WebhookTest />} />
