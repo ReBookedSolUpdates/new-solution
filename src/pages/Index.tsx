@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Search, BookOpen, Shirt, Backpack, Palette, Landmark, FlaskConical, Trophy, Sigma,
   Leaf, ShieldCheck, Truck, ArrowRight, Building2, Zap, BadgeCheck, Percent,
-  CheckCircle, Shield, MessageSquare, Lock, Package, ExternalLink
+  CheckCircle, Shield, MessageSquare, Lock, Package, ExternalLink, BarChart3
 } from "lucide-react";
 import FeaturedBooks from "@/components/home/FeaturedBooks";
 import HowItWorks from "@/components/home/HowItWorks";
@@ -148,22 +148,20 @@ const Index = () => {
 
             {/* Right — image */}
             <div className="hidden lg:block relative h-full min-h-[520px]">
-              <div className="absolute inset-0 bg-gradient-to-br from-book-300/60 to-book-400/40 overflow-hidden">
-                <img
-                  src="/lovable-uploads/bd1bff70-5398-480d-ab05-1a01e839c2d0.png"
-                  alt="Three students smiling with textbooks"
-                  className="w-full h-full object-cover"
-                  loading="eager"
-                />
-              </div>
+              <img
+                src="/lovable-uploads/bd1bff70-5398-480d-ab05-1a01e839c2d0.png"
+                alt="Student with textbooks"
+                className="w-full h-full object-contain"
+                loading="eager"
+              />
             </div>
 
             {/* Mobile image */}
             <div className="lg:hidden order-2">
               <img
                 src="/lovable-uploads/bd1bff70-5398-480d-ab05-1a01e839c2d0.png"
-                alt="Three students smiling with textbooks"
-                className="w-full rounded-xl shadow-lg object-cover aspect-[4/3]"
+                alt="Student with textbooks"
+                className="w-full rounded-xl shadow-lg object-contain"
                 loading="eager"
               />
             </div>
@@ -213,12 +211,8 @@ const Index = () => {
               We're building a sustainable ecosystem where South African students thrive — affordable access, secure transactions, and real support every step of the way.
             </p>
           </div>
-          <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-12 lg:gap-16 items-start">
-            {/* Sticky left */}
-            <div className="lg:sticky lg:top-20">
-            </div>
-
-            {/* Right — card grid */}
+          <div className="space-y-4">
+            {/* Card grid */}
             <div className="space-y-4">
               {/* 3 value prop cards */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -290,8 +284,16 @@ const Index = () => {
                 ))}
               </div>
               <div className="flex flex-wrap gap-2.5">
-                {["📦 Bulk Listing Tools", "📊 Business Analytics", "🏅 Verified Badge", "⚡ Priority Support"].map((f) => (
-                  <span key={f} className="bg-white/10 border border-white/20 rounded-lg px-3.5 py-2 text-xs text-white/85 font-medium">{f}</span>
+                {[
+                  { icon: <Package className="h-4 w-4" />, text: "Bulk Listing Tools" },
+                  { icon: <BarChart3 className="h-4 w-4" />, text: "Business Analytics" },
+                  { icon: <BadgeCheck className="h-4 w-4" />, text: "Verified Badge" },
+                  { icon: <Zap className="h-4 w-4" />, text: "Priority Support" }
+                ].map((f) => (
+                  <span key={f.text} className="bg-white/10 border border-white/20 rounded-lg px-3.5 py-2 text-xs text-white/85 font-medium flex items-center gap-2">
+                    {f.icon}
+                    {f.text}
+                  </span>
                 ))}
               </div>
             </div>
