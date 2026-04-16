@@ -82,86 +82,87 @@ const Index = () => {
         url="https://www.rebookedsolutions.co.za/"
       />
 
-      {/* ═══ HERO — Search integrated into left column ═══ */}
-      <section className="min-h-[520px] bg-book-100 overflow-hidden">
+      {/* ═══ HERO — Redesigned 2-column layout with collage visuals ═══ */}
+      <section className="min-h-[560px] bg-book-100 overflow-hidden">
         <div className="container mx-auto px-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 items-center gap-8 lg:gap-0">
+          <div className="grid grid-cols-1 lg:grid-cols-2 items-center gap-8 lg:gap-10">
             {/* Left */}
-            <div className="py-12 sm:py-16 lg:py-20 lg:pr-12 text-center lg:text-left">
-              <div className="flex items-center gap-2 mb-4 justify-center lg:justify-start">
-                <span className="w-6 h-[2px] bg-book-600 inline-block" />
-                <span className="text-xs font-bold uppercase tracking-wider text-book-700">
-                  Books · Uniforms · Everything In Between
-                </span>
-              </div>
-
-              <h1 className="text-4xl sm:text-5xl lg:text-[52px] font-bold text-gray-900 leading-[1.08] mb-5">
-                Buy Smart.<br />Sell Easy.<br />
-                <span className="italic text-book-700">School Ready.</span>
+            <div className="py-12 sm:py-16 lg:py-20 lg:pr-10 text-center lg:text-left">
+              <h1 className="text-4xl sm:text-5xl lg:text-[56px] font-bold text-gray-900 leading-[1.02] mb-6">
+                REBOOKED SOLUTIONS
               </h1>
 
-              <p className="text-base sm:text-lg text-gray-600 mx-auto lg:mx-0 max-w-[420px] leading-relaxed mb-8">
+              <p className="text-base sm:text-lg text-gray-600 mx-auto lg:mx-0 max-w-[560px] leading-relaxed mb-8">
                 ReBooked Solutions — South Africa's trusted school marketplace for buying and selling textbooks, uniforms, and school supplies safely and affordably.
               </p>
 
-              <div className="flex flex-wrap gap-3 mb-8">
-                <Button
-                  size="lg"
-                  className="bg-book-600 hover:bg-book-700 shadow-lg shadow-book-600/30"
-                  onClick={() => navigate("/textbooks")}
-                >
-                  <Search className="h-4 w-4 mr-1" /> Browse Listings
-                </Button>
-                <Button
-                  size="lg"
-                  variant="outline"
-                  className="border-2 border-book-300 text-book-700 bg-white hover:bg-book-50"
-                  onClick={() => navigate("/create-listing")}
-                >
-                  Sell Your Items
-                </Button>
-              </div>
-
-              {/* Search bar — moved into hero */}
-              <form onSubmit={handleSearch} className="flex max-w-[460px] rounded-xl border-2 border-book-300 bg-white overflow-hidden">
+              <form onSubmit={handleSearch} className="flex max-w-[560px] mx-auto lg:mx-0 rounded-[32px] border border-book-800 bg-book-900 shadow-[0_24px_80px_rgba(42,79,63,0.15)] overflow-hidden">
                 <input
                   type="text"
-                  placeholder="Search for textbooks, uniforms, supplies…"
-                  className="flex-1 px-4 py-3 text-sm border-none outline-none bg-transparent"
+                  placeholder="Search textbooks, uniforms, supplies…"
+                  className="flex-1 px-5 py-4 text-sm text-white placeholder:text-book-300 bg-transparent border-none outline-none"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
-                <button type="submit" className="px-5 bg-book-600 text-white text-sm font-semibold flex items-center gap-1.5 hover:bg-book-700 transition-colors">
+                <button
+                  type="submit"
+                  className="px-6 bg-book-700 text-white text-sm font-semibold flex items-center gap-2 hover:bg-book-600 transition-colors"
+                >
                   <Search className="h-4 w-4" /> Search
                 </button>
               </form>
 
-              {/* Trust signals */}
               <div className="flex flex-wrap justify-center lg:justify-start gap-5 mt-6">
                 {["Secure payments", "Verified listings", "Nationwide delivery"].map((t) => (
-                  <span key={t} className="flex items-center gap-1.5 text-xs text-gray-500 font-medium">
-                    <span className="w-1.5 h-1.5 rounded-full bg-book-600" /> {t}
+                  <span key={t} className="flex items-center gap-2 text-xs text-gray-500 font-medium">
+                    <span className="w-2 h-2 rounded-full bg-book-600" /> {t}
                   </span>
                 ))}
               </div>
             </div>
 
-            {/* Right — image */}
-            <div className="hidden lg:block relative h-full min-h-[520px]">
-              <img
-                src="/lovable-uploads/bd1bff70-5398-480d-ab05-1a01e839c2d0.png"
-                alt="Student with textbooks"
-                className="w-full h-full object-contain"
-                loading="eager"
-              />
+            {/* Right — collage grid */}
+            <div className="hidden lg:grid grid-cols-2 grid-rows-2 gap-4 min-h-[560px]">
+              <div className="rounded-[32px] overflow-hidden shadow-2xl bg-white h-[260px]">
+                <img
+                  src="https://images.pexels.com/photos/256455/pexels-photo-256455.jpeg"
+                  alt="School equipment and stationery"
+                  className="w-full h-full object-cover"
+                  loading="eager"
+                />
+              </div>
+              <div className="rounded-[32px] overflow-hidden shadow-2xl bg-white h-[260px]">
+                <img
+                  src="https://images.pexels.com/photos/1720186/pexels-photo-1720186.jpeg"
+                  alt="Kids playing at school"
+                  className="w-full h-full object-cover"
+                  loading="eager"
+                />
+              </div>
+              <div className="rounded-[32px] overflow-hidden shadow-2xl bg-white h-[260px]">
+                <img
+                  src="/lovable-uploads/bd1bff70-5398-480d-ab05-1a01e839c2d0.png"
+                  alt="Student with textbooks"
+                  className="w-full h-full object-cover"
+                  loading="eager"
+                />
+              </div>
+              <div className="rounded-[32px] overflow-hidden shadow-2xl bg-white h-[260px]">
+                <img
+                  src="https://images.pexels.com/photos/4145190/pexels-photo-4145190.jpeg"
+                  alt="Students learning together"
+                  className="w-full h-full object-cover"
+                  loading="eager"
+                />
+              </div>
             </div>
 
-            {/* Mobile image */}
+            {/* Mobile-friendly hero image */}
             <div className="lg:hidden order-2">
               <img
                 src="/lovable-uploads/bd1bff70-5398-480d-ab05-1a01e839c2d0.png"
                 alt="Student with textbooks"
-                className="w-full rounded-xl shadow-lg object-contain"
+                className="w-full rounded-[28px] shadow-2xl object-cover"
                 loading="eager"
               />
             </div>
