@@ -61,7 +61,7 @@ const FeaturedBooks = () => {
             if (!featuredMix.find((e) => e.id === item.id)) featuredMix.push(item);
           });
         }
-        setBooks(featuredMix.slice(0, 8));
+        setBooks(featuredMix.slice(0, 6));
       } catch (error) {
         logErrorSafely("Error fetching featured books:", error);
         setBooks([]);
@@ -77,10 +77,18 @@ const FeaturedBooks = () => {
       <section className="py-16 sm:py-20 bg-gray-50">
         <div className="container mx-auto px-4 max-w-6xl">
           <div className="text-center mb-8">
-            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">Featured Listings</h2>
+            <div className="mb-3">
+              <Badge className="bg-book-100 text-book-700 border border-book-300 hover:bg-book-200">
+                ✦ Featured
+              </Badge>
+            </div>
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">Featured Listings</h2>
+            <p className="text-gray-500 max-w-md mx-auto">
+              Discover handpicked school items from our collection. Quality products at unbeatable prices.
+            </p>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            {[...Array(8)].map((_, i) => (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {[...Array(6)].map((_, i) => (
               <div key={i} className="animate-pulse">
                 <div className="bg-gray-300 rounded-xl h-40 mb-3" />
                 <div className="h-4 bg-gray-300 rounded mb-2" />
@@ -98,27 +106,21 @@ const FeaturedBooks = () => {
   return (
     <section className="py-16 sm:py-20 bg-gray-50">
       <div className="container mx-auto px-4 max-w-6xl">
-        {/* Header — left aligned with right CTA */}
-        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-10">
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <Star className="h-4 w-4 text-book-600 fill-current" />
-              <Badge className="bg-book-100 text-book-700 border border-book-300 hover:bg-book-200">
-                ✦ Featured
-              </Badge>
-            </div>
-            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-1">Featured Listings</h2>
-            <p className="text-gray-500 max-w-md">
-              Discover handpicked school items from our collection. Quality products at unbeatable prices.
-            </p>
+        {/* Header — centered with Featured pill above */}
+        <div className="text-center mb-10">
+          <div className="mb-3">
+            <Badge className="bg-book-100 text-book-700 border border-book-300 hover:bg-book-200">
+              ✦ Featured
+            </Badge>
           </div>
-          <Button asChild variant="outline" className="border-2 border-book-300 text-book-700 hover:bg-book-50 shrink-0">
-            <Link to="/textbooks">View All Listings <ArrowRight className="ml-1 h-4 w-4" /></Link>
-          </Button>
+          <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">Featured Listings</h2>
+          <p className="text-gray-500 max-w-md mx-auto">
+            Discover handpicked school items from our collection. Quality products at unbeatable prices.
+          </p>
         </div>
 
-        {/* Grid: first 2 featured (span 2 cols), rest normal */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        {/* Grid: 6 items in 3 columns */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {books.map((book, index) => (
             <FeaturedBookCard key={book.id} book={book} featured={index < 2} />
           ))}
@@ -139,11 +141,10 @@ const FeaturedBookCard = ({ book, featured }: { book: Book; featured: boolean })
   return (
     <Link
       to={`/books/${book.id}`}
-      className={`group block bg-white rounded-xl border border-gray-200 overflow-hidden
-        transition-all duration-300 ease-in-out hover:-translate-y-1 hover:shadow-lg
-        ${featured ? "lg:col-span-2" : ""}`}
+      className="group block bg-white rounded-xl border border-gray-200 overflow-hidden
+        transition-all duration-300 ease-in-out hover:-translate-y-1 hover:shadow-lg"
     >
-      <div className={`relative overflow-hidden ${featured ? "h-52" : "h-40"}`}>
+      <div className="relative overflow-hidden h-40">
         <img
           src={book.imageUrl}
           alt={book.title}
@@ -168,10 +169,6 @@ const FeaturedBookCard = ({ book, featured }: { book: Book; featured: boolean })
             Featured
           </Badge>
         )}
-        {/* Wishlist heart */}
-        <div className="absolute top-3 right-14 w-7 h-7 bg-white rounded-full flex items-center justify-center shadow-sm opacity-0 group-hover:opacity-100 transition-opacity">
-          <Heart className="h-3.5 w-3.5 text-gray-400" />
-        </div>
       </div>
 
       <div className="p-4">

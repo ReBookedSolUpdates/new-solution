@@ -236,17 +236,7 @@ const BookGrid = ({
                     >
                       <Share2 className="h-4 w-4 text-book-600" />
                     </button>
-                    <button
-                      onClick={(e) => handleToggleWishlist(book, e)}
-                      className="absolute top-2 left-[3.35rem] bg-white/90 hover:bg-white p-2 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                      title="Add to wishlist"
-                    >
-                      <Heart
-                        className={`h-4 w-4 ${
-                          wishlistIds.has(book.id) ? "fill-pink-500 text-pink-500" : "text-book-600"
-                        }`}
-                      />
-                    </button>
+
                     {book.sold && (
                       <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
                         <span className="bg-red-500 text-white px-3 py-1 rounded-full text-sm font-semibold">
@@ -360,17 +350,7 @@ const BookGrid = ({
                     >
                       <Share2 className="h-4 w-4 text-book-600" />
                     </button>
-                    <button
-                      onClick={(e) => handleToggleWishlist(book, e)}
-                      className="absolute top-2 left-[3.35rem] bg-white/90 hover:bg-white p-2 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                      title="Add to wishlist"
-                    >
-                      <Heart
-                        className={`h-4 w-4 ${
-                          wishlistIds.has(book.id) ? "fill-pink-500 text-pink-500" : "text-book-600"
-                        }`}
-                      />
-                    </button>
+
                     {book.sold && (
                       <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
                         <span className="bg-red-500 text-white px-3 py-1 rounded-full text-sm font-semibold">

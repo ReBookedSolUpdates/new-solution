@@ -87,8 +87,8 @@ const Index = () => {
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-1 lg:grid-cols-2 items-center gap-8 lg:gap-0">
             {/* Left */}
-            <div className="py-12 sm:py-16 lg:py-20 lg:pr-12">
-              <div className="flex items-center gap-2 mb-4">
+            <div className="py-12 sm:py-16 lg:py-20 lg:pr-12 text-center lg:text-left">
+              <div className="flex items-center gap-2 mb-4 justify-center lg:justify-start">
                 <span className="w-6 h-[2px] bg-book-600 inline-block" />
                 <span className="text-xs font-bold uppercase tracking-wider text-book-700">
                   Books · Uniforms · Everything In Between
@@ -100,10 +100,8 @@ const Index = () => {
                 <span className="italic text-book-700">School Ready.</span>
               </h1>
 
-              <p className="text-base sm:text-lg text-gray-600 max-w-[420px] leading-relaxed mb-8">
-                Textbooks, uniforms, sports equipment, stationery and more —
-                buy affordable secondhand school items or sell what you no longer need,
-                all handled securely through ReBooked Solutions.
+              <p className="text-base sm:text-lg text-gray-600 mx-auto lg:mx-0 max-w-[420px] leading-relaxed mb-8">
+                ReBooked Solutions — South Africa's trusted school marketplace for buying and selling textbooks, uniforms, and school supplies safely and affordably.
               </p>
 
               <div className="flex flex-wrap gap-3 mb-8">
@@ -125,7 +123,7 @@ const Index = () => {
               </div>
 
               {/* Search bar — moved into hero */}
-              <form onSubmit={handleSearch} className="flex max-w-[460px] rounded-xl border-2 border-book-300 bg-white overflow-hidden shadow-md">
+              <form onSubmit={handleSearch} className="flex max-w-[460px] rounded-xl border-2 border-book-300 bg-white overflow-hidden">
                 <input
                   type="text"
                   placeholder="Search for textbooks, uniforms, supplies…"
@@ -139,7 +137,7 @@ const Index = () => {
               </form>
 
               {/* Trust signals */}
-              <div className="flex flex-wrap gap-5 mt-6">
+              <div className="flex flex-wrap justify-center lg:justify-start gap-5 mt-6">
                 {["Secure payments", "Verified listings", "Nationwide delivery"].map((t) => (
                   <span key={t} className="flex items-center gap-1.5 text-xs text-gray-500 font-medium">
                     <span className="w-1.5 h-1.5 rounded-full bg-book-600" /> {t}
@@ -150,21 +148,13 @@ const Index = () => {
 
             {/* Right — image */}
             <div className="hidden lg:block relative h-full min-h-[520px]">
-              <div className="absolute inset-0 bg-gradient-to-br from-book-300/60 to-book-400/40 rounded-l-3xl overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-br from-book-300/60 to-book-400/40 overflow-hidden">
                 <img
                   src="/lovable-uploads/bd1bff70-5398-480d-ab05-1a01e839c2d0.png"
                   alt="Three students smiling with textbooks"
                   className="w-full h-full object-cover"
                   loading="eager"
                 />
-              </div>
-              {/* Floating badge */}
-              <div className="absolute bottom-12 -left-5 bg-white rounded-xl px-4 py-3 shadow-xl flex items-center gap-3 z-10">
-                <div className="w-9 h-9 bg-book-100 rounded-lg flex items-center justify-center text-lg">📚</div>
-                <div>
-                  <strong className="block text-sm font-bold text-gray-900">246+ Students</strong>
-                  <span className="text-[11px] text-gray-500">buying &amp; selling daily</span>
-                </div>
               </div>
             </div>
 
@@ -181,63 +171,51 @@ const Index = () => {
         </div>
       </section>
 
-      {/* ═══ CATEGORIES — Discovery strip directly below hero ═══ */}
-      <section className="py-8 sm:py-10 bg-white border-b" ref={catReveal.ref}>
-        <div className="container mx-auto px-4 max-w-5xl">
-          <div className="text-center mb-6">
-            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">Shop by Category</h2>
-            <p className="text-sm text-gray-500 mt-1">Browse curated collections across all school essentials</p>
+      {/* ═══ CATEGORIES — Clean card grid ═══ */}
+      <section className="py-12 sm:py-16 bg-white border-b" ref={catReveal.ref}>
+        <div className="container mx-auto px-4 max-w-6xl">
+          <div className="text-center mb-10">
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">Shop by Category</h2>
+            <p className="text-gray-500">Browse curated collections across all school essentials</p>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5">
             {categories.map((cat, i) => (
               <Link
                 key={cat.name}
                 to="/listings"
-                className={`group flex flex-col items-center gap-2.5 p-5 rounded-xl bg-book-100 border-2 border-transparent
-                  hover:border-book-500 hover:bg-book-200
+                className={`group flex flex-col items-center gap-3 p-6 rounded-xl bg-white border border-gray-200
+                  hover:border-book-400 hover:shadow-lg hover:bg-book-50
                   transition-all duration-300 ease-in-out
-                  hover:-translate-y-1 hover:shadow-md
+                  hover:-translate-y-1
                   ${catReveal.visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}
                 `}
                 style={{ transitionDelay: catReveal.visible ? `${i * 60}ms` : '0ms' }}
               >
-                <div className="w-11 h-11 bg-white rounded-lg flex items-center justify-center shadow-sm text-book-700 group-hover:text-book-800 transition-colors">
+                <div className="w-12 h-12 bg-book-100 rounded-lg flex items-center justify-center text-book-600 group-hover:bg-book-200 transition-colors">
                   {cat.icon}
                 </div>
-                <span className="text-xs font-semibold text-gray-600 text-center leading-tight">{cat.name}</span>
+                <span className="text-sm font-semibold text-gray-700 text-center leading-snug">{cat.name}</span>
               </Link>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ═══ WHY CHOOSE — Asymmetric 1/3 sticky + 2/3 cards ═══ */}
+      {/* ═══ WHY CHOOSE — Centered section ═══ */}
       <section className="py-16 sm:py-24 bg-gray-50" ref={whyReveal.ref}>
         <div className="container mx-auto px-4 max-w-6xl">
+          <div className="text-center mb-12">
+            <Badge className="mb-4 inline-block bg-book-100 text-book-700 border border-book-300 hover:bg-book-200">Why Us</Badge>
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
+              Why Choose <span className="text-book-600">ReBooked</span> Solutions?
+            </h2>
+            <p className="text-gray-500 leading-relaxed max-w-2xl mx-auto mb-8">
+              We're building a sustainable ecosystem where South African students thrive — affordable access, secure transactions, and real support every step of the way.
+            </p>
+          </div>
           <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-12 lg:gap-16 items-start">
             {/* Sticky left */}
             <div className="lg:sticky lg:top-20">
-              <Badge className="mb-4 bg-book-100 text-book-700 border border-book-300 hover:bg-book-200">✦ Why Us</Badge>
-              <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
-                Why Choose <span className="text-book-600">ReBooked</span> Solutions?
-              </h2>
-              <p className="text-gray-500 leading-relaxed mb-8">
-                We're building a sustainable ecosystem where South African students thrive — affordable access, secure transactions, and real support every step of the way.
-              </p>
-              {/* Trust pills */}
-              <div className="grid grid-cols-2 gap-2.5">
-                {[
-                  { icon: <Shield className="h-4 w-4" />, label: "Buyer Protection" },
-                  { icon: <CheckCircle className="h-4 w-4" />, label: "Verified Listings" },
-                  { icon: <MessageSquare className="h-4 w-4" />, label: "Human Support" },
-                  { icon: <Lock className="h-4 w-4" />, label: "Secure Payouts" },
-                ].map((p) => (
-                  <div key={p.label} className="flex items-center gap-2.5 bg-book-100 border border-book-200 rounded-lg p-3">
-                    <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center text-book-600">{p.icon}</div>
-                    <span className="text-xs font-semibold text-gray-600">{p.label}</span>
-                  </div>
-                ))}
-              </div>
             </div>
 
             {/* Right — card grid */}
@@ -278,8 +256,8 @@ const Index = () => {
         </div>
       </section>
 
-      {/* ═══ REBOOKED BUSINESS — Full-width dark-green banner ═══ */}
-      <section className="relative overflow-hidden bg-book-900 py-16 sm:py-20" ref={bizReveal.ref}>
+      {/* ═══ REBOOKED BUSINESS — Full-width card banner ═══ */}
+      <section className="relative overflow-hidden bg-book-600 py-16 sm:py-20" ref={bizReveal.ref}>
         {/* Decorative circle */}
         <div className="absolute -top-24 -right-24 w-96 h-96 rounded-full bg-white/[0.04] pointer-events-none" />
         <div className="container mx-auto px-4 max-w-6xl relative z-10">

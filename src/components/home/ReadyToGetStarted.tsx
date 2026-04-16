@@ -6,12 +6,12 @@ const ReadyToGetStarted = () => {
   const isAuthenticated = false;
 
   return (
-    <section className="relative overflow-hidden bg-book-700 py-16 sm:py-24">
+    <section className="relative overflow-hidden bg-book-600 py-16 sm:py-24">
       {/* Decorative circle */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] rounded-full bg-white/[0.04] pointer-events-none" />
       <div className="relative z-10 container mx-auto px-4 max-w-2xl text-center">
         <h2 className="text-4xl sm:text-5xl font-bold text-white leading-[1.1] mb-4">
-          Ready to<br /><span className="italic text-book-300">Get Started?</span>
+          Ready to<br /><span className="italic text-book-100">Get Started?</span>
         </h2>
         <p className="text-base sm:text-lg text-white/70 leading-relaxed mb-9">
           Join thousands of students already saving money on school items. Join ReBooked Solutions to buy and sell school items securely — and help others do the same.
@@ -20,7 +20,7 @@ const ReadyToGetStarted = () => {
           <Button
             size="lg"
             onClick={() => navigate(isAuthenticated ? "/create-listing" : "/register")}
-            className="bg-white text-book-700 hover:bg-gray-100 font-bold shadow-lg px-9"
+            className="bg-white text-book-600 hover:bg-gray-100 font-bold shadow-lg px-9"
           >
             ✦ {isAuthenticated ? "List Your Items" : "Sign Up Free"}
           </Button>

@@ -27,8 +27,8 @@ const Footer = () => {
                 ReBooked Solutions
               </span>
             </Link>
-            <p className="text-gray-600 text-sm">
-              South Africa's school marketplace — buy and sell textbooks, uniforms, supplies and more through our secure platform.
+            <p className="text-gray-600 text-sm leading-relaxed">
+              South Africa's trusted school marketplace. Buy and sell textbooks, uniforms, and school supplies securely.
             </p>
           </div>
 
