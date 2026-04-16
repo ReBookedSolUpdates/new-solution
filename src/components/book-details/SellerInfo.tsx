@@ -32,6 +32,8 @@ const SellerInfo = ({ seller, onViewProfile, bookId }: SellerInfoProps) => {
     }
   };
 
+  const displayName = seller?.full_name || seller?.name || "Loading...";
+
   return (
     <Card>
       <CardContent className="p-4">
@@ -39,7 +41,7 @@ const SellerInfo = ({ seller, onViewProfile, bookId }: SellerInfoProps) => {
         <div className="space-y-3">
           <div className="flex items-center gap-2">
             <User className="h-4 w-4 text-gray-500" />
-            <span className="font-medium">{seller?.name || "Loading..."}</span>
+            <span className="font-medium">{displayName}</span>
           </div>
           <div className="flex items-center gap-2">
             <Calendar className="h-4 w-4 text-gray-500" />
@@ -55,7 +57,7 @@ const SellerInfo = ({ seller, onViewProfile, bookId }: SellerInfoProps) => {
             <SellerRating sellerId={seller.id} showLabel={true} />
           </div>
         </div>
-        <div className="mt-4 space-y-3">
+          <div className="mt-4 space-y-3">
           {bookId && (
             <Button
               onClick={handleChatToSeller}
@@ -75,7 +77,7 @@ const SellerInfo = ({ seller, onViewProfile, bookId }: SellerInfoProps) => {
             className="w-full bg-book-600 hover:bg-book-700"
           >
             <Store className="h-4 w-4 mr-2" />
-            View {seller?.name}'s ReBooked Mini
+            View {displayName}'s ReBooked Mini
           </Button>
           <Button
             onClick={handleViewReviews}

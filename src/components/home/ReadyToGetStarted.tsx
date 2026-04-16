@@ -7,13 +7,15 @@ const ReadyToGetStarted = () => {
 
   return (
     <section className="relative overflow-hidden bg-book-600 py-16 sm:py-24">
-      {/* Decorative circle */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] rounded-full bg-white/[0.04] pointer-events-none" />
-      <div className="relative z-10 container mx-auto px-4 max-w-2xl text-center">
-        <h2 className="text-4xl sm:text-5xl font-bold text-white leading-[1.1] mb-4">
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute -top-24 left-1/3 h-56 w-56 rounded-full bg-white/10 blur-3xl animate-[spin_170s_linear_infinite]" />
+        <div className="absolute bottom-10 right-10 h-52 w-52 rounded-full bg-book-900/10 blur-3xl animate-[spin_140s_linear_infinite]" />
+      </div>
+      <div className="relative z-10 container mx-auto px-4 max-w-4xl lg:max-w-6xl text-center">
+        <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white leading-[1.05] mb-4">
           Ready to<br /><span className="italic text-book-100">Get Started?</span>
         </h2>
-        <p className="text-base sm:text-lg text-white/70 leading-relaxed mb-9">
+        <p className="text-base md:text-lg lg:text-xl text-white/80 leading-relaxed mb-9 max-w-3xl mx-auto">
           Join thousands of students already saving money on school items. Join ReBooked Solutions to buy and sell school items securely — and help others do the same.
         </p>
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
@@ -22,7 +24,7 @@ const ReadyToGetStarted = () => {
             onClick={() => navigate(isAuthenticated ? "/create-listing" : "/register")}
             className="bg-white text-book-600 hover:bg-gray-100 font-bold shadow-lg px-9"
           >
-            ✦ {isAuthenticated ? "List Your Items" : "Sign Up Free"}
+            {isAuthenticated ? "List Your Items" : "Sign Up Free"}
           </Button>
           <Button
             size="lg"

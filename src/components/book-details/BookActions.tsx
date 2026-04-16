@@ -1,6 +1,6 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ShoppingCart, CreditCard, Edit, Clock, Share2 } from "lucide-react";
+import { ShoppingCart, CreditCard, Edit, Clock, Share2, Heart } from "lucide-react";
 import { Book } from "@/types/book";
 import { UserProfile } from "@/types/address"; // UserProfile includes id
 import { toast } from "sonner";
@@ -14,6 +14,8 @@ interface BookActionsProps {
   onCommit?: () => void;
   onShare: () => void;
   onViewSellerProfile: () => void;
+  onToggleWishlist?: () => void;
+  isWishlisted?: boolean;
   showCommitButton?: boolean;
 }
 
@@ -26,6 +28,8 @@ const BookActions = ({
   onCommit,
   onShare,
   onViewSellerProfile,
+  onToggleWishlist,
+  isWishlisted = false,
   showCommitButton = false,
 }: BookActionsProps) => {
   const isOwner = user?.id === book.seller?.id; // seller is an object with id
@@ -129,6 +133,19 @@ const BookActions = ({
               <Share2 className="mr-2 h-4 w-4" />
               Share Item
             </Button>
+
+            {/* Wishlist button placed here (below Share) */}
+            {onToggleWishlist && (
+              <Button
+                onClick={onToggleWishlist}
+                size="sm"
+                className={`w-full ${isWishlisted ? 'bg-pink-600 text-white hover:bg-pink-700' : ''}`}
+                variant={isWishlisted ? undefined : 'outline'}
+              >
+                <Heart className="mr-2 h-4 w-4" />
+                {isWishlisted ? 'Wishlisted' : 'Add to Wishlist'}
+              </Button>
+            )}
           </div>
         </div>
       </CardContent>

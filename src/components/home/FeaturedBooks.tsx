@@ -11,23 +11,23 @@ const FeaturedBooks = () => {
   const [books, setBooks] = useState<Book[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const seededRandom = (seed: number) => {
-    const x = Math.sin(seed) * 10000;
-    return x - Math.floor(x);
-  };
-
-  const shuffleArrayWithSeed = <T,>(array: T[], seed: number): T[] => {
-    const shuffled = [...array];
-    let currentIndex = shuffled.length;
-    while (currentIndex !== 0) {
-      const randomIndex = Math.floor(seededRandom(seed + currentIndex) * currentIndex);
-      currentIndex--;
-      [shuffled[currentIndex], shuffled[randomIndex]] = [shuffled[randomIndex], shuffled[currentIndex]];
-    }
-    return shuffled;
-  };
-
   useEffect(() => {
+    const seededRandom = (seed: number) => {
+      const x = Math.sin(seed) * 10000;
+      return x - Math.floor(x);
+    };
+
+    const shuffleArrayWithSeed = <T,>(array: T[], seed: number): T[] => {
+      const shuffled = [...array];
+      let currentIndex = shuffled.length;
+      while (currentIndex !== 0) {
+        const randomIndex = Math.floor(seededRandom(seed + currentIndex) * currentIndex);
+        currentIndex--;
+        [shuffled[currentIndex], shuffled[randomIndex]] = [shuffled[randomIndex], shuffled[currentIndex]];
+      }
+      return shuffled;
+    };
+
     const fetchFeaturedBooks = async () => {
       try {
         setIsLoading(true);
@@ -79,7 +79,7 @@ const FeaturedBooks = () => {
           <div className="text-center mb-8">
             <div className="mb-3">
               <Badge className="bg-book-100 text-book-700 border border-book-300 hover:bg-book-200">
-                ✦ Featured
+                Featured
               </Badge>
             </div>
             <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">Featured Listings</h2>
@@ -106,23 +106,32 @@ const FeaturedBooks = () => {
   return (
     <section className="py-16 sm:py-20 bg-gray-50">
       <div className="container mx-auto px-4 max-w-6xl">
-        {/* Header — centered with Featured pill above */}
-        <div className="text-center mb-10">
-          <div className="mb-3">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between mb-10">
+          <div className="max-w-2xl">
             <Badge className="bg-book-100 text-book-700 border border-book-300 hover:bg-book-200">
-              ✦ Featured
+              Featured
             </Badge>
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">Featured Listings</h2>
+            <p className="text-gray-500 max-w-md">
+              Discover curated school items with clearer pricing, seller details, and quick book highlights.
+            </p>
           </div>
-          <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">Featured Listings</h2>
-          <p className="text-gray-500 max-w-md mx-auto">
-            Discover handpicked school items from our collection. Quality products at unbeatable prices.
-          </p>
+          <Link to="/listings" className="inline-flex items-center justify-center rounded-full border border-book-300 bg-white px-5 py-3 text-sm font-semibold text-book-700 transition hover:bg-book-50">
+            View All Listings
+          </Link>
         </div>
 
-        {/* Grid: 6 items in 3 columns */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-3 lg:grid-rows-[auto_auto]">
           {books.map((book, index) => (
-            <FeaturedBookCard key={book.id} book={book} featured={index < 2} />
+            <FeaturedBookCard
+              key={book.id}
+              book={book}
+              className={
+                index === 0 ? "lg:col-span-2 lg:row-span-2" :
+                index === 1 ? "lg:row-span-2" :
+                ""
+              }
+            />
           ))}
         </div>
       </div>
@@ -130,7 +139,7 @@ const FeaturedBooks = () => {
   );
 };
 
-const FeaturedBookCard = ({ book, featured }: { book: Book; featured: boolean }) => {
+const FeaturedBookCard = ({ book, className = "" }: { book: Book; className?: string }) => {
   const typeBadge =
     book.itemType === "uniform"
       ? { label: "Uniform", icon: <Shirt className="h-3 w-3" /> }
@@ -138,13 +147,15 @@ const FeaturedBookCard = ({ book, featured }: { book: Book; featured: boolean })
         ? { label: "School Supply", icon: <Backpack className="h-3 w-3" /> }
         : { label: "Textbook", icon: <BookOpen className="h-3 w-3" /> };
 
+  const description = book.description ? `${book.description.slice(0, 110)}${book.description.length > 110 ? "..." : ""}` : "No description available.";
+  const sellerLabel = book.author ? `by ${book.author}` : book.seller?.name || "ReBooked Seller";
+
   return (
     <Link
       to={`/books/${book.id}`}
-      className="group block bg-white rounded-xl border border-gray-200 overflow-hidden
-        transition-all duration-300 ease-in-out hover:-translate-y-1 hover:shadow-lg"
+      className={`group block bg-white rounded-3xl border border-gray-200 overflow-hidden transition-all duration-300 ease-in-out hover:-translate-y-1 hover:shadow-lg ${className}`}
     >
-      <div className="relative overflow-hidden h-40">
+      <div className="relative overflow-hidden h-56">
         <img
           src={book.imageUrl}
           alt={book.title}
@@ -153,42 +164,46 @@ const FeaturedBookCard = ({ book, featured }: { book: Book; featured: boolean })
             e.currentTarget.src = "https://images.unsplash.com/photo-1618160702438-9b02ab6515c9?w=400&h=300&fit=crop&auto=format&q=80";
           }}
         />
-        {/* Price pill */}
-        <div className="absolute top-3 right-3 bg-white px-2.5 py-1 rounded-full text-sm font-bold text-book-800 shadow-sm">
+
+        <div className="absolute top-3 left-3">
+          <Badge className="flex items-center gap-1 bg-book-600 text-white text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded-full">
+            {typeBadge.icon}
+            <span>{typeBadge.label}</span>
+          </Badge>
+        </div>
+
+        <div className="absolute top-3 right-3 rounded-full bg-white/85 px-3 py-1 text-sm font-semibold text-book-800 shadow-sm">
           R{book.price.toLocaleString()}
         </div>
-        {/* Type badge */}
-        <div className="absolute top-3 left-3">
-          <Badge className="flex items-center gap-1 bg-book-600 text-white text-[10px] font-bold uppercase tracking-wide hover:bg-book-700">
-            {typeBadge.icon} {typeBadge.label}
-          </Badge>
-        </div>
-        {/* Featured label */}
-        {featured && (
-          <Badge className="absolute bottom-3 left-3 bg-book-600 text-white text-[10px] font-bold uppercase hover:bg-book-700">
-            Featured
-          </Badge>
-        )}
+
       </div>
 
-      <div className="p-4">
-        <h3 className="font-bold text-sm text-gray-900 line-clamp-1 group-hover:text-book-600 transition-colors mb-1">
+      <div className="p-5">
+        <h3 className="font-bold text-lg text-gray-900 line-clamp-2 group-hover:text-book-600 transition-colors mb-2">
           {book.title}
         </h3>
-        <p className="text-xs text-gray-500 mb-2">
-          {book.itemType === "uniform" ? (book.schoolName || "School uniform") : book.itemType === "school_supply" ? (book.subject || "School supply") : `by ${book.author}`}
-        </p>
+        <p className="text-sm text-gray-500 mb-3">{sellerLabel}</p>
+        <p className="text-sm text-gray-600 leading-relaxed mb-4 line-clamp-3">{description}</p>
 
-        <div className="flex items-center justify-between flex-wrap gap-1.5">
-          <div className="flex gap-1.5">
-            <Badge variant="outline" className="text-[10px]">
-              {book.itemType === "uniform" ? book.condition : book.itemType === "school_supply" ? (book.condition || "Supply") : book.category}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap gap-2">
+            {book.grade && (
+              <Badge variant="outline" className="text-[10px] px-2 py-1">
+                {book.grade}
+              </Badge>
+            )}
+            <Badge variant="outline" className="text-[10px] px-2 py-1">
+              {book.condition}
             </Badge>
-            {book.grade && <Badge variant="secondary" className="text-[10px]">{book.grade}</Badge>}
+            <Badge variant="outline" className="text-[10px] px-2 py-1">
+              {book.category}
+            </Badge>
           </div>
+
           {book.province && (
-            <span className="flex items-center text-[10px] text-gray-400">
-              <MapPin className="h-3 w-3 mr-0.5" /> {book.province}
+            <span className="flex items-center gap-1 text-xs text-gray-500">
+              <MapPin className="h-3 w-3" />
+              {book.province}
             </span>
           )}
         </div>
