@@ -1315,27 +1315,6 @@ export type Database = {
         }
         Relationships: []
       }
-      wishlists: {
-        Row: {
-          created_at: string
-          id: string
-          listing_id: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          listing_id: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          listing_id?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
       order_notifications: {
         Row: {
           action_required: boolean | null
@@ -1810,6 +1789,8 @@ export type Database = {
           addresses_same: boolean | null
           affiliate_code: string | null
           auto_commit: boolean
+          away_message: string | null
+          away_since: string | null
           bio: string | null
           created_at: string
           date_of_birth: string | null
@@ -1853,12 +1834,15 @@ export type Database = {
           updated_at: string
           user_tier: string | null
           verification_expires_at: string | null
+          wishlist: Json
         }
         Insert: {
           address_encryption_version?: number | null
           addresses_same?: boolean | null
           affiliate_code?: string | null
           auto_commit?: boolean
+          away_message?: string | null
+          away_since?: string | null
           bio?: string | null
           created_at?: string
           date_of_birth?: string | null
@@ -1902,12 +1886,15 @@ export type Database = {
           updated_at?: string
           user_tier?: string | null
           verification_expires_at?: string | null
+          wishlist?: Json
         }
         Update: {
           address_encryption_version?: number | null
           addresses_same?: boolean | null
           affiliate_code?: string | null
           auto_commit?: boolean
+          away_message?: string | null
+          away_since?: string | null
           bio?: string | null
           created_at?: string
           date_of_birth?: string | null
@@ -1951,6 +1938,7 @@ export type Database = {
           updated_at?: string
           user_tier?: string | null
           verification_expires_at?: string | null
+          wishlist?: Json
         }
         Relationships: []
       }
@@ -2877,16 +2865,6 @@ export type Database = {
         Returns: {
           average_rating: number
           review_count: number
-        }[]
-      }
-      get_seller_wishlist_contacts: {
-        Args: { p_seller_id: string }
-        Returns: {
-          listing_id: string
-          listing_title: string
-          wishlist_email: string
-          wishlist_name: string
-          wishlist_user_id: string
         }[]
       }
       get_seller_profile_for_checkout: {
