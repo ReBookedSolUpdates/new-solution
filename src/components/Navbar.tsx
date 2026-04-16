@@ -82,9 +82,29 @@ const Navbar = () => {
                 <div className="w-7 h-7 sm:w-8 sm:h-8 bg-book-600 rounded-lg flex items-center justify-center flex-shrink-0">
                   <BookOpen className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                 </div>
-                <span className="text-lg sm:text-xl font-bold text-book-600 truncate">
-                  ReBooked Solutions
-                </span>
+                <div className="flex flex-col">
+                  <span className="text-lg sm:text-xl font-bold text-book-600 truncate">
+                    ReBooked Solutions
+                  </span>
+                  <div className="mt-0.5 flex flex-wrap gap-1">
+                    <a
+                      href="https://genius.rebookedsolutions.co.za/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[10px] font-semibold uppercase tracking-[0.15em] text-book-600 bg-book-50 px-2 py-0.5 rounded-full hover:bg-book-100 transition-colors"
+                    >
+                      Genius
+                    </a>
+                    <a
+                      href="https://living.rebookedsolutions.co.za/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[10px] font-semibold uppercase tracking-[0.15em] text-book-600 bg-book-50 px-2 py-0.5 rounded-full hover:bg-book-100 transition-colors"
+                    >
+                      Living
+                    </a>
+                  </div>
+                </div>
               </Link>
             </div>
 
@@ -134,10 +154,30 @@ const Navbar = () => {
               <div className="w-7 h-7 sm:w-8 sm:h-8 bg-book-600 rounded-lg flex items-center justify-center flex-shrink-0">
                 <BookOpen className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
               </div>
-              <span className="text-lg sm:text-xl font-bold text-book-600 truncate">
-                <span className="hidden sm:inline">ReBooked Solutions</span>
-                <span className="sm:hidden">ReBooked Solutions</span>
-              </span>
+              <div className="flex flex-col">
+                <span className="text-lg sm:text-xl font-bold text-book-600 truncate">
+                  <span className="hidden sm:inline">ReBooked Solutions</span>
+                  <span className="sm:hidden">ReBooked Solutions</span>
+                </span>
+                <div className="mt-0.5 flex flex-wrap gap-1">
+                  <a
+                    href="https://genius.rebookedsolutions.co.za/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[10px] font-semibold uppercase tracking-[0.15em] text-book-600 bg-book-50 px-2 py-0.5 rounded-full hover:bg-book-100 transition-colors"
+                  >
+                    Genius
+                  </a>
+                  <a
+                    href="https://living.rebookedsolutions.co.za/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[10px] font-semibold uppercase tracking-[0.15em] text-book-600 bg-book-50 px-2 py-0.5 rounded-full hover:bg-book-100 transition-colors"
+                  >
+                    Living
+                  </a>
+                </div>
+              </div>
             </Link>
           </div>
 

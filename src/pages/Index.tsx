@@ -4,10 +4,11 @@ import Layout from "@/components/Layout";
 import SEO from "@/components/SEO";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Carousel, CarouselContent, CarouselItem, type CarouselApi } from "@/components/ui/carousel";
 import {
-  Search, BookOpen, Shirt, Backpack, Palette, Landmark, FlaskConical, Trophy, Sigma,
+  BookOpen, Shirt, Backpack, Palette, Landmark, FlaskConical, Trophy, Sigma,
   Leaf, ShieldCheck, Truck, ArrowRight, Building2, Zap, BadgeCheck, Percent,
-  CheckCircle, Shield, MessageSquare, Lock, Package, ExternalLink, BarChart3
+  CheckCircle, Shield, MessageSquare, Lock, Package, ExternalLink
 } from "lucide-react";
 import FeaturedBooks from "@/components/home/FeaturedBooks";
 import HowItWorks from "@/components/home/HowItWorks";
@@ -35,7 +36,6 @@ function useScrollReveal() {
 const Index = () => {
   debugLogger.info("Index", "Index page mounted");
 
-  const [searchQuery, setSearchQuery] = useState("");
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
@@ -49,13 +49,6 @@ const Index = () => {
     }
   }, [searchParams, navigate]);
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      navigate(`/books?search=${encodeURIComponent(searchQuery.trim())}`);
-    }
-  };
-
   const categories = [
     { name: "Textbooks", icon: <BookOpen className="h-6 w-6" /> },
     { name: "Uniforms", icon: <Shirt className="h-6 w-6" /> },
@@ -66,6 +59,61 @@ const Index = () => {
     { name: "Arts & Craft", icon: <Palette className="h-6 w-6" /> },
     { name: "Economics", icon: <Landmark className="h-6 w-6" /> },
   ];
+
+  const heroImages = [
+    {
+      src: "https://images.pexels.com/photos/256455/pexels-photo-256455.jpeg",
+      alt: "Students with textbooks",
+    },
+    {
+      src: "https://images.pexels.com/photos/1720186/pexels-photo-1720186.jpeg",
+      alt: "Student with books",
+    },
+    {
+      src: "https://images.pexels.com/photos/4145190/pexels-photo-4145190.jpeg",
+      alt: "Students learning together",
+    },
+    {
+      src: "/lovable-uploads/bd1bff70-5398-480d-ab05-1a01e839c2d0.png",
+      alt: "Student in blazer",
+    },
+  ];
+
+  const [heroApi, setHeroApi] = useState<CarouselApi | null>(null);
+  const [heroIndex, setHeroIndex] = useState<number>(0);
+
+  useEffect(() => {
+    if (!heroApi) return;
+    const onSelect = () => {
+      try {
+        setHeroIndex(heroApi.selectedScrollSnap());
+      } catch (e) {
+        setHeroIndex(0);
+      }
+    };
+    onSelect();
+    heroApi.on("select", onSelect);
+    heroApi.on("reInit", onSelect);
+    return () => {
+      heroApi.off("select", onSelect);
+      heroApi.off("reInit", onSelect);
+    };
+  }, [heroApi]);
+
+  // autoplay the hero carousel every 4s (loops)
+  useEffect(() => {
+    if (!heroApi) return;
+    const id = setInterval(() => {
+      try {
+        const current = heroApi.selectedScrollSnap();
+        const next = (current + 1) % heroImages.length;
+        heroApi.scrollTo(next);
+      } catch (e) {
+        /* ignore */
+      }
+    }, 4000);
+    return () => clearInterval(id);
+  }, [heroApi, heroImages.length]);
 
   /* scroll-reveal refs */
   const catReveal = useScrollReveal();
@@ -83,88 +131,121 @@ const Index = () => {
       />
 
       {/* ═══ HERO — Redesigned 2-column layout with collage visuals ═══ */}
-      <section className="min-h-[560px] bg-book-100 overflow-hidden">
-        <div className="container mx-auto px-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 items-center gap-8 lg:gap-10">
-            {/* Left */}
-            <div className="py-12 sm:py-16 lg:py-20 lg:pr-10 text-center lg:text-left">
-              <h1 className="text-4xl sm:text-5xl lg:text-[56px] font-bold text-gray-900 leading-[1.02] mb-6">
-                REBOOKED SOLUTIONS
+      <section className="min-h-[60vh] bg-book-100 overflow-hidden">
+        <div className="container mx-auto px-4 py-10 lg:py-14">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+            {/* Left content */}
+            <div className="space-y-6 text-center lg:text-left lg:-translate-x-6">
+              <h1 className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold uppercase tracking-tight leading-[0.95] text-gray-900">
+                Rebooked
+                <br />
+                Solutions
               </h1>
 
-              <p className="text-base sm:text-lg text-gray-600 mx-auto lg:mx-0 max-w-[560px] leading-relaxed mb-8">
+              <div className="inline-block bg-book-700 text-white px-6 py-3 rounded-full">
+                <span className="text-sm sm:text-base font-semibold tracking-wide uppercase">
+                  Books · Uniforms · Everything In Between
+                </span>
+              </div>
+
+              <p className="text-sm sm:text-base uppercase tracking-widest leading-relaxed max-w-lg mx-auto lg:mx-0 text-gray-600 font-semibold">
                 ReBooked Solutions — South Africa's trusted school marketplace for buying and selling textbooks, uniforms, and school supplies safely and affordably.
               </p>
 
-              <form onSubmit={handleSearch} className="flex max-w-[560px] mx-auto lg:mx-0 rounded-[32px] border border-book-800 bg-book-900 shadow-[0_24px_80px_rgba(42,79,63,0.15)] overflow-hidden">
-                <input
-                  type="text"
-                  placeholder="Search textbooks, uniforms, supplies…"
-                  className="flex-1 px-5 py-4 text-sm text-white placeholder:text-book-300 bg-transparent border-none outline-none"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-                <button
-                  type="submit"
-                  className="px-6 bg-book-700 text-white text-sm font-semibold flex items-center gap-2 hover:bg-book-600 transition-colors"
-                >
-                  <Search className="h-4 w-4" /> Search
+              <div className="flex flex-col gap-3 items-center lg:items-start w-full sm:w-auto">
+                <button className="inline-flex items-center justify-center bg-book-600 text-white font-semibold text-base px-8 py-2 rounded-full hover:opacity-90 transition-opacity w-full max-w-md mx-auto lg:mx-0">
+                  Shop Now
                 </button>
-              </form>
+                <Link to="/create-listing" className="inline-flex items-center justify-center w-full max-w-md rounded-full border border-book-600 bg-white px-8 py-2 text-base font-semibold text-book-700 hover:bg-book-50 transition-colors">
+                  Make A Listing
+                </Link>
+              </div>
 
-              <div className="flex flex-wrap justify-center lg:justify-start gap-5 mt-6">
-                {["Secure payments", "Verified listings", "Nationwide delivery"].map((t) => (
-                  <span key={t} className="flex items-center gap-2 text-xs text-gray-500 font-medium">
-                    <span className="w-2 h-2 rounded-full bg-book-600" /> {t}
-                  </span>
-                ))}
+              <div className="flex flex-wrap gap-6 pt-2 justify-center lg:justify-start">
+                <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-gray-600 font-semibold">
+                  <Shield className="w-4 h-4" />
+                  <span>Secure Payments</span>
+                </div>
+                <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-gray-600 font-semibold">
+                  <CheckCircle className="w-4 h-4" />
+                  <span>Verified Listings</span>
+                </div>
+                <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-gray-600 font-semibold">
+                  <Truck className="w-4 h-4" />
+                  <span>Nationwide Delivery</span>
+                </div>
               </div>
             </div>
 
-            {/* Right — collage grid */}
-            <div className="hidden lg:grid grid-cols-2 grid-rows-2 gap-4 min-h-[560px]">
-              <div className="rounded-[32px] overflow-hidden shadow-2xl bg-white h-[260px]">
+            {/* Mobile carousel (visible on small screens) */}
+            <div className="lg:hidden">
+              <Carousel opts={{ align: "center", containScroll: "trimSnaps", dragFree: true, loop: false }} setApi={setHeroApi}>
+                <CarouselContent className="touch-pan-x">
+                  {heroImages.map((image) => (
+                    <CarouselItem key={image.alt} className="min-w-full">
+                      <img
+                        src={image.src}
+                        alt={image.alt}
+                        className="w-full h-[16rem] sm:h-[18rem] object-cover rounded-[2rem]"
+                        loading="lazy"
+                      />
+                    </CarouselItem>
+                  ))}
+                </CarouselContent>
+              </Carousel>
+                {/* pagination dots */}
+                <div className="flex items-center justify-center gap-2 mt-3">
+                  {heroImages.map((_, idx) => (
+                    <button
+                      key={idx}
+                      aria-label={`Go to slide ${idx + 1}`}
+                      onClick={() => heroApi?.scrollTo(idx)}
+                      className={
+                        "h-2 w-8 rounded-full transition-all duration-200 bg-white/50" + (heroIndex === idx ? " bg-white" : " bg-white/30")
+                      }
+                    />
+                  ))}
+                </div>
+            </div>
+
+            {/* Right image grid */}
+              <div className="hidden lg:grid grid-cols-1 gap-4 sm:grid-cols-[0.88fr_1.12fr] sm:gap-5 lg:gap-6">
+              <div className="grid gap-4 sm:gap-5 lg:gap-6">
                 <img
                   src="https://images.pexels.com/photos/256455/pexels-photo-256455.jpeg"
-                  alt="School equipment and stationery"
-                  className="w-full h-full object-cover"
-                  loading="eager"
+                  alt="Students with textbooks"
+                    className="w-full h-[19rem] sm:h-[22rem] lg:h-[26rem] object-cover rounded-[2rem]"
+                  width={640}
+                  height={800}
                 />
-              </div>
-              <div className="rounded-[32px] overflow-hidden shadow-2xl bg-white h-[260px]">
-                <img
-                  src="https://images.pexels.com/photos/1720186/pexels-photo-1720186.jpeg"
-                  alt="Kids playing at school"
-                  className="w-full h-full object-cover"
-                  loading="eager"
-                />
-              </div>
-              <div className="rounded-[32px] overflow-hidden shadow-2xl bg-white h-[260px]">
-                <img
-                  src="/lovable-uploads/bd1bff70-5398-480d-ab05-1a01e839c2d0.png"
-                  alt="Student with textbooks"
-                  className="w-full h-full object-cover"
-                  loading="eager"
-                />
-              </div>
-              <div className="rounded-[32px] overflow-hidden shadow-2xl bg-white h-[260px]">
                 <img
                   src="https://images.pexels.com/photos/4145190/pexels-photo-4145190.jpeg"
-                  alt="Students learning together"
-                  className="w-full h-full object-cover"
-                  loading="eager"
+                  alt="Students sharing supplies"
+                    className="w-full h-[13rem] sm:h-[13rem] lg:h-[14.5rem] object-cover rounded-[2rem]"
+                  loading="lazy"
+                  width={640}
+                  height={640}
                 />
               </div>
-            </div>
 
-            {/* Mobile-friendly hero image */}
-            <div className="lg:hidden order-2">
-              <img
-                src="/lovable-uploads/bd1bff70-5398-480d-ab05-1a01e839c2d0.png"
-                alt="Student with textbooks"
-                className="w-full rounded-[28px] shadow-2xl object-cover"
-                loading="eager"
-              />
+              <div className="grid gap-4 sm:gap-5 lg:gap-6">
+                <img
+                  src="https://images.pexels.com/photos/1720186/pexels-photo-1720186.jpeg"
+                  alt="Student with books"
+                  className="w-full h-[14rem] sm:h-[14rem] lg:h-[16rem] object-cover rounded-[2rem]"
+                  loading="lazy"
+                  width={640}
+                  height={640}
+                />
+                <img
+                  src="/lovable-uploads/bd1bff70-5398-480d-ab05-1a01e839c2d0.png"
+                  alt="Student in blazer"
+                  className="w-full h-[18rem] sm:h-[22rem] lg:h-[26rem] object-cover rounded-[2rem]"
+                  loading="lazy"
+                  width={640}
+                  height={800}
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -252,16 +333,16 @@ const Index = () => {
       </section>
 
       {/* ═══ REBOOKED BUSINESS — Full-width card banner ═══ */}
-      <section className="relative overflow-hidden bg-book-600 py-16 sm:py-20" ref={bizReveal.ref}>
+      <section className="relative overflow-hidden bg-book-600 py-12 sm:py-16" ref={bizReveal.ref}>
         {/* Decorative circle */}
         <div className="absolute -top-24 -right-24 w-96 h-96 rounded-full bg-white/[0.04] pointer-events-none" />
         <div className="container mx-auto px-4 max-w-6xl relative z-10">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
             {/* Left */}
-            <div>
+            <div className="text-center lg:text-left">
               <Badge className="mb-4 bg-white/10 text-white/80 border-white/20 hover:bg-white/20">For Business</Badge>
               <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">ReBooked Business</h2>
-              <p className="text-white/70 leading-relaxed mb-8 max-w-md">
+              <p className="text-white/80 leading-relaxed mb-6 max-w-md mx-auto lg:mx-0">
                 Verified seller programme for registered South African businesses looking to scale. List school items at volume with priority placement and a dedicated business dashboard.
               </p>
               <Button asChild size="lg" className="bg-white text-book-900 hover:bg-gray-100 font-bold">
@@ -270,24 +351,23 @@ const Index = () => {
             </div>
 
             {/* Right — stat cards + feature pills */}
-            <div className="space-y-5">
+            <div className="space-y-5 text-center">
               <div className="grid grid-cols-3 gap-4">
                 {[
-                  { value: "6.5%", label: "Commission rate", highlight: "vs 10% for standard sellers" },
-                  { value: "⚡", label: "Instant Listings", highlight: "Auto-commit with fast waiting period" },
-                  { value: "✓", label: "Verified Badge", highlight: "Build buyer trust on every listing" },
+                  { value: <span className="inline-block text-2xl font-bold">6.5%</span>, label: "Commission rate", highlight: "vs 10% for standard sellers" },
+                  { value: <Zap className="h-6 w-6 mx-auto text-white" />, label: "Instant Listings", highlight: "Auto-commit with fast waiting period" },
+                  { value: <BadgeCheck className="h-6 w-6 mx-auto text-white" />, label: "Verified Badge", highlight: "Build buyer trust on every listing" },
                 ].map((s) => (
                   <div key={s.label} className="bg-white/[0.08] border border-white/15 rounded-xl p-5 text-center">
-                    <div className="text-3xl font-bold text-white mb-1">{s.value}</div>
+                    <div className="mb-1">{s.value}</div>
                     <div className="text-xs text-white/60">{s.label}</div>
-                    <div className="text-[11px] text-yellow-400 font-semibold mt-1">{s.highlight}</div>
+                    <div className="text-[11px] text-white font-semibold mt-1">{s.highlight}</div>
                   </div>
                 ))}
               </div>
-              <div className="flex flex-wrap gap-2.5">
+              <div className="flex flex-wrap gap-2.5 justify-center">
                 {[
                   { icon: <Package className="h-4 w-4" />, text: "Bulk Listing Tools" },
-                  { icon: <BarChart3 className="h-4 w-4" />, text: "Business Analytics" },
                   { icon: <BadgeCheck className="h-4 w-4" />, text: "Verified Badge" },
                   { icon: <Zap className="h-4 w-4" />, text: "Priority Support" }
                 ].map((f) => (

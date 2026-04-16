@@ -54,7 +54,7 @@ const EcosystemSection = () => (
       {/* Heading */}
       <div className="text-center max-w-3xl mx-auto mb-14">
         <span className="inline-flex items-center gap-1.5 bg-book-100 text-book-700 border border-book-300 text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full mb-4">
-          ✦ The Ecosystem
+          The Ecosystem
         </span>
         <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-gray-900 mb-4">
           The <span className="text-book-600">ReBooked Solutions</span> Ecosystem

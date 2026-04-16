@@ -358,6 +358,8 @@ const BookDetails = () => {
               onEditBook={handleEditBook}
               onShare={handleShare}
               onViewSellerProfile={handleViewSellerProfile}
+              onToggleWishlist={handleToggleWishlist}
+              isWishlisted={isWishlisted}
             />
 
             <SellerInfo
@@ -367,21 +369,12 @@ const BookDetails = () => {
             />
 
             {!isOwner && (
-              <div className="text-center flex gap-2 justify-center">
-                <Button
-                  variant={isWishlisted ? "default" : "outline"}
-                  size="sm"
-                  onClick={handleToggleWishlist}
-                  className={isWishlisted ? "bg-pink-600 hover:bg-pink-700" : ""}
-                >
-                  <Heart className="h-4 w-4 mr-1" />
-                  {isWishlisted ? "Wishlisted" : "Add to Wishlist"}
-                </Button>
+              <div className="text-center">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={handleReportBook}
-                  className="text-red-600 border-red-600 hover:bg-red-50"
+                  className="text-red-600 border-red-600 hover:bg-red-50 w-full max-w-xs mx-auto"
                 >
                   Report Issue
                 </Button>
