@@ -1,7 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 
 export async function getWishlistIds(userId: string): Promise<string[]> {
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from("wishlists")
     .select("listing_id")
     .eq("user_id", userId);
@@ -10,7 +10,7 @@ export async function getWishlistIds(userId: string): Promise<string[]> {
 }
 
 export async function toggleWishlistItem(userId: string, listingId: string): Promise<boolean> {
-  const { data: existing } = await supabase
+  const { data: existing } = await (supabase as any)
     .from("wishlists")
     .select("id")
     .eq("user_id", userId)
@@ -18,12 +18,12 @@ export async function toggleWishlistItem(userId: string, listingId: string): Pro
     .maybeSingle();
 
   if (existing?.id) {
-    const { error } = await supabase.from("wishlists").delete().eq("id", existing.id);
+    const { error } = await (supabase as any).from("wishlists").delete().eq("id", existing.id);
     if (error) throw error;
     return false;
   }
 
-  const { error } = await supabase
+  const { error } = await (supabase as any)
     .from("wishlists")
     .insert({ user_id: userId, listing_id: listingId });
   if (error) throw error;

@@ -3,50 +3,39 @@ import { useNavigate } from "react-router-dom";
 
 const ReadyToGetStarted = () => {
   const navigate = useNavigate();
-
-  // For now, always show "Sign Up Now" to avoid auth context dependency
-  // This component can work independently of auth state
   const isAuthenticated = false;
 
   return (
-    <section className="py-16 sm:py-20 bg-gradient-to-r from-book-600 to-book-700">
-      <div className="container mx-auto px-4">
-        <div className="text-center text-white max-w-4xl mx-auto">
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-6">
-            Ready to Get Started?
-          </h2>
-
-          <p className="text-lg sm:text-xl lg:text-2xl mb-8 sm:mb-10 text-white/90 leading-relaxed">
-            Join ReBooked Solutions to buy and sell school items securely. Save
-            money and help others do the same!
-          </p>
-
-          <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 justify-center items-center max-w-lg mx-auto">
-            <Button
-              onClick={() =>
-                navigate(isAuthenticated ? "/create-listing" : "/register")
-              }
-              size="lg"
-              className="w-full sm:w-auto bg-white text-book-600 hover:bg-gray-100 font-semibold px-8 py-4 text-lg"
-            >
-              {isAuthenticated ? "List Your Items" : "Sign Up Now"}
-            </Button>
-
-            <Button
-              onClick={() => navigate("/getting-started")}
-              size="lg"
-              variant="outline"
-              className="w-full sm:w-auto border-2 border-white text-white hover:bg-white hover:text-book-600 px-8 py-4 text-lg bg-white/10 backdrop-blur-sm"
-            >
-              Getting Started
-            </Button>
-
-          </div>
-
-          <div className="mt-8 text-sm sm:text-base text-white/80">
-            <p>Join thousands of students already saving money on school items</p>
-          </div>
+    <section className="relative overflow-hidden bg-book-700 py-16 sm:py-24">
+      {/* Decorative circle */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] rounded-full bg-white/[0.04] pointer-events-none" />
+      <div className="relative z-10 container mx-auto px-4 max-w-2xl text-center">
+        <h2 className="text-4xl sm:text-5xl font-bold text-white leading-[1.1] mb-4">
+          Ready to<br /><span className="italic text-book-300">Get Started?</span>
+        </h2>
+        <p className="text-base sm:text-lg text-white/70 leading-relaxed mb-9">
+          Join thousands of students already saving money on school items. Join ReBooked Solutions to buy and sell school items securely — and help others do the same.
+        </p>
+        <div className="flex flex-col sm:flex-row gap-3 justify-center">
+          <Button
+            size="lg"
+            onClick={() => navigate(isAuthenticated ? "/create-listing" : "/register")}
+            className="bg-white text-book-700 hover:bg-gray-100 font-bold shadow-lg px-9"
+          >
+            ✦ {isAuthenticated ? "List Your Items" : "Sign Up Free"}
+          </Button>
+          <Button
+            size="lg"
+            variant="outline"
+            onClick={() => navigate("/getting-started")}
+            className="border-2 border-white/40 text-white hover:bg-white/10 px-9 bg-transparent"
+          >
+            Getting Started →
+          </Button>
         </div>
+        <p className="mt-6 text-xs text-white/50">
+          Join <span className="text-white/70">thousands</span> of students already saving money on school items
+        </p>
       </div>
     </section>
   );
