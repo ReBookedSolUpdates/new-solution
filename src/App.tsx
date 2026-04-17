@@ -65,6 +65,9 @@ import SellerProfile from "./pages/SellerProfile";
 import GettingStarted from "./pages/GettingStarted";
 import CategoryInfoPage from "./pages/CategoryInfoPage";
 import ReBookedBusiness from "./pages/ReBookedBusiness";
+import TextbooksInfo from "./pages/TextbooksInfo";
+import UniformsInfo from "./pages/UniformsInfo";
+import SchoolSuppliesInfo from "./pages/SchoolSuppliesInfo";
 
 
 // Other Pages
@@ -313,9 +316,12 @@ function AppRoutes() {
         <Route path="/shipping" element={<Shipping />} />
         <Route path="/tracking" element={<Tracking />} />
         <Route path="/getting-started" element={<GettingStarted />} />
-        <Route path="/textbook-guide" element={<CategoryInfoPage />} />
-        <Route path="/uniform-guide" element={<CategoryInfoPage />} />
-        <Route path="/school-supplies-guide" element={<CategoryInfoPage />} />
+        <Route path="/textbook-guide" element={<TextbooksInfo />} />
+        <Route path="/textbooks-info" element={<TextbooksInfo />} />
+        <Route path="/uniform-guide" element={<UniformsInfo />} />
+        <Route path="/uniforms-info" element={<UniformsInfo />} />
+        <Route path="/school-supplies-guide" element={<SchoolSuppliesInfo />} />
+        <Route path="/school-supplies-info" element={<SchoolSuppliesInfo />} />
         <Route path="/category/:slug" element={<CategoryInfoPage />} />
         <Route path="/rebooked-business" element={<ReBookedBusiness />} />
 
