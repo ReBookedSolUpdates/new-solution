@@ -32,7 +32,7 @@ const SellerInfo = ({ seller, onViewProfile, bookId }: SellerInfoProps) => {
     }
   };
 
-  const displayName = seller?.full_name || seller?.name || "Loading...";
+  const displayName = seller?.name || "Loading...";
 
   return (
     <Card>
