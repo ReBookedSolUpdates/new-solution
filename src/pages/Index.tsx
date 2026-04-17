@@ -50,14 +50,14 @@ const Index = () => {
   }, [searchParams, navigate]);
 
   const categories = [
-    { name: "Textbooks", icon: <BookOpen className="h-6 w-6" /> },
-    { name: "Uniforms", icon: <Shirt className="h-6 w-6" /> },
-    { name: "School Supplies", icon: <Backpack className="h-6 w-6" /> },
-    { name: "Mathematics", icon: <Sigma className="h-6 w-6" /> },
-    { name: "Science", icon: <FlaskConical className="h-6 w-6" /> },
-    { name: "Sports & Equipment", icon: <Trophy className="h-6 w-6" /> },
-    { name: "Arts & Craft", icon: <Palette className="h-6 w-6" /> },
-    { name: "Economics", icon: <Landmark className="h-6 w-6" /> },
+    { name: "Textbooks", icon: <BookOpen className="h-6 w-6" />, to: "/textbooks-info" },
+    { name: "Uniforms", icon: <Shirt className="h-6 w-6" />, to: "/uniforms-info" },
+    { name: "School Supplies", icon: <Backpack className="h-6 w-6" />, to: "/school-supplies-info" },
+    { name: "Mathematics", icon: <Sigma className="h-6 w-6" />, to: "/listings?search=mathematics" },
+    { name: "Science", icon: <FlaskConical className="h-6 w-6" />, to: "/listings?search=science" },
+    { name: "Sports & Equipment", icon: <Trophy className="h-6 w-6" />, to: "/listings?search=sports" },
+    { name: "Arts & Craft", icon: <Palette className="h-6 w-6" />, to: "/listings?search=art" },
+    { name: "Economics", icon: <Landmark className="h-6 w-6" />, to: "/listings?search=economics" },
   ];
 
   const heroImages = [
@@ -133,9 +133,9 @@ const Index = () => {
       {/* ═══ HERO — Redesigned 2-column layout with collage visuals ═══ */}
       <section className="min-h-[60vh] bg-book-100 overflow-hidden">
         <div className="container mx-auto px-4 py-10 lg:py-14">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center">
             {/* Left content */}
-            <div className="space-y-6 text-center lg:text-left lg:-translate-x-6">
+            <div className="space-y-6 text-center lg:text-left">
               <h1 className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold uppercase tracking-tight leading-[0.95] text-gray-900">
                 Rebooked
                 <br />
@@ -251,25 +251,21 @@ const Index = () => {
         </div>
       </section>
 
-      {/* ═══ CATEGORIES — Clean card grid ═══ */}
-      <section className="py-12 sm:py-16 bg-white border-b" ref={catReveal.ref}>
+      {/* ═══ CATEGORIES — Clean card grid (no entrance animation) ═══ */}
+      <section className="py-12 sm:py-16 bg-white border-b">
         <div className="container mx-auto px-4 max-w-6xl">
           <div className="text-center mb-10">
             <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">Shop by Category</h2>
             <p className="text-gray-500">Browse curated collections across all school essentials</p>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5">
-            {categories.map((cat, i) => (
+            {categories.map((cat) => (
               <Link
                 key={cat.name}
-                to="/listings"
-                className={`group flex flex-col items-center gap-3 p-6 rounded-xl bg-white border border-gray-200
+                to={cat.to}
+                className="group flex flex-col items-center gap-3 p-6 rounded-xl bg-white border border-gray-200
                   hover:border-book-400 hover:shadow-lg hover:bg-book-50
-                  transition-all duration-300 ease-in-out
-                  hover:-translate-y-1
-                  ${catReveal.visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}
-                `}
-                style={{ transitionDelay: catReveal.visible ? `${i * 60}ms` : '0ms' }}
+                  transition-all duration-300 ease-in-out hover:-translate-y-1"
               >
                 <div className="w-12 h-12 bg-book-100 rounded-lg flex items-center justify-center text-book-600 group-hover:bg-book-200 transition-colors">
                   {cat.icon}
@@ -297,33 +293,33 @@ const Index = () => {
             {/* Card grid */}
             <div className="space-y-4">
               {/* 3 value prop cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 sm:gap-6">
                 {[
-                  { icon: <Leaf className="h-5 w-5 text-book-600" />, title: "Sustainable Learning", desc: "Give textbooks and school items a second life, supporting a more affordable and sustainable education ecosystem while keeping school costs manageable for families." },
-                  { icon: <ShieldCheck className="h-5 w-5 text-book-600" />, title: "Guaranteed Security", desc: "Every transaction is protected by bank-level security. Funds are only released when transactions complete successfully — no exceptions." },
-                  { icon: <Truck className="h-5 w-5 text-book-600" />, title: "Smart Logistics", desc: "Integrated with The Courier Guy and Pudo for pickups and reliable delivery across South Africa. Track your order every step of the way." },
+                  { icon: <Leaf className="h-6 w-6 text-book-600" />, title: "Sustainable Learning", desc: "Give textbooks and school items a second life, supporting a more affordable and sustainable education ecosystem while keeping school costs manageable for families." },
+                  { icon: <ShieldCheck className="h-6 w-6 text-book-600" />, title: "Guaranteed Security", desc: "Every transaction is protected by bank-level security. Funds are only released when transactions complete successfully — no exceptions." },
+                  { icon: <Truck className="h-6 w-6 text-book-600" />, title: "Smart Logistics", desc: "Integrated with The Courier Guy and Pudo for pickups and reliable delivery across South Africa. Track your order every step of the way." },
                 ].map((c) => (
-                  <div key={c.title} className="bg-white border border-gray-200 rounded-xl p-6 relative overflow-hidden hover:shadow-md transition-shadow duration-300">
+                  <div key={c.title} className="bg-white border border-gray-200 rounded-xl p-7 sm:p-8 relative overflow-hidden hover:shadow-md transition-shadow duration-300 min-h-[200px]">
                     <div className="absolute top-0 left-0 right-0 h-[3px] bg-book-500" />
-                    <div className="w-11 h-11 bg-book-100 rounded-lg flex items-center justify-center mb-3">{c.icon}</div>
-                    <h3 className="font-bold text-sm text-gray-900 mb-1.5">{c.title}</h3>
-                    <p className="text-xs text-gray-500 leading-relaxed">{c.desc}</p>
+                    <div className="w-14 h-14 bg-book-100 rounded-lg flex items-center justify-center mb-4">{c.icon}</div>
+                    <h3 className="font-bold text-base sm:text-lg text-gray-900 mb-2">{c.title}</h3>
+                    <p className="text-sm text-gray-500 leading-relaxed">{c.desc}</p>
                   </div>
                 ))}
               </div>
 
               {/* 4 protection badges */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 {[
-                  { icon: <Shield className="h-5 w-5 text-book-600" />, title: "Buyer Protection", desc: "Funds held secure until you confirm receipt" },
-                  { icon: <CheckCircle className="h-5 w-5 text-book-600" />, title: "Verified Listings", desc: "All reviewed for accuracy and authenticity" },
-                  { icon: <MessageSquare className="h-5 w-5 text-book-600" />, title: "Human Support", desc: "Dedicated team for dispute resolution" },
-                  { icon: <Lock className="h-5 w-5 text-book-600" />, title: "Secure Payouts", desc: "PCI-compliant payment via BobPay" },
+                  { icon: <Shield className="h-6 w-6 text-book-600" />, title: "Buyer Protection", desc: "Funds held secure until you confirm receipt" },
+                  { icon: <CheckCircle className="h-6 w-6 text-book-600" />, title: "Verified Listings", desc: "All reviewed for accuracy and authenticity" },
+                  { icon: <MessageSquare className="h-6 w-6 text-book-600" />, title: "Human Support", desc: "Dedicated team for dispute resolution" },
+                  { icon: <Lock className="h-6 w-6 text-book-600" />, title: "Secure Payouts", desc: "PCI-compliant payment via BobPay" },
                 ].map((p) => (
-                  <div key={p.title} className="bg-white border border-gray-200 rounded-lg p-4 text-center">
-                    <div className="flex justify-center mb-2">{p.icon}</div>
-                    <h4 className="text-xs font-bold text-gray-900 mb-1">{p.title}</h4>
-                    <p className="text-[11px] text-gray-500 leading-snug">{p.desc}</p>
+                  <div key={p.title} className="bg-white border border-gray-200 rounded-xl p-5 text-center hover:shadow-md transition-shadow">
+                    <div className="flex justify-center mb-3">{p.icon}</div>
+                    <h4 className="text-sm font-bold text-gray-900 mb-1">{p.title}</h4>
+                    <p className="text-xs text-gray-500 leading-snug">{p.desc}</p>
                   </div>
                 ))}
               </div>
@@ -354,13 +350,13 @@ const Index = () => {
             <div className="space-y-5 text-center">
               <div className="grid grid-cols-3 gap-4">
                 {[
-                  { value: <span className="inline-block text-2xl font-bold">6.5%</span>, label: "Commission rate", highlight: "vs 10% for standard sellers" },
-                  { value: <Zap className="h-6 w-6 mx-auto text-white" />, label: "Instant Listings", highlight: "Auto-commit with fast waiting period" },
-                  { value: <BadgeCheck className="h-6 w-6 mx-auto text-white" />, label: "Verified Badge", highlight: "Build buyer trust on every listing" },
+                  { value: <span className="inline-block text-3xl font-bold text-white">6.5%</span>, label: "Commission rate", highlight: "vs 10% for standard sellers" },
+                  { value: <Zap className="h-7 w-7 mx-auto text-white" />, label: "Instant Listings", highlight: "Auto-commit with fast waiting period" },
+                  { value: <BadgeCheck className="h-7 w-7 mx-auto text-white" />, label: "Verified Badge", highlight: "Build buyer trust on every listing" },
                 ].map((s) => (
-                  <div key={s.label} className="bg-white/[0.08] border border-white/15 rounded-xl p-5 text-center">
-                    <div className="mb-1">{s.value}</div>
-                    <div className="text-xs text-white/60">{s.label}</div>
+                  <div key={s.label} className="bg-white/[0.08] border border-white/15 rounded-xl p-5 sm:p-6 text-center min-h-[140px] flex flex-col items-center justify-center">
+                    <div className="mb-2 text-white">{s.value}</div>
+                    <div className="text-xs text-white/70">{s.label}</div>
                     <div className="text-[11px] text-white font-semibold mt-1">{s.highlight}</div>
                   </div>
                 ))}
