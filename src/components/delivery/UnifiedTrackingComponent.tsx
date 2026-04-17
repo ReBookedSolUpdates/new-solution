@@ -175,7 +175,7 @@ const UnifiedTrackingComponent: React.FC<UnifiedTrackingComponentProps> = ({
   };
 
   return (
-    <div className="space-y-8 max-w-2xl mx-auto">
+    <div className="space-y-8 max-w-2xl mx-auto p-6">
       {/* Search Section */}
       <div className="w-full">
         <div className="flex flex-col gap-3">
@@ -184,12 +184,12 @@ const UnifiedTrackingComponent: React.FC<UnifiedTrackingComponentProps> = ({
             value={trackingNumber}
             onChange={(e) => setTrackingNumber(e.target.value)}
             onKeyPress={(e) => e.key === "Enter" && handleTrack()}
-            className="h-12 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="h-12 text-base border border-book-200 rounded-lg focus:ring-2 focus:ring-book-500 focus:border-transparent"
           />
           <Button
             onClick={handleTrack}
             disabled={loading || !trackingNumber.trim()}
-            className="bg-blue-600 hover:bg-blue-700 text-white h-12 font-semibold rounded-lg transition w-full"
+            className="bg-book-600 hover:bg-book-700 text-white h-12 font-semibold rounded-lg transition w-full"
           >
             {loading ? (
               <>
@@ -209,7 +209,7 @@ const UnifiedTrackingComponent: React.FC<UnifiedTrackingComponentProps> = ({
       {/* Loading State */}
       {loading && (
         <div className="flex flex-col items-center justify-center py-12">
-          <div className="h-8 w-8 rounded-full border-3 border-gray-200 border-t-blue-600 animate-spin mb-4"></div>
+          <div className="h-8 w-8 rounded-full border-3 border-book-100 border-t-book-600 animate-spin mb-4"></div>
           <p className="text-gray-600 font-medium">Tracking your package...</p>
         </div>
       )}
