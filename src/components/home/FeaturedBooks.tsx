@@ -61,7 +61,7 @@ const FeaturedBooks = () => {
             if (!featuredMix.find((e) => e.id === item.id)) featuredMix.push(item);
           });
         }
-        setBooks(featuredMix.slice(0, 6));
+        setBooks(featuredMix.slice(0, 5));
       } catch (error) {
         logErrorSafely("Error fetching featured books:", error);
         setBooks([]);
@@ -105,31 +105,31 @@ const FeaturedBooks = () => {
 
   return (
     <section className="py-16 sm:py-20 bg-gray-50">
-      <div className="container mx-auto px-4 max-w-6xl">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between mb-10">
-          <div className="max-w-2xl">
-            <Badge className="bg-book-100 text-book-700 border border-book-300 hover:bg-book-200">
-              Featured
-            </Badge>
-            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">Featured Listings</h2>
-            <p className="text-gray-500 max-w-md">
-              Discover curated school items with clearer pricing, seller details, and quick book highlights.
-            </p>
+      <div className="container mx-auto px-2 sm:px-4 max-w-[88rem]">
+        {/* Centered header */}
+        <div className="text-center mb-10 max-w-2xl mx-auto">
+          <Badge className="bg-book-100 text-book-700 border border-book-300 hover:bg-book-200 mb-3">
+            Featured
+          </Badge>
+          <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">Featured Listings</h2>
+          <p className="text-gray-500">
+            Discover curated school items with clearer pricing, seller details, and quick highlights.
+          </p>
+          <div className="mt-5">
+            <Link to="/listings" className="inline-flex items-center justify-center rounded-full border border-book-300 bg-white px-5 py-2.5 text-sm font-semibold text-book-700 transition hover:bg-book-50">
+              View All Listings
+            </Link>
           </div>
-          <Link to="/listings" className="inline-flex items-center justify-center rounded-full border border-book-300 bg-white px-5 py-3 text-sm font-semibold text-book-700 transition hover:bg-book-50">
-            View All Listings
-          </Link>
         </div>
 
-        <div className="grid grid-cols-1 gap-5 lg:grid-cols-3 lg:grid-rows-[auto_auto]">
+        {/* Grid: 5 items — first 2 are featured (span 2 cols each on lg) */}
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
           {books.map((book, index) => (
             <FeaturedBookCard
               key={book.id}
               book={book}
               className={
-                index === 0 ? "lg:col-span-2 lg:row-span-2" :
-                index === 1 ? "lg:row-span-2" :
-                ""
+                index < 2 ? "lg:col-span-2" : ""
               }
             />
           ))}
