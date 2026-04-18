@@ -4,21 +4,17 @@ import Layout from "@/components/Layout";
 import SEO from "@/components/SEO";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   ArrowRight,
   BadgeCheck,
-  BarChart3,
   Building2,
-  CheckCircle2,
   Clock,
-  CreditCard,
-  FileText,
-  Layers,
-  MapPin,
   Percent,
   Shield,
   Sparkles,
+  Truck,
+  Users,
   Zap,
 } from "lucide-react";
 
@@ -26,204 +22,144 @@ const ReBookedBusinessPage = () => {
   return (
     <Layout>
       <SEO
-        title="ReBooked Business | Verified Seller Programme | ReBooked Solutions"
-        description="Join ReBooked Business, our verified seller tier for South African schools and retailers. Lower commissions, auto-commit, buyer badges, and store-level deals."
-        keywords="rebooked business, verified seller, south africa, textbooks, uniforms, school supplies, commission, small business"
+        title="ReBooked Business — Coming Soon | ReBooked Solutions"
+        description="ReBooked Business — the verified seller programme for South African schools, retailers, and bulk sellers. Coming soon."
+        keywords="rebooked business, verified seller, south africa, textbooks, uniforms, bulk seller, school marketplace"
         url="https://www.rebookedsolutions.co.za/rebooked-business"
       />
 
-      {/* Simple Hero */}
-      <div className="bg-white border-b border-stone-200">
-        <div className="container mx-auto max-w-6xl px-4 py-16 sm:py-20">
-          <div className="max-w-3xl">
-            <div className="flex items-center gap-2 mb-4">
-              <Badge className="bg-book-100 text-book-700 hover:bg-book-200">Seller Programme</Badge>
-            </div>
-            <h1 className="text-4xl sm:text-5xl font-bold text-stone-900 mb-4">
-              ReBooked Business
-            </h1>
-            <p className="text-lg text-stone-600 mb-6">
-              Verified seller programme for registered South African businesses. Get lower commissions, instant listings, and build your presence on ReBooked.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-3">
-              <Button asChild size="lg" className="bg-book-600 hover:bg-book-700">
-                <Link to="/contact-us">
-                  Apply Now
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Link>
-              </Button>
-              <Button asChild size="lg" variant="outline">
-                <Link to="/listings">Browse Marketplace</Link>
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="container mx-auto max-w-6xl px-4 py-16">
-        {/* Who Qualifies */}
-        <div className="mb-20">
-          <h2 className="text-2xl sm:text-3xl font-bold text-stone-900 mb-10">Who Can Apply</h2>
-          <div className="grid gap-6 md:grid-cols-3">
-            <div className="rounded-2xl border border-stone-200 bg-white p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="flex items-center justify-center h-10 w-10 rounded-full bg-stone-100">
-                  <FileText className="h-5 w-5 text-book-700" />
-                </div>
-                <h3 className="font-semibold text-stone-900">CIPC Registered</h3>
-              </div>
-              <p className="text-sm text-stone-600">Your business must be registered with South Africa's Companies and Intellectual Property Commission.</p>
-            </div>
-
-            <div className="rounded-2xl border border-stone-200 bg-white p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="flex items-center justify-center h-10 w-10 rounded-full bg-stone-100">
-                  <CreditCard className="h-5 w-5 text-book-700" />
-                </div>
-                <h3 className="font-semibold text-stone-900">Bank Verified</h3>
-              </div>
-              <p className="text-sm text-stone-600">Provide a bank letter confirming your business name matches your Paystack payout account.</p>
-            </div>
-
-            <div className="rounded-2xl border border-stone-200 bg-white p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="flex items-center justify-center h-10 w-10 rounded-full bg-stone-100">
-                  <Shield className="h-5 w-5 text-book-700" />
-                </div>
-                <h3 className="font-semibold text-stone-900">Manual Review</h3>
-              </div>
-              <p className="text-sm text-stone-600">Our team verifies your documents within 3-5 business days and activates your verified status.</p>
-            </div>
-          </div>
+      {/* ─── Hero ─── */}
+      <section className="relative overflow-hidden bg-gradient-to-br from-book-50 via-white to-book-100">
+        <div className="absolute inset-0 opacity-40 pointer-events-none">
+          <div className="absolute top-10 -left-20 w-72 h-72 bg-book-200 rounded-full blur-3xl" />
+          <div className="absolute bottom-10 -right-20 w-96 h-96 bg-book-300/40 rounded-full blur-3xl" />
         </div>
 
-        {/* Core Benefits */}
-        <div className="mb-20">
-          <h2 className="text-2xl sm:text-3xl font-bold text-stone-900 mb-10">What You Get</h2>
+        <div className="container relative mx-auto max-w-5xl px-4 py-20 sm:py-28 text-center">
+          <Badge className="mb-6 inline-flex items-center gap-2 bg-book-600 text-white hover:bg-book-700 px-4 py-1.5 text-sm">
+            <Sparkles className="h-4 w-4" />
+            Coming Soon
+          </Badge>
 
-          <div className="grid gap-6 md:grid-cols-2">
-            <div className="rounded-2xl border border-stone-200 bg-white p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <Percent className="h-5 w-5 text-book-700" />
-                <h3 className="font-semibold text-stone-900">Lower Commission</h3>
-              </div>
-              <p className="text-sm text-stone-600 mb-3">Pay 6.5% instead of 10% — that's a 35% reduction in fees. At scale, this means thousands saved monthly.</p>
-              <p className="text-xs text-stone-500">Save 150 Rand per 1,000 Rand sale</p>
-            </div>
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 leading-tight mb-6">
+            ReBooked <span className="text-book-600">Business</span>
+          </h1>
 
-            <div className="rounded-2xl border border-stone-200 bg-white p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <Zap className="h-5 w-5 text-book-700" />
-                <h3 className="font-semibold text-stone-900">Instant Auto-Commit</h3>
-              </div>
-              <p className="text-sm text-stone-600 mb-3">Listings commit automatically when purchased. No 48-hour waiting window, no manual confirmation.</p>
-              <p className="text-xs text-stone-500">Buyers get instant certainty</p>
-            </div>
-
-            <div className="rounded-2xl border border-stone-200 bg-white p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <BadgeCheck className="h-5 w-5 text-book-700" />
-                <h3 className="font-semibold text-stone-900">Verified Badge</h3>
-              </div>
-              <p className="text-sm text-stone-600 mb-3">Your verified badge appears on your profile, every listing, and your store page.</p>
-              <p className="text-xs text-stone-500">Builds buyer trust instantly</p>
-            </div>
-
-            <div className="rounded-2xl border border-stone-200 bg-white p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <Layers className="h-5 w-5 text-book-700" />
-                <h3 className="font-semibold text-stone-900">Store-Level Deals</h3>
-              </div>
-              <p className="text-sm text-stone-600 mb-3">Run discounts across your entire store (e.g., 15% off). Perfect for bulk moves and seasonal sales.</p>
-              <p className="text-xs text-stone-500">Boost sales with one action</p>
-            </div>
-
-            <div className="rounded-2xl border border-stone-200 bg-white p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <MapPin className="h-5 w-5 text-book-700" />
-                <h3 className="font-semibold text-stone-900">Your Store Page</h3>
-              </div>
-              <p className="text-sm text-stone-600 mb-3">Get a custom URL (rebookedsolutions.co.za/store/your-name) with smart proximity-based ordering.</p>
-              <p className="text-xs text-stone-500">One-stop shop for buyers</p>
-            </div>
-
-            <div className="rounded-2xl border border-stone-200 bg-white p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <BarChart3 className="h-5 w-5 text-book-700" />
-                <h3 className="font-semibold text-stone-900">Proximity Sorting</h3>
-              </div>
-              <p className="text-sm text-stone-600 mb-3">Your listings auto-reorder by location proximity on your store page, always showing what's closest first.</p>
-              <p className="text-xs text-stone-500">Higher relevance = higher conversions</p>
-            </div>
-          </div>
-        </div>
-
-        {/* How It Works */}
-        <div className="mb-20">
-          <h2 className="text-2xl sm:text-3xl font-bold text-stone-900 mb-10">How to Get Verified</h2>
-
-          <div className="space-y-3">
-            {[
-              { num: 1, title: "Prepare Documents", desc: "Gather your CIPC certificate and bank letter confirming your business details match your Paystack account." },
-              { num: 2, title: "Submit Application", desc: "Contact us through the form or email us directly with your documents and business information." },
-              { num: 3, title: "Manual Verification", desc: "Our team reviews your CIPC and bank documents within 3–5 business days." },
-              { num: 4, title: "Approved & Live", desc: "Once verified, we activate your account. Your verified badge, lower commission, and auto-commit activate immediately." },
-            ].map((step) => (
-              <div key={step.num} className="flex gap-4">
-                <div className="flex-shrink-0">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-book-700 text-white text-sm font-semibold">
-                    {step.num}
-                  </div>
-                </div>
-                <div className="flex-grow">
-                  <h3 className="font-semibold text-stone-900">{step.title}</h3>
-                  <p className="text-sm text-stone-600 mt-1">{step.desc}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* FAQ */}
-        <div className="mb-20">
-          <h2 className="text-2xl sm:text-3xl font-bold text-stone-900 mb-10">Questions?</h2>
-
-          <div className="space-y-4">
-            {[
-              { q: "Do I need to be registered?", a: "Yes. ReBooked Business is exclusively for CIPC-registered South African businesses. Standard sellers can still use ReBooked as regular users." },
-              { q: "What happens to my existing listings?", a: "All your existing and future listings automatically enjoy 6.5% commissions, instant auto-commit, and your verified badge." },
-              { q: "How long does verification take?", a: "Our team manually reviews applications within 3-5 business days and confirms your business registration." },
-              { q: "Can I run multiple deals?", a: "Yes. You can run as many concurrent promotions as you want with different percentages and date ranges." },
-              { q: "What if I'm declined?", a: "We'll email you with feedback. Common reasons include document mismatches. You can reapply once issues are resolved." },
-              { q: "How is my store URL set?", a: "Your store URL is based on your verified business name and finalized during approval." },
-            ].map((item, idx) => (
-              <div key={idx} className="rounded-2xl border border-stone-200 bg-white p-6">
-                <h3 className="font-semibold text-stone-900 mb-2">{item.q}</h3>
-                <p className="text-sm text-stone-600">{item.a}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Final CTA */}
-        <div className="rounded-2xl border border-stone-200 bg-stone-50 p-8 text-center">
-          <h2 className="text-3xl font-bold text-stone-900 mb-3">Ready to Grow Your Business?</h2>
-          <p className="text-stone-600 mb-6 max-w-2xl mx-auto">
-            Join ReBooked Business and start selling with lower commissions, instant listings, and the trust that comes with a verified badge.
+          <p className="text-lg sm:text-xl text-gray-600 max-w-2xl mx-auto mb-8 leading-relaxed">
+            A dedicated programme for verified schools, bookstores, uniform shops and bulk sellers across South Africa — launching soon.
           </p>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <Button asChild size="lg" className="bg-book-600 hover:bg-book-700">
+
+          <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
+            <Button
+              asChild
+              size="lg"
+              className="bg-book-600 hover:bg-book-700 text-white rounded-full px-8"
+            >
               <Link to="/contact-us">
-                Start Application
+                Join the Waitlist
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>
-            <Button asChild size="lg" variant="outline">
-              <Link to="/listings">Browse Marketplace</Link>
+            <Button
+              asChild
+              size="lg"
+              variant="outline"
+              className="rounded-full px-8 border-book-300 text-book-700 hover:bg-book-50"
+            >
+              <Link to="/">Back to Home</Link>
             </Button>
           </div>
+
+          <div className="mt-10 inline-flex items-center gap-2 text-sm text-gray-500">
+            <Clock className="h-4 w-4" />
+            Estimated launch: <span className="font-semibold text-book-700">Q3 2026</span>
+          </div>
         </div>
-      </div>
+      </section>
+
+      {/* ─── What's Coming ─── */}
+      <section className="py-16 sm:py-20 bg-white border-y border-gray-100">
+        <div className="container mx-auto max-w-6xl px-4">
+          <div className="text-center mb-12">
+            <Badge className="mb-3 bg-book-100 text-book-700 hover:bg-book-200 border border-book-200">What to expect</Badge>
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900">
+              Built for serious sellers
+            </h2>
+            <p className="text-gray-500 mt-3 max-w-2xl mx-auto">
+              ReBooked Business gives verified businesses the tools to scale on the platform.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {[
+              { icon: Percent, title: "Lower Commissions", desc: "Reduced platform fees for verified business sellers moving volume." },
+              { icon: BadgeCheck, title: "Verified Badge", desc: "A trust badge on every listing — buyers know who they're dealing with." },
+              { icon: Zap, title: "Bulk Listing Tools", desc: "Upload hundreds of items at once with CSV import and inventory sync." },
+              { icon: Truck, title: "Priority Logistics", desc: "Discounted shipping rates and same-day pickup with our partners." },
+              { icon: Users, title: "Store Pages", desc: "Your own branded storefront with all your active listings in one place." },
+              { icon: Shield, title: "Dedicated Support", desc: "A direct line to our team — onboarding help, escalations, and account management." },
+            ].map(({ icon: Icon, title, desc }) => (
+              <Card
+                key={title}
+                className="border border-gray-200 hover:border-book-300 hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
+              >
+                <CardContent className="p-6">
+                  <div className="w-11 h-11 rounded-lg bg-book-100 text-book-600 flex items-center justify-center mb-4">
+                    <Icon className="h-5 w-5" />
+                  </div>
+                  <h3 className="font-semibold text-gray-900 mb-2">{title}</h3>
+                  <p className="text-sm text-gray-600 leading-relaxed">{desc}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ─── Who it's for ─── */}
+      <section className="py-16 sm:py-20 bg-gray-50">
+        <div className="container mx-auto max-w-5xl px-4">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {[
+              { icon: Building2, label: "Schools & Tuck Shops" },
+              { icon: BadgeCheck, label: "Uniform Retailers" },
+              { icon: Sparkles, label: "Stationery & Book Stores" },
+            ].map(({ icon: Icon, label }) => (
+              <div
+                key={label}
+                className="rounded-2xl bg-white border border-gray-200 p-6 flex items-center gap-4 hover:border-book-300 transition-colors"
+              >
+                <div className="w-12 h-12 rounded-xl bg-book-600 text-white flex items-center justify-center shrink-0">
+                  <Icon className="h-5 w-5" />
+                </div>
+                <p className="font-semibold text-gray-900">{label}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ─── CTA ─── */}
+      <section className="py-16 bg-book-700">
+        <div className="container mx-auto max-w-3xl px-4 text-center">
+          <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
+            Want early access?
+          </h2>
+          <p className="text-book-100 mb-8 leading-relaxed">
+            Get in touch and we'll add you to the early-access list — first invitations go out before the public launch.
+          </p>
+          <Button
+            asChild
+            size="lg"
+            className="bg-white text-book-700 hover:bg-book-50 rounded-full px-8"
+          >
+            <Link to="/contact-us">
+              Contact Sales
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Link>
+          </Button>
+        </div>
+      </section>
     </Layout>
   );
 };
