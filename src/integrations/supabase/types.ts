@@ -983,6 +983,50 @@ export type Database = {
           },
         ]
       }
+      checkout_events: {
+        Row: {
+          created_at: string | null
+          id: string
+          item_type: string | null
+          listing_id: string | null
+          order_id: string | null
+          session_id: string
+          step: string
+          step_metadata: Json | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          item_type?: string | null
+          listing_id?: string | null
+          order_id?: string | null
+          session_id: string
+          step: string
+          step_metadata?: Json | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          item_type?: string | null
+          listing_id?: string | null
+          order_id?: string | null
+          session_id?: string
+          step?: string
+          step_metadata?: Json | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checkout_events_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contact_messages: {
         Row: {
           created_at: string
@@ -1237,6 +1281,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      listing_views: {
+        Row: {
+          created_at: string | null
+          device_type: string | null
+          id: string
+          item_type: string
+          listing_id: string
+          province: string | null
+          referrer: string | null
+          session_id: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          device_type?: string | null
+          id?: string
+          item_type: string
+          listing_id: string
+          province?: string | null
+          referrer?: string | null
+          session_id: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          device_type?: string | null
+          id?: string
+          item_type?: string
+          listing_id?: string
+          province?: string | null
+          referrer?: string | null
+          session_id?: string
+          user_id?: string | null
+        }
+        Relationships: []
       }
       messages: {
         Row: {
@@ -2191,6 +2271,66 @@ export type Database = {
           },
         ]
       }
+      search_queries: {
+        Row: {
+          clicked_item_id: string | null
+          clicked_item_type: string | null
+          created_at: string | null
+          filters: Json | null
+          id: string
+          query_text: string
+          results_count: number
+          session_id: string
+          user_id: string | null
+        }
+        Insert: {
+          clicked_item_id?: string | null
+          clicked_item_type?: string | null
+          created_at?: string | null
+          filters?: Json | null
+          id?: string
+          query_text: string
+          results_count?: number
+          session_id: string
+          user_id?: string | null
+        }
+        Update: {
+          clicked_item_id?: string | null
+          clicked_item_type?: string | null
+          created_at?: string | null
+          filters?: Json | null
+          id?: string
+          query_text?: string
+          results_count?: number
+          session_id?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      seller_funnel_events: {
+        Row: {
+          event_step: string
+          id: string
+          metadata: Json | null
+          occurred_at: string | null
+          user_id: string
+        }
+        Insert: {
+          event_step: string
+          id?: string
+          metadata?: Json | null
+          occurred_at?: string | null
+          user_id: string
+        }
+        Update: {
+          event_step?: string
+          id?: string
+          metadata?: Json | null
+          occurred_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       seller_reviews: {
         Row: {
           comment: string | null
@@ -2238,6 +2378,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      subscription_events: {
+        Row: {
+          amount_paid: number | null
+          created_at: string | null
+          effective_date: string
+          event_type: string
+          from_tier: string | null
+          id: string
+          paystack_ref: string | null
+          to_tier: string
+          user_id: string
+        }
+        Insert: {
+          amount_paid?: number | null
+          created_at?: string | null
+          effective_date?: string
+          event_type: string
+          from_tier?: string | null
+          id?: string
+          paystack_ref?: string | null
+          to_tier: string
+          user_id: string
+        }
+        Update: {
+          amount_paid?: number | null
+          created_at?: string | null
+          effective_date?: string
+          event_type?: string
+          from_tier?: string | null
+          id?: string
+          paystack_ref?: string | null
+          to_tier?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       transactions: {
         Row: {
