@@ -208,31 +208,31 @@ const Index = () => {
                 </div>
             </div>
 
-            {/* Right image grid */}
-              <div className="hidden lg:grid grid-cols-1 gap-4 sm:grid-cols-[0.88fr_1.12fr] sm:gap-5 lg:gap-6">
-              <div className="grid gap-4 sm:gap-5 lg:gap-6">
+            {/* Right image grid — symmetric, equal padding both sides */}
+            <div className="hidden lg:grid grid-cols-2 gap-5 lg:gap-6">
+              <div className="grid gap-5 lg:gap-6">
                 <img
                   src="https://images.pexels.com/photos/256455/pexels-photo-256455.jpeg"
                   alt="Students with textbooks"
-                    className="w-full h-[19rem] sm:h-[22rem] lg:h-[26rem] object-cover rounded-[2rem]"
+                  className="w-full h-[22rem] lg:h-[24rem] object-cover rounded-[2rem]"
                   width={640}
                   height={800}
                 />
                 <img
                   src="https://images.pexels.com/photos/4145190/pexels-photo-4145190.jpeg"
                   alt="Students sharing supplies"
-                    className="w-full h-[13rem] sm:h-[13rem] lg:h-[14.5rem] object-cover rounded-[2rem]"
+                  className="w-full h-[13rem] lg:h-[14rem] object-cover rounded-[2rem]"
                   loading="lazy"
                   width={640}
                   height={640}
                 />
               </div>
 
-              <div className="grid gap-4 sm:gap-5 lg:gap-6">
+              <div className="grid gap-5 lg:gap-6">
                 <img
                   src="https://images.pexels.com/photos/1720186/pexels-photo-1720186.jpeg"
                   alt="Student with books"
-                  className="w-full h-[14rem] sm:h-[14rem] lg:h-[16rem] object-cover rounded-[2rem]"
+                  className="w-full h-[13rem] lg:h-[14rem] object-cover rounded-[2rem]"
                   loading="lazy"
                   width={640}
                   height={640}
@@ -240,7 +240,7 @@ const Index = () => {
                 <img
                   src="/lovable-uploads/bd1bff70-5398-480d-ab05-1a01e839c2d0.png"
                   alt="Student in blazer"
-                  className="w-full h-[18rem] sm:h-[22rem] lg:h-[26rem] object-cover rounded-[2rem]"
+                  className="w-full h-[22rem] lg:h-[24rem] object-cover rounded-[2rem]"
                   loading="lazy"
                   width={640}
                   height={800}

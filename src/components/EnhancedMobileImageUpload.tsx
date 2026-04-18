@@ -219,11 +219,26 @@ const EnhancedMobileImageUpload = ({
       format: "image/webp",
     });
 
-    const fileName = `${Math.random()}.${compressed.extension}`;
-    const filePath = `book-images/${fileName}`;
+    // Determine bucket based on item type
+    const bucket =
+      itemType === "uniform"
+        ? "uniform-images"
+        : itemType === "school_supply"
+          ? "school-supply-images"
+          : "book-images";
+
+    // Get current user — RLS requires path to start with auth.uid()
+    const { data: userData, error: userError } = await supabase.auth.getUser();
+    if (userError || !userData?.user?.id) {
+      throw new Error("You must be signed in to upload images");
+    }
+    const userId = userData.user.id;
+
+    const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${compressed.extension}`;
+    const filePath = `${userId}/${fileName}`;
 
     const { error: uploadError } = await supabase.storage
-      .from("book-images")
+      .from(bucket)
       .upload(filePath, compressed.blob, {
         upsert: false,
         cacheControl: "31536000",
@@ -236,7 +251,7 @@ const EnhancedMobileImageUpload = ({
 
     const {
       data: { publicUrl },
-    } = supabase.storage.from("book-images").getPublicUrl(filePath);
+    } = supabase.storage.from(bucket).getPublicUrl(filePath);
 
     return publicUrl;
   };
