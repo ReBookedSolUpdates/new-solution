@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <!-- Green background -->
+  <rect width="256" height="256" fill="#4db8a8"/>
+  
+  <!-- Open book icon -->
+  <g transform="translate(64, 80)">
+    <!-- Left page -->
+    <path d="M 10 10 Q 5 10 5 20 L 5 110 Q 5 120 15 120 L 60 120 L 60 10 Z" 
+          fill="none" stroke="white" stroke-width="10" stroke-linejoin="round" stroke-linecap="round"/>
+    
+    <!-- Right page -->
+    <path d="M 70 10 L 70 120 Q 70 120 115 120 Q 125 120 125 110 L 125 20 Q 125 10 120 10 Z" 
+          fill="none" stroke="white" stroke-width="10" stroke-linejoin="round" stroke-linecap="round"/>
+    
+    <!-- Book spine/center -->
+    <path d="M 60 10 L 60 120" stroke="white" stroke-width="8" stroke-linecap="round"/>
+  </g>
+</svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <rect width="256" height="256" fill="#4fc896"/>
+  <path d="M 65 65 Q 65 45 85 45 L 128 45 L 128 180 L 85 180 Q 65 180 65 160 Z M 191 65 Q 191 45 171 45 L 128 45 L 128 180 L 171 180 Q 191 180 191 160 Z" stroke="white" stroke-width="12" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
