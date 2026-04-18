@@ -95,28 +95,58 @@ const SchoolSuppliesInfo = () => {
         url="https://www.rebookedsolutions.co.za/school-supplies-info"
       />
 
-      <section className="bg-book-50 border-b border-book-100">
-        <div className="container mx-auto px-4 py-14 sm:py-20 max-w-6xl">
-          <div className="max-w-3xl">
-            <Badge className="bg-book-100 text-book-700 hover:bg-book-200 mb-4">
-              <Backpack className="h-3.5 w-3.5 mr-1" /> Category Guide
-            </Badge>
-            <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-4">
-              School Supplies on ReBooked
-            </h1>
-            <p className="text-lg text-gray-600 leading-relaxed mb-6">
-              From a Casio fx-82ZA to art kits, lab equipment to A4 files — find or sell every supply on the school list, in one place.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-3">
-              <Button asChild size="lg" className="bg-book-600 hover:bg-book-700">
-                <Link to="/listings">
-                  Browse Supplies
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Link>
-              </Button>
-              <Button asChild size="lg" variant="outline" className="border-book-300 text-book-700 hover:bg-book-50">
-                <Link to="/create-listing">List a Supply</Link>
-              </Button>
+      {/* ─── Hero ─── */}
+      <section className="relative overflow-hidden bg-gradient-to-br from-book-50 via-white to-book-100">
+        <div className="absolute inset-0 opacity-40 pointer-events-none">
+          <div className="absolute top-10 -left-20 w-72 h-72 bg-book-200 rounded-full blur-3xl" />
+          <div className="absolute bottom-10 -right-20 w-96 h-96 bg-book-300/40 rounded-full blur-3xl" />
+        </div>
+
+        <div className="container relative mx-auto max-w-6xl px-4 py-16 sm:py-24">
+          <div className="grid lg:grid-cols-12 gap-10 items-center">
+            <div className="lg:col-span-7">
+              <Badge className="mb-5 inline-flex items-center gap-2 bg-book-600 text-white hover:bg-book-700 px-4 py-1.5 text-sm">
+                <Backpack className="h-4 w-4" />
+                Category Guide · School Supplies
+              </Badge>
+              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 leading-tight mb-5">
+                Every supply<br />
+                <span className="text-book-600">on the school list</span>, in one place.
+              </h1>
+              <p className="text-lg text-gray-600 leading-relaxed mb-8 max-w-xl">
+                From a Casio fx-82ZA to art kits, lab equipment to A4 files — buy pre-loved or sell what you don't need.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Button asChild size="lg" className="bg-book-600 hover:bg-book-700 rounded-full px-8">
+                  <Link to="/listings">
+                    Browse Supplies
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Link>
+                </Button>
+                <Button asChild size="lg" variant="outline" className="border-book-300 text-book-700 hover:bg-book-50 rounded-full px-8">
+                  <Link to="/create-listing">List a Supply</Link>
+                </Button>
+              </div>
+            </div>
+
+            <div className="lg:col-span-5 grid grid-cols-2 gap-4">
+              {[
+                { icon: <Calculator className="h-6 w-6" />, label: "Calculators", sub: "Casio, TI graphing" },
+                { icon: <FlaskConical className="h-6 w-6" />, label: "Lab Equipment", sub: "Beakers, microscopes" },
+                { icon: <Palette className="h-6 w-6" />, label: "Art Supplies", sub: "Paints, brushes, pads" },
+                { icon: <Laptop className="h-6 w-6" />, label: "Tech Gear", sub: "USBs, headphones" },
+              ].map((item) => (
+                <div
+                  key={item.label}
+                  className="rounded-2xl bg-white/80 backdrop-blur-sm border border-book-100 p-4 shadow-sm"
+                >
+                  <div className="w-10 h-10 rounded-xl bg-book-100 text-book-700 flex items-center justify-center mb-2.5">
+                    {item.icon}
+                  </div>
+                  <p className="font-semibold text-gray-900 text-sm leading-tight">{item.label}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">{item.sub}</p>
+                </div>
+              ))}
             </div>
           </div>
         </div>
