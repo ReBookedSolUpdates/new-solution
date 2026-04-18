@@ -25,6 +25,8 @@ import { toggleWishlistItem, getWishlistIds } from "@/services/wishlistService";
 import { useBookTracking } from "@/hooks/useBookTracking";
 import debugLogger from "@/utils/debugLogger";
 import { supabase } from "@/integrations/supabase/client";
+import { emailService } from "@/services/emailService";
+import { sendSellerAwayNotificationEmail } from "@/email-templates";
 
 const BookDetails = () => {
   const { id } = useParams<{ id: string }>();
@@ -223,12 +225,21 @@ const BookDetails = () => {
       setIsWishlisted(nowWishlisted);
       toast.success(nowWishlisted ? "Added to wishlist" : "Removed from wishlist");
       if (nowWishlisted && book.seller?.is_away && user.email) {
-        await supabase.functions.invoke("send-email", {
-          body: {
-            to: user.email,
-            subject: "Seller is away - we'll notify you",
-            html: `<p>This seller is away, but we will notify you when they are back for <strong>${book.title}</strong>.</p>`,
+        const buyerName = user.full_name || user.email;
+        const sellerName = book.seller?.name || book.seller?.email || "Seller";
+        const listingUrl = `${window.location.origin}/books/${book.id}`;
+
+        sendSellerAwayNotificationEmail(
+          user.email,
+          {
+            buyerName,
+            sellerName,
+            bookTitle: book.title,
+            listingUrl,
           },
+          emailService,
+        ).catch((error) => {
+          debugLogger.error("Failed to send away notification email", error);
         });
       }
     } catch {

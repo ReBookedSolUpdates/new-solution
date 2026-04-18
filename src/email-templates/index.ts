@@ -9,6 +9,7 @@ export { createDenialEmailTemplate, sendDenialEmail, type DenialEmailData } from
 
 // Order Management Templates
 export { createPendingCommitEmail, sendPendingCommitEmail, type PendingCommitEmailData } from './templates/pending-commit';
+export { createSellerAwayNotificationEmail, sendSellerAwayNotificationEmail, type SellerAwayNotificationData } from './templates/seller-away-notification';
 export { createOrderDeclinedBuyerEmail, sendOrderDeclinedBuyerEmail, type OrderDeclinedBuyerData } from './templates/order-declined-buyer';
 export { createOrderDeclinedSellerEmail, sendOrderDeclinedSellerEmail, type OrderDeclinedSellerData } from './templates/order-declined-seller';
 export { createOrderConfirmedBuyerEmail, sendOrderConfirmedBuyerEmail, type OrderConfirmedBuyerData } from './templates/order-confirmed-buyer';

@@ -14,7 +14,7 @@ const SEO = ({
   title,
   description,
   keywords,
-  image = "/placeholder.svg",
+  image = "/og-image.png",
   url,
   type = "website",
   canonical,
