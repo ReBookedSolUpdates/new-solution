@@ -249,13 +249,14 @@ const SchoolSuppliesInfo = () => {
         </section>
 
         {/* Tips */}
-        <section className="bg-book-50 rounded-3xl p-8 sm:p-12 border border-book-100">
-          <div className="max-w-3xl mx-auto">
+        <section className="bg-gradient-to-br from-book-600 to-book-700 rounded-3xl p-8 sm:p-12 text-white relative overflow-hidden">
+          <div className="absolute -top-20 -right-20 w-64 h-64 bg-white/10 rounded-full blur-3xl" />
+          <div className="relative max-w-3xl mx-auto">
             <div className="flex items-center gap-3 mb-6">
-              <div className="w-12 h-12 rounded-full bg-book-600 text-white flex items-center justify-center">
+              <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
                 <Lightbulb className="h-6 w-6" />
               </div>
-              <h2 className="text-2xl font-bold text-gray-900">Buying & Selling Tips</h2>
+              <h2 className="text-2xl sm:text-3xl font-bold">Buying & Selling Tips</h2>
             </div>
             <ul className="space-y-3">
               {[
@@ -266,8 +267,8 @@ const SchoolSuppliesInfo = () => {
                 "Tech: state battery health and original cables/charger included.",
               ].map((tip) => (
                 <li key={tip} className="flex items-start gap-3">
-                  <CheckCircle2 className="h-5 w-5 text-book-600 flex-shrink-0 mt-0.5" />
-                  <span className="text-gray-700">{tip}</span>
+                  <CheckCircle2 className="h-5 w-5 text-book-100 flex-shrink-0 mt-0.5" />
+                  <span className="text-white/90">{tip}</span>
                 </li>
               ))}
             </ul>
@@ -275,9 +276,9 @@ const SchoolSuppliesInfo = () => {
         </section>
 
         {/* Not allowed */}
-        <section className="bg-amber-50 rounded-2xl p-8 border border-amber-200">
+        <section className="bg-amber-50 rounded-2xl p-6 sm:p-8 border border-amber-200">
           <div className="flex items-start gap-4">
-            <AlertTriangle className="h-6 w-6 text-amber-600 flex-shrink-0" />
+            <AlertTriangle className="h-6 w-6 text-amber-600 flex-shrink-0 mt-1" />
             <div>
               <h3 className="font-bold text-amber-900 mb-2">Not Allowed</h3>
               <p className="text-sm text-amber-800 leading-relaxed">
@@ -288,17 +289,17 @@ const SchoolSuppliesInfo = () => {
         </section>
 
         {/* CTA */}
-        <section className="text-center">
+        <section className="text-center py-8">
           <Sparkles className="h-10 w-10 text-book-600 mx-auto mb-4" />
-          <h2 className="text-3xl font-bold text-gray-900 mb-3">Stock Up • Sell What You Don't Need</h2>
-          <p className="text-gray-600 max-w-xl mx-auto mb-6">
+          <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-3">Stock Up · Sell What You Don't Need</h2>
+          <p className="text-gray-600 max-w-xl mx-auto mb-8">
             Save on stationery and supplies, or earn from items gathering dust.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <Button asChild size="lg" className="bg-book-600 hover:bg-book-700">
+            <Button asChild size="lg" className="bg-book-600 hover:bg-book-700 rounded-full px-8">
               <Link to="/listings">Browse Supplies <ArrowRight className="ml-2 h-4 w-4" /></Link>
             </Button>
-            <Button asChild size="lg" variant="outline" className="border-book-300 text-book-700 hover:bg-book-50">
+            <Button asChild size="lg" variant="outline" className="border-book-300 text-book-700 hover:bg-book-50 rounded-full px-8">
               <Link to="/create-listing">List Yours Now</Link>
             </Button>
           </div>
