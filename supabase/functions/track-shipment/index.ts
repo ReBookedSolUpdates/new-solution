@@ -37,7 +37,7 @@ serve(async (req) => {
 
       const { data: order, error } = await supabase
         .from("orders")
-        .select("tracking_number, selected_courier_slug, delivery_data")
+        .select("order_type, pickup_status, tracking_number, selected_courier_slug, delivery_data")
         .eq("id", order_id)
         .single();
 
@@ -140,3 +140,4 @@ serve(async (req) => {
     );
   }
 });
+

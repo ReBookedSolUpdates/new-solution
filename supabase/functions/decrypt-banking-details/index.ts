@@ -12,17 +12,27 @@ function getEnv(name: string): string {
   return v
 }
 
-function getSupabaseClient(req?: Request) {
-  // Prefer anon key so we don't require service-role secrets; include the caller JWT for RLS.
+function getAuthClient(req: Request) {
+  // Anon key client with user JWT — used to validate the caller's identity
   const url = getEnv('SUPABASE_URL')
   const anonKey = getEnv('SUPABASE_ANON_KEY')
 
-  const authHeader = req?.headers.get('Authorization') ?? ''
+  const authHeader = req.headers.get('Authorization') ?? ''
   return createClient(url, anonKey, {
     global: {
       headers: authHeader ? { Authorization: authHeader } : {},
     },
   })
+}
+
+function getServiceClient() {
+  // Service-role client — used to read encrypted columns (bypasses RLS)
+  const url = getEnv('SUPABASE_URL')
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+  if (!serviceRoleKey) {
+    throw new Error('SUPABASE_SERVICE_ROLE_KEY not configured')
+  }
+  return createClient(url, serviceRoleKey)
 }
 
 interface EncryptedBundle {
@@ -162,7 +172,7 @@ async function getUserFromRequest(req: Request) {
   const token = authHeader.replace('Bearer ', '')
 
   // Use anon key + token to validate user; no service-role key required.
-  const supabase = getSupabaseClient(req)
+  const supabase = getAuthClient(req)
   const { data: { user }, error } = await supabase.auth.getUser(token)
 
   if (error) {
@@ -199,7 +209,8 @@ serve(async (req) => {
       )
     }
 
-    const supabase = getSupabaseClient(req)
+    // Use service-role client for DB queries to bypass RLS on encrypted columns
+    const supabase = getServiceClient()
 
     let targetUserId = user.id
     let body: { user_id?: string } = {}

@@ -8,6 +8,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { ActivityService } from "@/services/activityService";
 import BankingEncryptionService from "@/services/bankingEncryptionService";
+import { NotificationService } from "@/services/notificationService";
+import { createEmailTemplate } from "@/email-templates/styles";
+import { EmailService } from "@/services/emailService";
 
 const SOUTH_AFRICAN_BANKS = [
   { name: "ABSA Bank", branchCode: "632005" },
@@ -163,6 +166,47 @@ export default function BankingForm({ onSuccess, onCancel }: BankingFormProps) {
       try {
         await ActivityService.logBankingUpdate(session.user.id, isEditMode);
       } catch (activityError) {
+      }
+
+      // Send email and in-app notifications
+      try {
+        await NotificationService.createNotification({
+          userId: session.user.id,
+          type: "security",
+          title: "Banking Details Updated",
+          message: `Your banking details (Account ending in ****${formData.accountNumber.slice(-4)}) have been successfully updated.`,
+        });
+      } catch (err) {
+        console.warn("Failed to create app notification for banking update:", err);
+      }
+
+      try {
+        const emailService = new EmailService();
+        const htmlContent = createEmailTemplate(
+          {
+            title: "Security Update: Banking Details Changed",
+            headerType: "warning",
+            headerText: "🔒 Security Alert",
+            headerSubtext: "Your banking details have been updated"
+          },
+          `
+          <p>Hi ${formData.businessName || "there"},</p>
+          <p>This email is to confirm that the banking details associated with your ReBooked Solutions account have been changed.</p>
+          <div class="info-box-warning">
+            <p><strong>Masked Account:</strong> ****${formData.accountNumber.slice(-4)}</p>
+            <p><strong>Bank Name:</strong> ${formData.bankName}</p>
+          </div>
+          <p>If you made this change, no action is required.</p>
+          <p><strong>Important:</strong> If you did not authorize this change, please contact our support team immediately at <a href="mailto:support@rebookedsolutions.co.za" class="link">support@rebookedsolutions.co.za</a> to secure your account.</p>
+          `
+        );
+        await emailService.sendEmail({
+          to: session.user.email || formData.email,
+          subject: "Security Notification: Banking details updated",
+          html: htmlContent,
+        });
+      } catch (emailErr) {
+        console.warn("Failed to send banking details change email:", emailErr);
       }
 
       toast({ title: "Success!", description: isEditMode ? "Banking details updated securely!" : "Banking details saved securely!" });

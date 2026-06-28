@@ -26,6 +26,8 @@ interface CreateOrderRequest {
   delivery_locker_location_id?: number;
   delivery_locker_provider_slug?: string;
   seller_preferred_pickup_method?: 'locker' | 'pickup';
+  order_type?: 'delivery' | 'pickup';
+  use_wallet?: boolean;
 }
 
 serve(async (req) => {
@@ -79,7 +81,7 @@ serve(async (req) => {
       .eq('buyer_id', requestData.buyer_id)
       .eq('seller_id', requestData.seller_id)
       .eq('book_id', requestData.book_id)
-      .in('status', ['pending_payment', 'pending', 'pending_commit', 'paid', 'committed'])
+      .in('status', ['pending_payment', 'pending', 'pending_commit', 'paid', 'committed', 'awaiting_confirmation'])
       .maybeSingle();
 
     if (existingComboError) {
@@ -118,7 +120,7 @@ serve(async (req) => {
         .single(),
       supabase
         .from("profiles")
-        .select("id, full_name, name, first_name, last_name, email, phone_number, pickup_address_encrypted, preferred_pickup_locker_data, preferred_pickup_locker_location_id, preferred_pickup_locker_provider_slug, preferred_delivery_locker_data, preferred_delivery_locker_location_id, preferred_delivery_locker_provider_slug, is_away")
+        .select("id, full_name, name, first_name, last_name, email, phone_number, pickup_address_encrypted, preferred_pickup_locker_data, preferred_pickup_locker_location_id, preferred_pickup_locker_provider_slug, preferred_delivery_locker_data, preferred_delivery_locker_location_id, preferred_delivery_locker_provider_slug, is_away, pickup_enabled")
         .eq("id", requestData.seller_id)
         .single(),
       findItem(requestData.book_id)
@@ -167,39 +169,49 @@ serve(async (req) => {
       );
     }
 
-    // NOTE: We do NOT mark the book as sold here anymore.
-    // The book will only be marked as sold when payment is confirmed (via webhook).
+    const isPickupOrder = requestData.order_type === 'pickup';
+
+    // Verify seller actually has pickup enabled if buyer is attempting pickup
+    if (isPickupOrder && !seller.pickup_enabled) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Seller does not have pickup enabled" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     console.log("📝 Creating order WITHOUT marking book as sold (deferred until payment confirmation)...");
 
-    // Determine pickup type based on seller's preference
+    // Determine pickup type based on seller's preference (only for delivery orders where courier picks up)
     let pickupType: 'door' | 'locker' = 'door';
     let pickupLockerData = null;
     let pickupLockerLocationId = null;
     let pickupLockerProviderSlug = null;
 
-    if (requestData.seller_preferred_pickup_method === 'locker') {
-      console.log('📍 Seller preferred pickup method: locker');
-      pickupType = 'locker';
-      pickupLockerData = requestData.pickup_locker_data || seller.preferred_pickup_locker_data || seller.preferred_delivery_locker_data;
-      pickupLockerLocationId = requestData.pickup_locker_location_id || seller.preferred_pickup_locker_location_id || seller.preferred_delivery_locker_location_id;
-      pickupLockerProviderSlug = requestData.pickup_locker_provider_slug || seller.preferred_pickup_locker_provider_slug || seller.preferred_delivery_locker_provider_slug;
+    if (!isPickupOrder) {
+      if (requestData.seller_preferred_pickup_method === 'locker') {
+        console.log('📍 Seller preferred pickup method: locker');
+        pickupType = 'locker';
+        pickupLockerData = requestData.pickup_locker_data || seller.preferred_pickup_locker_data || seller.preferred_delivery_locker_data;
+        pickupLockerLocationId = requestData.pickup_locker_location_id || seller.preferred_pickup_locker_location_id || seller.preferred_delivery_locker_location_id;
+        pickupLockerProviderSlug = requestData.pickup_locker_provider_slug || seller.preferred_pickup_locker_provider_slug || seller.preferred_delivery_locker_provider_slug;
 
-      if (!pickupLockerLocationId) {
-        console.error("❌ Locker pickup selected but seller has no locker location saved");
+        if (!pickupLockerLocationId) {
+          console.error("❌ Locker pickup selected but seller has no locker location saved");
+          return new Response(
+            JSON.stringify({ success: false, error: "Seller locker pickup selected but no locker location is configured. Please contact the seller." }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+      } else if (requestData.seller_preferred_pickup_method === 'pickup' || seller.pickup_address_encrypted) {
+        console.log('🚪 Seller preferred pickup method: door');
+        pickupType = 'door';
+      } else {
+        console.error("❌ No valid pickup method available");
         return new Response(
-          JSON.stringify({ success: false, error: "Seller locker pickup selected but no locker location is configured. Please contact the seller." }),
+          JSON.stringify({ success: false, error: "Seller has not configured a pickup method (locker or address). Please contact the seller." }),
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-    } else if (requestData.seller_preferred_pickup_method === 'pickup' || seller.pickup_address_encrypted) {
-      console.log('🚪 Seller preferred pickup method: door');
-      pickupType = 'door';
-    } else {
-      console.error("❌ No valid pickup method available");
-      return new Response(
-        JSON.stringify({ success: false, error: "Seller has not configured a pickup method (locker or address). Please contact the seller." }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
     }
 
     // Determine delivery type and data
@@ -209,38 +221,40 @@ serve(async (req) => {
     let deliveryLockerProviderSlug = null;
     let shippingAddressEncrypted = requestData.shipping_address_encrypted;
 
-    if (deliveryType === 'locker') {
-      deliveryLockerData = requestData.delivery_locker_data || buyer.preferred_delivery_locker_data;
-      deliveryLockerLocationId = requestData.delivery_locker_location_id || buyer.preferred_delivery_locker_location_id || buyer.preferred_pickup_locker_location_id;
-      deliveryLockerProviderSlug = requestData.delivery_locker_provider_slug || buyer.preferred_delivery_locker_provider_slug || buyer.preferred_pickup_locker_provider_slug;
-    } else {
-      shippingAddressEncrypted = shippingAddressEncrypted || buyer.shipping_address_encrypted;
-    }
+    if (!isPickupOrder) {
+      if (deliveryType === 'locker') {
+        deliveryLockerData = requestData.delivery_locker_data || buyer.preferred_delivery_locker_data;
+        deliveryLockerLocationId = requestData.delivery_locker_location_id || buyer.preferred_delivery_locker_location_id || buyer.preferred_pickup_locker_location_id;
+        deliveryLockerProviderSlug = requestData.delivery_locker_provider_slug || buyer.preferred_delivery_locker_provider_slug || buyer.preferred_pickup_locker_provider_slug;
+      } else {
+        shippingAddressEncrypted = shippingAddressEncrypted || buyer.shipping_address_encrypted;
+      }
 
-    // Validate pickup address for door pickup
-    if (pickupType === 'door' && !seller.pickup_address_encrypted) {
-      console.error("❌ Door pickup selected but seller has no pickup address");
-      return new Response(
-        JSON.stringify({ success: false, error: "Seller door pickup selected but seller has no pickup address configured" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+      // Validate pickup address for door pickup
+      if (pickupType === 'door' && !seller.pickup_address_encrypted) {
+        console.error("❌ Door pickup selected but seller has no pickup address");
+        return new Response(
+          JSON.stringify({ success: false, error: "Seller door pickup selected but seller has no pickup address configured" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
 
-    // Validate delivery info
-    if (deliveryType === 'locker' && !deliveryLockerLocationId) {
-      console.error("❌ Locker delivery selected but no locker location provided");
-      return new Response(
-        JSON.stringify({ success: false, error: "Locker delivery requires locker location" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+      // Validate delivery info
+      if (deliveryType === 'locker' && !deliveryLockerLocationId) {
+        console.error("❌ Locker delivery selected but no locker location provided");
+        return new Response(
+          JSON.stringify({ success: false, error: "Locker delivery requires locker location" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
 
-    if (deliveryType === 'door' && !shippingAddressEncrypted) {
-      console.error("❌ Door delivery selected but no address provided");
-      return new Response(
-        JSON.stringify({ success: false, error: "Door delivery requires shipping address" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      if (deliveryType === 'door' && !shippingAddressEncrypted) {
+        console.error("❌ Door delivery selected but no address provided");
+        return new Response(
+          JSON.stringify({ success: false, error: "Door delivery requires shipping address" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
     }
 
     // Generate unique order_id
@@ -253,7 +267,7 @@ serve(async (req) => {
     const sellerEmail = seller.email || '';
     const buyerPhone = buyer.phone_number || '';
     const sellerPhone = seller.phone_number || '';
-    const pickupAddress = pickupType === 'door' ? seller.pickup_address_encrypted : '';
+    const pickupAddress = (!isPickupOrder && pickupType === 'door') ? seller.pickup_address_encrypted : '';
 
     // Resolve item_type from which table it was found in
     const itemTypeMap: Record<string, string> = {
@@ -263,107 +277,128 @@ serve(async (req) => {
     };
     const resolvedItemType = itemTypeMap[itemTable!] || 'book';
 
-    // Create order with status "pending_payment" - item is NOT marked sold yet
-    const orderData = {
-      order_id: orderId,
-      buyer_id: requestData.buyer_id,
-      seller_id: requestData.seller_id,
-      book_id: requestData.book_id,    // kept for backwards compat
-      item_id: requestData.book_id,    // generic alias
-      item_type: resolvedItemType,     // 'book' | 'uniform' | 'school_supply'
-      buyer_full_name: buyerFullName,
-      seller_full_name: sellerFullName,
-      buyer_email: buyerEmail,
-      seller_email: sellerEmail,
-      buyer_phone_number: buyerPhone,
-      seller_phone_number: sellerPhone,
-      pickup_address_encrypted: pickupAddress,
-      shipping_address_encrypted: shippingAddressEncrypted,
-      delivery_option: requestData.delivery_option,
-      pickup_type: pickupType,
-      pickup_locker_data: pickupLockerData,
-      pickup_locker_location_id: pickupLockerLocationId,
-      pickup_locker_provider_slug: pickupLockerProviderSlug,
-      delivery_type: deliveryType,
-      delivery_locker_data: deliveryLockerData,
-      delivery_locker_location_id: deliveryLockerLocationId,
-      delivery_locker_provider_slug: deliveryLockerProviderSlug,
-      delivery_data: {
+    // Calculate checkout pricing
+    const buyerProtectionFee = 20.00;
+    const shippingFeeCents = isPickupOrder ? 0 : Math.max(0, Number(requestData.selected_shipping_cost || 0));
+    const shippingFee = shippingFeeCents / 100;
+    const totalAmount = Number(book.price || 0) + buyerProtectionFee + shippingFee;
+    const totalAmountCents = Math.round(totalAmount * 100);
+
+    // Call atomic SQL RPC function to create the order and handle wallet deduction safely
+    const { data: dbResult, error: dbError } = await supabase.rpc("create_order_with_wallet_deduction", {
+      p_order_id: orderId,
+      p_buyer_id: requestData.buyer_id,
+      p_seller_id: requestData.seller_id,
+      p_book_id: requestData.book_id,
+      p_item_type: resolvedItemType,
+      p_buyer_full_name: buyerFullName,
+      p_seller_full_name: sellerFullName,
+      p_buyer_email: buyerEmail,
+      p_seller_email: sellerEmail,
+      p_buyer_phone_number: buyerPhone,
+      p_seller_phone_number: sellerPhone,
+      p_pickup_address_encrypted: pickupAddress || "",
+      p_shipping_address_encrypted: shippingAddressEncrypted || "",
+      p_delivery_option: requestData.delivery_option,
+      p_pickup_type: pickupType,
+      p_pickup_locker_data: pickupLockerData,
+      p_pickup_locker_location_id: pickupLockerLocationId ? String(pickupLockerLocationId) : null,
+      p_pickup_locker_provider_slug: pickupLockerProviderSlug,
+      p_delivery_type: deliveryType,
+      p_delivery_locker_data: deliveryLockerData,
+      p_delivery_locker_location_id: deliveryLockerLocationId ? String(deliveryLockerLocationId) : null,
+      p_delivery_locker_provider_slug: deliveryLockerProviderSlug,
+      p_delivery_data: {
         delivery_option: requestData.delivery_option,
         delivery_type: deliveryType,
         pickup_type: pickupType,
         requested_at: new Date().toISOString(),
-        selected_courier_slug: requestData.selected_courier_slug,
-        selected_service_code: requestData.selected_service_code,
-        selected_courier_name: requestData.selected_courier_name,
-        selected_service_name: requestData.selected_service_name,
-        selected_shipping_cost: requestData.selected_shipping_cost,
+        selected_courier_slug: isPickupOrder ? null : requestData.selected_courier_slug,
+        selected_service_code: isPickupOrder ? null : requestData.selected_service_code,
+        selected_courier_name: isPickupOrder ? null : requestData.selected_courier_name,
+        selected_service_name: isPickupOrder ? null : requestData.selected_service_name,
+        selected_shipping_cost: shippingFeeCents,
+        buyer_protection_fee: buyerProtectionFee,
       },
-      payment_reference: requestData.payment_reference,
-      paystack_reference: requestData.payment_reference,
-      selected_courier_slug: requestData.selected_courier_slug,
-      selected_service_code: requestData.selected_service_code,
-      selected_courier_name: requestData.selected_courier_name,
-      selected_service_name: requestData.selected_service_name,
-      selected_shipping_cost: requestData.selected_shipping_cost,
-      // CRITICAL: Order starts as pending_payment - not yet paid
-      status: "pending_payment",
-      payment_status: "pending",
-      amount: Math.round(book.price * 100),
-      total_amount: book.price,
-      items: [{
+      p_payment_reference: requestData.payment_reference,
+      p_paystack_reference: requestData.payment_reference,
+      p_selected_courier_slug: isPickupOrder ? null : requestData.selected_courier_slug,
+      p_selected_service_code: isPickupOrder ? null : requestData.selected_service_code,
+      p_selected_courier_name: isPickupOrder ? null : requestData.selected_courier_name,
+      p_selected_service_name: isPickupOrder ? null : requestData.selected_service_name,
+      p_selected_shipping_cost: shippingFeeCents,
+      p_status: "pending_payment",
+      p_payment_status: "pending",
+      p_amount: totalAmountCents,
+      p_total_amount: totalAmount,
+      p_items: [{
         item_id: book.id,
-        book_id: book.id,       // backwards compat
+        book_id: book.id,
         item_type: resolvedItemType,
         title: book.title,
         name: book.name || book.title,
         author: book.author,
         price: book.price,
         condition: book.condition,
-      }]
-    };
+        image_url: book.image_url || book.front_cover || null,
+        front_cover: book.front_cover || book.image_url || null,
+      }],
+      p_order_type: isPickupOrder ? "pickup" : "delivery",
+      p_use_wallet: requestData.use_wallet || false,
+    });
 
-
-    const { data: order, error: orderError } = await supabase
-      .from("orders")
-      .insert(orderData)
-      .select()
-      .single();
-
-    if (orderError) {
-      console.error("❌ Failed to create order:", orderError);
+    if (dbError || !dbResult || !dbResult.success) {
+      console.error("❌ Failed to create order via RPC:", dbError || dbResult?.error);
       return new Response(
-        JSON.stringify({ success: false, error: "Failed to create order: " + orderError.message }),
+        JSON.stringify({ success: false, error: "Failed to create order: " + (dbError?.message || dbResult?.error || "Unknown database error") }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    console.log("✅ Order created successfully (pending payment). Book NOT marked as sold yet.");
+    await supabase
+      .from('orders')
+      .update({
+        platform_fee: buyerProtectionFee,
+        selected_shipping_cost: shippingFeeCents,
+        order_type: isPickupOrder ? 'pickup' : 'delivery',
+        pickup_status: isPickupOrder ? 'pending_pickup' : null,
+        delivery_status: isPickupOrder ? null : undefined,
+        selected_courier_slug: isPickupOrder ? null : requestData.selected_courier_slug,
+        selected_service_code: isPickupOrder ? null : requestData.selected_service_code,
+        selected_courier_name: isPickupOrder ? null : requestData.selected_courier_name,
+        selected_service_name: isPickupOrder ? null : requestData.selected_service_name,
+      })
+      .eq('id', dbResult.id);
+
+    console.log("Order created successfully (pending payment).");
 
     return new Response(
       JSON.stringify({
         success: true,
-        message: "Order created successfully - awaiting payment",
+        message: dbResult.payment_status === 'paid' ? "Order fully paid via wallet" : "Order created successfully - awaiting payment",
         order: {
-          id: order.id,
-          order_id: order.order_id,
-          status: order.status,
-          payment_status: order.payment_status,
-          total_amount: order.total_amount,
-          buyer_email: order.buyer_email,
-          seller_email: order.seller_email,
-          pickup_type: order.pickup_type,
-          delivery_type: order.delivery_type
+          id: dbResult.id,
+          order_id: dbResult.order_id,
+          status: dbResult.status,
+          payment_status: dbResult.payment_status,
+          total_amount: totalAmount,
+          wallet_deducted_total: dbResult.wallet_deducted_total,
+          buyer_email: buyerEmail,
+          seller_email: sellerEmail,
+          pickup_type: pickupType,
+          delivery_type: deliveryType
         }
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
     console.error("❌ Error creating order:", error);
-    console.error("Stack trace:", error instanceof Error ? error.stack : 'No stack trace');
     return new Response(
       JSON.stringify({ success: false, error: error instanceof Error ? error.message : "Unknown error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });
+
+
+

@@ -2,4 +2,4 @@ Important: Do not change my Edge Functions or create any new migrations. Use exi
 
 If a change is suggested, do not apply it blindly. First consider how that change affects the rest of the system. Many components are interdependent—changing one part may require updates elsewhere for the system to function correctly.
 
-Always think through the full impact before executing any change.
+Always think through the full impact before executing any change.eat 

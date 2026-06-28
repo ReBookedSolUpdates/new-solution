@@ -63,7 +63,7 @@ const AccountInformation = ({
 
     setUploadingPicture(true);
     try {
-      const compressed = await compressImage(file, { maxWidth: 400, maxHeight: 400, quality: 0.85, format: "image/webp" });
+      const compressed = await compressImage(file, { maxWidth: 800, maxHeight: 800, quality: 0.75, format: "image/webp" });
       const fileName = `${user.id}/${Date.now()}.${compressed.extension}`;
 
       const { error: uploadError } = await supabase.storage

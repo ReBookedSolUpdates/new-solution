@@ -46,12 +46,20 @@ interface ModernAddressTabProps {
     same: boolean,
   ) => Promise<void>;
   isLoading?: boolean;
+  pickupEnabled?: boolean;
+  savingPickup?: boolean;
+  setPickupEnabled?: (val: boolean) => void;
+  setSavingPickup?: (val: boolean) => void;
 }
 
 const ModernAddressTab = ({
   addressData,
   onSaveAddresses,
   isLoading = false,
+  pickupEnabled,
+  savingPickup,
+  setPickupEnabled,
+  setSavingPickup,
 }: ModernAddressTabProps) => {
   const savedLockersCardRef = useRef<{ loadSavedLockers: () => Promise<void> } | null>(null);
   const [editMode, setEditMode] = useState<
@@ -291,7 +299,7 @@ const ModernAddressTab = ({
 
     // We don't clear state optimistically anymore to prevent layout jumps
     // The update will happen via props after onSaveAddresses finishes and parents reload
-    
+
     // Update profile via parent component
 
     // Attempt to save the deletion
@@ -421,6 +429,50 @@ const ModernAddressTab = ({
         </CardHeader>
       </Card>
 
+      {/* Pickup/Meetup Settings Toggle */}
+      {setPickupEnabled && setSavingPickup && (
+        <Card className="border-2 border-orange-100 shadow-md">
+          <CardContent className="p-4 md:p-6 flex flex-col sm:flex-row items-center justify-between gap-4 bg-white">
+            <div className="space-y-1">
+              <Label className="font-semibold text-gray-900 text-sm md:text-base">Enable Pickup/Meetup Orders</Label>
+              <p className="text-xs text-gray-500">Allow buyers to pick up items from you in person.</p>
+            </div>
+            <Button
+              type="button"
+              variant={pickupEnabled ? "default" : "secondary"}
+              className="px-4 py-2 text-xs md:text-sm font-semibold rounded-lg transition-all h-9 md:h-10 shrink-0 bg-book-600 hover:bg-book-700 text-white"
+              style={{ backgroundColor: pickupEnabled ? '#16a34a' : '#e5e7eb', color: pickupEnabled ? '#ffffff' : '#374151' }}
+              disabled={savingPickup}
+              onClick={async () => {
+                const checked = !pickupEnabled;
+                setPickupEnabled(checked);
+                setSavingPickup(true);
+                try {
+                  const { data: { user } } = await supabase.auth.getUser();
+                  if (!user?.id) return;
+                  const { error } = await supabase.from("profiles").update({ pickup_enabled: checked }).eq("id", user.id);
+                  if (error) throw error;
+                  toast.success(checked ? "Pickup orders enabled" : "Pickup orders disabled");
+                } catch {
+                  setPickupEnabled(!checked);
+                  toast.error("Failed to update pickup setting");
+                } finally {
+                  setSavingPickup(false);
+                }
+              }}
+            >
+              {savingPickup ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : pickupEnabled ? (
+                "Pickup: ENABLED"
+              ) : (
+                "Pickup: DISABLED"
+              )}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Saved Lockers Section - Moved to Top */}
       <SavedLockersCard ref={savedLockersCardRef} isLoading={isLoading} />
 
@@ -492,13 +544,13 @@ const ModernAddressTab = ({
                     defaultValue={
                       pickupAddress
                         ? {
-                            formattedAddress: `${pickupAddress.street}, ${pickupAddress.city}, ${pickupAddress.province}, ${pickupAddress.postalCode}`,
-                            street: pickupAddress.street,
-                            city: pickupAddress.city,
-                            province: pickupAddress.province,
-                            postalCode: pickupAddress.postalCode,
-                            country: pickupAddress.country,
-                          }
+                          formattedAddress: `${pickupAddress.street}, ${pickupAddress.city}, ${pickupAddress.province}, ${pickupAddress.postalCode}`,
+                          street: pickupAddress.street,
+                          city: pickupAddress.city,
+                          province: pickupAddress.province,
+                          postalCode: pickupAddress.postalCode,
+                          country: pickupAddress.country,
+                        }
                         : undefined
                     }
                   />
@@ -638,13 +690,13 @@ const ModernAddressTab = ({
                     defaultValue={
                       shippingAddress
                         ? {
-                            formattedAddress: `${shippingAddress.street}, ${shippingAddress.city}, ${shippingAddress.province}, ${shippingAddress.postalCode}`,
-                            street: shippingAddress.street,
-                            city: shippingAddress.city,
-                            province: shippingAddress.province,
-                            postalCode: shippingAddress.postalCode,
-                            country: shippingAddress.country,
-                          }
+                          formattedAddress: `${shippingAddress.street}, ${shippingAddress.city}, ${shippingAddress.province}, ${shippingAddress.postalCode}`,
+                          street: shippingAddress.street,
+                          city: shippingAddress.city,
+                          province: shippingAddress.province,
+                          postalCode: shippingAddress.postalCode,
+                          country: shippingAddress.country,
+                        }
                         : undefined
                     }
                   />
@@ -751,6 +803,7 @@ const ModernAddressTab = ({
                 Cancel
               </Button>
               <Button
+                type="button"
                 onClick={handleSave}
                 disabled={!isAddressValid(pickupAddress) || !isAddressValid(shippingAddress) || isSaving}
                 className="bg-purple-600 hover:bg-purple-700"
@@ -767,28 +820,6 @@ const ModernAddressTab = ({
         </Card>
       )}
 
-      {/* Quick Setup */}
-      {!pickupAddress && !shippingAddress && editMode === "none" && (
-        <Card className="border-2 border-indigo-100">
-          <CardContent className="p-6 text-center">
-            <MapPin className="h-16 w-16 text-indigo-300 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              Quick Address Setup
-            </h3>
-            <p className="text-gray-600 mb-6">
-              Set up both addresses at once to get started quickly
-            </p>
-            <Button
-              onClick={() => startEditing("both")}
-              className="bg-indigo-600 hover:bg-indigo-700"
-              size="lg"
-            >
-              <Plus className="h-5 w-5 mr-2" />
-              Set Up Both Addresses
-            </Button>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Preference Selection Dialog - Only show when both locker and pickup address exist */}
       <Dialog open={showPreferenceDialog} onOpenChange={setShowPreferenceDialog}>

@@ -71,7 +71,7 @@ const EditSupply = () => {
       if (!user) { setError("You must be logged in to edit items"); setIsLoading(false); return; }
       try {
         setIsLoading(true);
-        const item = await getBookById(id);
+        const item = await getBookById(id, 'school_supply');
         if (!item) { setError("Item not found"); setIsLoading(false); return; }
         if (item.seller?.id !== user.id) { setError("You are not authorized to edit this item"); setIsLoading(false); return; }
 
@@ -153,6 +153,10 @@ const EditSupply = () => {
         additional_images: additionalImages.length > 0 ? additionalImages : null,
         image_url: images.frontCover || images.backCover || images.insidePages || null,
       };
+
+      // Guard: do not persist blob: preview URLs into the DB
+      const hasBlob = [updateData.image_url, updateData.front_cover, updateData.back_cover, updateData.inside_pages].some(u => typeof u === 'string' && u.startsWith('blob:')) || (Array.isArray(updateData.additional_images) && updateData.additional_images.some((u: any) => typeof u === 'string' && u.startsWith('blob:')));
+      if (hasBlob) throw new Error('One or more images are not uploaded yet. Please wait for uploads to complete before saving.');
 
       const { error: updateError } = await supabase
         .from("school_supplies")

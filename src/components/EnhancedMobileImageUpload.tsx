@@ -137,7 +137,7 @@ const EnhancedMobileImageUpload = ({
         {
           label: "Label / Tag",
           index: 2,
-          required: false,
+          required: true,
           description: "Size label or school crest close-up",
           orientation: "portrait",
           tips: "Get close enough so label text is readable"
@@ -157,7 +157,7 @@ const EnhancedMobileImageUpload = ({
         {
           label: "Detail Shot",
           index: 1,
-          required: false,
+          required: true,
           description: "Close-up of important details",
           orientation: "portrait",
           tips: "Show key features or branding"
@@ -165,7 +165,7 @@ const EnhancedMobileImageUpload = ({
         {
           label: "Contents",
           index: 2,
-          required: false,
+          required: true,
           description: "Show what's included in the set",
           orientation: "landscape",
           tips: "Spread all items out and photograph from above"
@@ -213,9 +213,9 @@ const EnhancedMobileImageUpload = ({
   const uploadImage = async (file: File): Promise<string> => {
     // Compress to WebP before upload for faster transfers
     const compressed = await compressImage(file, {
-      maxWidth: 1600,
-      maxHeight: 1600,
-      quality: 0.8,
+      maxWidth: 800,
+      maxHeight: 800,
+      quality: 0.75,
       format: "image/webp",
     });
 

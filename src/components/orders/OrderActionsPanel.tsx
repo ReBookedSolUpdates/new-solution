@@ -4,6 +4,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import { useNavigate } from "react-router-dom";
+import { getOrCreateConversation } from "@/services/chatService";
+import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
@@ -28,8 +31,11 @@ import {
   Clock,
   TruckIcon,
   CheckCircle,
+  MessageSquare,
+  Loader2,
+  Download,
+  FileText,
 } from "lucide-react";
-import { toast } from "sonner";
 import OrderCancellationService, {
   Order as BaseOrder,
   RescheduleQuote,
@@ -48,6 +54,11 @@ type Order = BaseOrder & {
   selected_service_name?: string | null;
   tracking_data?: any;
   delivery_data?: any;
+  delivery_option?: string | null;
+  delivery_method?: string | null;
+  order_type?: string | null;
+  buyer_confirmed_at?: string | null;
+  seller_confirmed_at?: string | null;
 };
 
 interface OrderActionsPanelProps {
@@ -68,6 +79,9 @@ const OrderActionsPanel: React.FC<OrderActionsPanelProps> = ({
   const [rescheduleQuote, setRescheduleQuote] = useState<RescheduleQuote | null>(null);
   const [selectedRescheduleTime, setSelectedRescheduleTime] = useState("");
   const [paymentProcessing, setPaymentProcessing] = useState(false);
+  const [isChatLoading, setIsChatLoading] = useState(false);
+  const [isWaybillLoading, setIsWaybillLoading] = useState(false);
+  const navigate = useNavigate();
 
   // Orders can be cancelled UNLESS delivery_status is "collected" or beyond
   // Non-cancellable statuses: ['collected', 'picked_up', 'in_transit', 'out_for_delivery', 'delivered', 'ready_for_pickup', 'ready']
@@ -81,6 +95,11 @@ const OrderActionsPanel: React.FC<OrderActionsPanelProps> = ({
   const canCancelOrder = !nonCancellableStatuses.includes(deliveryStatusLower) && !isCancelledOrCompleted;
 
   const showMissedPickupActions = userRole === "seller" && order.delivery_status === "pickup_failed";
+
+  const isPickup =
+    order.delivery_option === "pickup" ||
+    order.delivery_method === "pickup" ||
+    order.order_type === "pickup";
 
   const handleBuyerCancel = async () => {
     setIsLoading(true);
@@ -293,6 +312,72 @@ const OrderActionsPanel: React.FC<OrderActionsPanelProps> = ({
     );
   };
 
+  const handleChat = async () => {
+    setIsChatLoading(true);
+    try {
+      const orderAny = order as any;
+      const listingId = order.book_id || orderAny.item_id;
+      const buyerId = order.buyer_id;
+      const sellerId = order.seller_id;
+      
+      if (!listingId || !buyerId || !sellerId) {
+        throw new Error("Missing required information to open chat");
+      }
+
+      const conv = await getOrCreateConversation(
+        listingId,
+        buyerId,
+        sellerId,
+        (orderAny.item_type as "book" | "school_supply" | "uniform") || "book"
+      );
+      navigate(`/profile?tab=messages&conversation=${conv.id}`);
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : "Unknown error";
+      console.error("Failed to open chat:", errorMsg);
+      toast.error("Could not open chat. Please try again.");
+    } finally {
+      setIsChatLoading(false);
+    }
+  };
+
+  const handleDownloadWaybill = async () => {
+    setIsWaybillLoading(true);
+    try {
+      // Try direct waybill_url first
+      const directUrl = (order as any).waybill_url as string | undefined;
+      if (directUrl) {
+        window.open(directUrl, "_blank", "noopener,noreferrer");
+        toast.success("Opening waybill…");
+        return;
+      }
+
+      // Otherwise fetch from get-shipment-label edge function
+      const { data, error } = await supabase.functions.invoke("get-shipment-label", {
+        body: { order_id: order.id, label_type: "waybill" },
+      });
+
+      if (error) throw new Error(error.message || "Failed to fetch waybill");
+
+      const url =
+        (data as any)?.label_url ||
+        (data as any)?.url ||
+        (data as any)?.waybill_url ||
+        (data as any)?.pdf_url;
+
+      if (!url) {
+        throw new Error("No waybill is available for this order yet.");
+      }
+
+      window.open(url, "_blank", "noopener,noreferrer");
+      toast.success("Opening waybill…");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to download waybill";
+      toast.error(msg);
+    } finally {
+      setIsWaybillLoading(false);
+    }
+  };
+
   return (
     <Card className="w-full">
       <CardHeader>
@@ -305,13 +390,56 @@ const OrderActionsPanel: React.FC<OrderActionsPanelProps> = ({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="text-xs text-blue-600 bg-blue-50 border border-blue-200 rounded-md p-3 flex items-start gap-2">
-          <Info className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
-          <div>
+        <div className="text-xs text-blue-600 bg-blue-50 border border-blue-200 rounded-md p-3 flex items-center gap-2 text-center justify-center">
+          <Info className="w-4 h-4 text-blue-600 flex-shrink-0" />
+          <div className="text-center">
             <p className="font-medium text-blue-900 mb-1">Need Help?</p>
             <p className="text-blue-700">If you have any issues with this order, please contact our support team for assistance.</p>
           </div>
         </div>
+
+        {/* Chat Button */}
+        <div className="pt-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleChat}
+            disabled={isChatLoading}
+            className="w-full border-book-300 text-book-700 hover:bg-book-50 hover:border-book-500 font-medium gap-2"
+          >
+            {isChatLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <MessageSquare className="h-4 w-4" />
+            )}
+            {userRole === "buyer" ? "Chat to Seller" : "Chat to Buyer"}
+          </Button>
+        </div>
+
+        {/* Seller: Download Waybill (only when committed/shipped and tracking exists, and NOT a pickup order) */}
+        {!isPickup && userRole === "seller" &&
+          (order.tracking_number ||
+            ["committed", "in_transit", "out_for_delivery", "delivered", "collected", "picked_up"].includes(
+              (order.status || "").toLowerCase()
+            ) ||
+            ["pickup_scheduled", "collected", "picked_up", "in_transit", "out_for_delivery", "delivered"].includes(
+              (order.delivery_status || "").toLowerCase()
+            )) && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleDownloadWaybill}
+              disabled={isWaybillLoading}
+              className="w-full border-book-300 text-book-700 hover:bg-book-50 hover:border-book-500 font-medium gap-2"
+            >
+              {isWaybillLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <FileText className="h-4 w-4" />
+              )}
+              Download Waybill
+            </Button>
+          )}
 
         {/* Commitment Action for Seller */}
         {userRole === "seller" && order.status === "pending_commit" && (
@@ -334,6 +462,83 @@ const OrderActionsPanel: React.FC<OrderActionsPanelProps> = ({
               onCommitSuccess={onOrderUpdate}
               className="w-full sm:w-auto"
             />
+          </div>
+        )}
+
+        {/* Pickup / Meetup Handover Confirmation */}
+        {isPickup && ["committed", "pending_delivery", "in_transit", "awaiting_confirmation"].includes((order.status || "").toLowerCase()) && (
+          <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 space-y-3">
+            <div className="flex items-start gap-3">
+              <CheckCircle className="w-5 h-5 text-emerald-600 mt-0.5" />
+              <div>
+                <h4 className="font-bold text-emerald-900">Meetup Handover</h4>
+                <p className="text-sm text-emerald-800">
+                  {userRole === "seller" 
+                    ? "Confirm you have met up with the buyer and handed over the book." 
+                    : "Confirm you have met up with the seller and received your book."}
+                </p>
+                {/* Show status of confirmations */}
+                <div className="mt-2 text-xs space-y-1 text-emerald-700">
+                  <p>• Seller Confirmation: {order.seller_confirmed_at ? "✅ Confirmed" : "⏳ Pending"}</p>
+                  <p>• Buyer Confirmation: {order.buyer_confirmed_at ? "✅ Confirmed" : "⏳ Pending"}</p>
+                </div>
+              </div>
+            </div>
+
+            {((userRole === "seller" && !order.seller_confirmed_at) || 
+              (userRole === "buyer" && !order.buyer_confirmed_at)) ? (
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium">
+                    {userRole === "seller" ? "Confirm Handover Completed" : "Confirm Receipt"}
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-[90vw] sm:max-w-md rounded-2xl mx-auto">
+                  <DialogHeader>
+                    <DialogTitle>Confirm Handoff</DialogTitle>
+                    <DialogDescription>
+                      {userRole === "seller" 
+                        ? "Are you sure you have delivered/handed over the order? This cannot be changed once confirmed." 
+                        : "Are you sure you have received/gotten the order? This cannot be changed once confirmed."}
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="flex gap-2 pt-2">
+                    <DialogTrigger asChild>
+                      <Button variant="outline" className="flex-1">
+                        Cancel
+                      </Button>
+                    </DialogTrigger>
+                    <Button 
+                      onClick={async () => {
+                        try {
+                          const { data: { user } } = await supabase.auth.getUser();
+                          if (!user) throw new Error("Not authenticated");
+                          const { data, error } = await supabase.rpc("confirm_order_pickup", {
+                            p_order_id: order.id,
+                            p_user_id: user.id
+                          });
+                          if (error) throw error;
+                          if (data && typeof data === "object" && "success" in data && !data.success) {
+                            throw new Error(data.error || "Failed to confirm pickup");
+                          }
+                          toast.success(userRole === "seller" ? "Handover confirmed!" : "Receipt confirmed!");
+                          onOrderUpdate();
+                        } catch (err: any) {
+                          toast.error(err.message || "Failed to confirm pickup");
+                        }
+                      }}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white flex-1"
+                    >
+                      Confirm
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            ) : (
+              <p className="text-xs font-semibold text-emerald-800 text-center bg-emerald-100/50 py-1.5 rounded-lg">
+                You have confirmed this meetup. Waiting for the other party.
+              </p>
+            )}
           </div>
         )}
 
@@ -455,45 +660,43 @@ const OrderActionsPanel: React.FC<OrderActionsPanelProps> = ({
               <span className="font-medium">Item:</span>
               <p className="text-gray-600">{order.book?.title || "Marketplace Item"}</p>
             </div>
-            <div>
-              <span className="font-medium">Courier:</span>
-              <p className="text-gray-600">{order.selected_courier_name || order.delivery_data?.provider || "—"}</p>
-            </div>
-            <div>
-              <span className="font-medium">Service:</span>
-              <p className="text-gray-600">{order.selected_service_name || order.delivery_data?.service_level || "—"}</p>
-            </div>
-            <div>
-              <span className="font-medium">Tracking:</span>
-              <p className="text-gray-600 break-all">{order.tracking_number || order.tracking_data?.tracking_number || "—"}</p>
-            </div>
-          </div>
-          <div className="mt-3">
-            <Alert className="border-blue-200 bg-blue-50">
-              <AlertDescription className="text-blue-800">
-                Track your shipment on the official BobGo site: {order.tracking_number || order.tracking_data?.tracking_number ? (
-                  <a
-                    href={`https://track.bobgo.co.za/${encodeURIComponent(order.tracking_number || order.tracking_data?.tracking_number)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="underline text-blue-700"
-                  >
-                    https://track.bobgo.co.za/{order.tracking_number || order.tracking_data?.tracking_number}
-                  </a>
-                ) : (
-                  <span>link appears once tracking number is assigned</span>
-                )}
-              </AlertDescription>
-            </Alert>
+            {isPickup ? (
+              <div>
+                <span className="font-medium">Delivery Method:</span>
+                <p className="text-gray-600">Pickup / Meetup</p>
+              </div>
+            ) : (
+              <>
+                <div>
+                  <span className="font-medium">Courier:</span>
+                  <p className="text-gray-600">{order.selected_courier_name || order.delivery_data?.provider || "—"}</p>
+                </div>
+                <div>
+                  <span className="font-medium">Service:</span>
+                  <p className="text-gray-600">{order.selected_service_name || order.delivery_data?.service_level || "—"}</p>
+                </div>
+                <div>
+                  <span className="font-medium">Tracking:</span>
+                  <p className="text-gray-600 break-all">{order.tracking_number || order.tracking_data?.tracking_number || "—"}</p>
+                </div>
+              </>
+            )}
           </div>
 
-          {/* Cancel Order Button - positioned below track shipment section */}
-          <div className="mt-4 space-y-3">
-            {canCancelOrder && (
-              <Dialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+          {/* Cancel Order Button - matches Chat button style, blurred/disabled when not cancellable */}
+          {!showMissedPickupActions && (
+            <div className="mt-4 space-y-2">
+              <Dialog open={showCancelDialog} onOpenChange={(open) => canCancelOrder && setShowCancelDialog(open)}>
                 <DialogTrigger asChild>
-                  <Button variant="destructive" className="w-full">
-                    <X className="w-4 h-4 mr-2" />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={!canCancelOrder}
+                    className={`w-full border-red-300 text-red-700 hover:bg-red-50 hover:border-red-500 font-medium gap-2 ${
+                      !canCancelOrder ? "opacity-40 blur-[1px] cursor-not-allowed pointer-events-none" : ""
+                    }`}
+                  >
+                    <X className="h-4 w-4" />
                     Cancel Order
                   </Button>
                 </DialogTrigger>
@@ -508,7 +711,7 @@ const OrderActionsPanel: React.FC<OrderActionsPanelProps> = ({
                     <Alert className="border-amber-300 bg-amber-50">
                       <AlertTriangle className="h-4 w-4 text-amber-600" />
                       <AlertDescription className="text-sm text-amber-800 ml-2">
-                        <strong>Important:</strong> Once the courier collects this order, you will <strong>no longer be able to cancel it</strong>. Please cancel immediately if you've changed your mind.
+                        <strong>Important:</strong> Once the courier collects this order, you will <strong>no longer be able to cancel it</strong>.
                       </AlertDescription>
                     </Alert>
                     <div>
@@ -535,18 +738,14 @@ const OrderActionsPanel: React.FC<OrderActionsPanelProps> = ({
                   </div>
                 </DialogContent>
               </Dialog>
-            )}
 
-            {/* Message when order cannot be cancelled */}
-            {!canCancelOrder && !showMissedPickupActions && (
-              <Alert className="border-orange-300 bg-orange-50">
-                <AlertTriangle className="h-4 w-4 text-orange-600 flex-shrink-0" />
-                <AlertDescription className="text-sm text-orange-800 ml-2">
-                  <strong>Cannot Cancel:</strong> This order has already been collected by the courier and is in transit. If you need to make changes, please contact our support team.
-                </AlertDescription>
-              </Alert>
-            )}
-          </div>
+              {!canCancelOrder && (
+                <p className="text-xs text-gray-500 text-center">
+                  Order has been collected — cancellation no longer available.
+                </p>
+              )}
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>

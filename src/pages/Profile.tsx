@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -32,8 +33,10 @@ import {
   X,
   CheckCircle,
   Loader2,
+  ChevronDown,
   MessageSquare,
   Heart,
+  History,
 } from "lucide-react";
 import ChatList from "@/components/chat/ChatList";
 import ChatView from "@/components/chat/ChatView";
@@ -47,6 +50,7 @@ import { Upload } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import ModernAddressTab from "@/components/profile/ModernAddressTab";
 import OrderManagementView from "@/components/orders/OrderManagementView";
+import PastOrdersActivity from "@/components/orders/PastOrdersActivity";
 import { useCommit } from "@/hooks/useCommit";
 import EnhancedOrderCommitButton from "@/components/orders/EnhancedOrderCommitButton";
 import BankingProfileTab from "@/components/profile/BankingProfileTab";
@@ -59,17 +63,37 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { getBooks } from "@/services/book/bookQueries";
 import { getWishlistIds } from "@/services/wishlistService";
+import { createEmailTemplate } from "@/email-templates/styles";
+import { cn } from "@/lib/utils";
 
 // ─── ActivityCommits: must live OUTSIDE Profile to avoid remount glitching ───
 const ActivityCommits: React.FC = () => {
   const { user } = useAuth();
   const { pendingCommits, refreshPendingCommits, declineBook, isCommitting, isDeclining } = useCommit();
+  const [expandedCommit, setExpandedCommit] = useState<string | null>(null);
+  const [sellerHasPhone, setSellerHasPhone] = useState<boolean | null>(null);
   const [now, setNow] = useState(new Date());
   useEffect(() => {
     refreshPendingCommits().catch(() => {});
     const t = setInterval(() => setNow(new Date()), 5000);
     return () => clearInterval(t);
   }, [refreshPendingCommits]);
+
+  useEffect(() => {
+    if (user?.id) {
+      supabase
+        .from("profiles")
+        .select("phone_number")
+        .eq("id", user.id)
+        .single()
+        .then(({ data }) => {
+          setSellerHasPhone(!!data?.phone_number);
+        })
+        .catch(() => {
+          setSellerHasPhone(false);
+        });
+    }
+  }, [user?.id]);
 
   if (!pendingCommits || pendingCommits.length === 0) return (
     <Alert className="border-book-200 bg-book-50">
@@ -98,7 +122,12 @@ const ActivityCommits: React.FC = () => {
                   <div className="flex items-start justify-between gap-3 mb-3">
                     <div className="flex-1 min-w-0">
                       <h3 className="font-bold text-lg text-book-900 line-clamp-2 mb-1">{c.bookTitle}</h3>
-                      {c.author && <p className="text-sm text-book-600">by {c.author}</p>}
+                      {c.author && <p className="text-sm text-book-600 mb-1">by {c.author}</p>}
+                      <div className="flex flex-wrap gap-1.5 mt-1">
+                        <Badge variant="outline" className="text-xs bg-book-50 text-book-700 border-book-200">
+                          {c.deliveryMethod === 'pickup' || c.orderType === 'pickup' ? '🤝 In-Person Pickup' : c.deliveryMethod === 'locker' ? '📦 BobGo Locker Drop-off' : '🚗 Courier Home Delivery'}
+                        </Badge>
+                      </div>
                     </div>
                     {urgent && (
                       <Badge className="flex-shrink-0 bg-red-100 text-red-700 border border-red-300 font-semibold">
@@ -117,7 +146,7 @@ const ActivityCommits: React.FC = () => {
                     </div>
                     <div className="flex flex-col">
                       <span className="text-xs font-semibold text-book-500 uppercase tracking-wide">Order ID</span>
-                      <span className="text-sm font-mono text-book-700 mt-0.5">{c.id.slice(0, 8)}...</span>
+                      <span className="text-sm font-mono text-book-700 mt-0.5">#{c.id.slice(0, 8).toUpperCase()}</span>
                     </div>
                     <div className="flex flex-col">
                       <span className="text-xs font-semibold text-book-500 uppercase tracking-wide">Time Left</span>
@@ -129,20 +158,59 @@ const ActivityCommits: React.FC = () => {
                       </div>
                     </div>
                   </div>
+                  <button
+                    onClick={() => setExpandedCommit(expandedCommit === c.id ? null : c.id)}
+                    className="flex items-center gap-2 text-sm text-book-600 hover:text-book-800 mb-4"
+                  >
+                    <span>View full details</span>
+                    <ChevronDown className={`h-4 w-4 transition-transform ${expandedCommit === c.id ? 'rotate-180' : ''}`} />
+                  </button>
+                  {expandedCommit === c.id && (
+                    <div className="mb-4 p-3 bg-book-50 rounded-lg border border-book-200">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                        {c.title && <div><span className="font-medium">Title:</span> {c.title}</div>}
+                        {c.author && <div><span className="font-medium">Author:</span> {c.author}</div>}
+                        {c.grade && <div><span className="font-medium">Grade:</span> {c.grade}</div>}
+                        {c.subject && <div><span className="font-medium">Subject:</span> {c.subject}</div>}
+                        {c.condition && <div><span className="font-medium">Condition:</span> {c.condition}</div>}
+                        {c.schoolName && <div><span className="font-medium">School Name:</span> {c.schoolName}</div>}
+                        {c.size && <div><span className="font-medium">Size:</span> {c.size}</div>}
+                        {c.colour && <div><span className="font-medium">Colour:</span> {c.colour}</div>}
+                        {c.gender && <div><span className="font-medium">Gender:</span> {c.gender}</div>}
+                        {c.province && <div><span className="font-medium">Province:</span> {c.province}</div>}
+                        {c.isbn && <div><span className="font-medium">ISBN:</span> {c.isbn}</div>}
+                        {c.category && <div><span className="font-medium">Category:</span> {c.category}</div>}
+                        {c.description && <div className="col-span-full"><span className="font-medium">Description:</span> {c.description}</div>}
+                      </div>
+                    </div>
+                  )}
                   <div className="flex items-center gap-2 text-xs text-book-600 mb-4 p-2 bg-book-50 rounded">
                     <CheckCircle className="h-3.5 w-3.5 text-book-400" />
-                    <span>Waiting for your confirmation to arrange courier pickup</span>
+                    <span>
+                      {c.deliveryMethod === 'pickup' || c.orderType === 'pickup'
+                        ? "Waiting for your confirmation to arrange in-person pickup meetup"
+                        : "Waiting for your confirmation to arrange courier pickup"}
+                    </span>
                   </div>
                 </div>
                 <div className="flex gap-2 md:flex-col md:justify-start flex-shrink-0 md:w-auto">
-                  <EnhancedOrderCommitButton
-                    orderId={c.id}
-                    sellerId={user?.id || ""}
-                    bookTitle={c.bookTitle}
-                    buyerName={c.buyerName}
-                    onCommitSuccess={() => refreshPendingCommits().catch(() => {})}
-                    disabled={isCommitting || isDeclining}
-                  />
+                  {sellerHasPhone === false && !(c.deliveryMethod === 'pickup' || c.orderType === 'pickup') ? (
+                    <Alert className="border-red-200 bg-red-50">
+                      <AlertTriangle className="h-4 w-4 text-red-600" />
+                      <AlertDescription className="text-red-800">
+                        Seller has not added a phone number. Delivery rates cannot be calculated.
+                      </AlertDescription>
+                    </Alert>
+                  ) : (
+                    <EnhancedOrderCommitButton
+                      orderId={c.id}
+                      sellerId={user?.id || ""}
+                      bookTitle={c.bookTitle}
+                      buyerName={c.buyerName}
+                      onCommitSuccess={() => refreshPendingCommits().catch(() => {})}
+                      disabled={isCommitting || isDeclining}
+                    />
+                  )}
                   <Button
                     variant="outline"
                     disabled={isCommitting || isDeclining}
@@ -169,12 +237,26 @@ const ActivityCommits: React.FC = () => {
 };
 // ─────────────────────────────────────────────────────────────────────────────
 
+const normalizeTab = (tab: string | null | undefined): string => {
+  if (!tab) return "overview";
+  const t = tab.toLowerCase().trim();
+  if (t === "address" || t === "addresses") return "addresses";
+  if (t === "message" || t === "messages" || t === "chat" || t === "chats") return "messages";
+  if (t === "activity" || t === "orders" || t === "commits" || t === "past") return "activity";
+  if (t === "settings") return "settings";
+  if (t === "wishlist") return "wishlist";
+  return "overview";
+};
+
 const Profile = () => {
   const { profile, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const isMobile = useIsMobile();
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return normalizeTab(params.get("tab"));
+  });
   const [activeListings, setActiveListings] = useState<Book[]>([]);
   const [isLoadingListings, setIsLoadingListings] = useState(true);
     const [addressData, setAddressData] = useState<AddressData | null>(null);
@@ -184,12 +266,13 @@ const Profile = () => {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   // Transparency modal removed; use /transparency page instead
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
+  const [listRefreshKey, setListRefreshKey] = useState(0);
   const [phone, setPhone] = useState<string>(
     (profile as any)?.phone_number || (user?.user_metadata as any)?.phone_number || (user?.user_metadata as any)?.phone || ""
   );
 
   const [profilePictureUrl, setProfilePictureUrl] = useState<string>(
-    (user?.user_metadata as any)?.avatar_url || (profile as any)?.avatar_url || ""
+    profile?.profile_picture_url || (user?.user_metadata as any)?.avatar_url || (profile as any)?.avatar_url || ""
   );
   const [isUploadingProfilePicture, setIsUploadingProfilePicture] = useState(false);
   const [hasUnreadMessages, setHasUnreadMessages] = useState(false);
@@ -200,14 +283,17 @@ const Profile = () => {
   const [emailChangeError, setEmailChangeError] = useState("");
   const [isAway, setIsAway] = useState<boolean>(!!(profile as any)?.is_away);
   const [savingAway, setSavingAway] = useState(false);
+  const [pickupEnabled, setPickupEnabled] = useState<boolean>(!!(profile as any)?.pickup_enabled);
+  const [savingPickup, setSavingPickup] = useState(false);
   const [wishlistItems, setWishlistItems] = useState<Book[]>([]);
   const lastLoadedListingsUserIdRef = useRef<string | null>(null);
   const lastLoadedAddressesUserIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     setPhone((profile as any)?.phone_number || (user?.user_metadata as any)?.phone_number || (user?.user_metadata as any)?.phone || "");
-    setProfilePictureUrl((user?.user_metadata as any)?.avatar_url || (profile as any)?.avatar_url || "");
+    setProfilePictureUrl(profile?.profile_picture_url || (user?.user_metadata as any)?.avatar_url || (profile as any)?.avatar_url || "");
     setIsAway(!!(profile as any)?.is_away);
+    setPickupEnabled(!!(profile as any)?.pickup_enabled);
   }, [user, profile]);
 
   useEffect(() => {
@@ -224,13 +310,23 @@ const Profile = () => {
     loadWishlist();
   }, [user?.id]);
 
-  // Handle URL params for deep-linking (e.g., from Order chat buttons)
+  const handleTabChange = useCallback((value: string) => {
+    setActiveTab(value);
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("tab") !== value) {
+      params.set("tab", value);
+      navigate(`?${params.toString()}`, { replace: true });
+    }
+  }, [navigate]);
+
+  // Handle URL params and location state for deep-linking (e.g., from Order chat buttons)
   useEffect(() => {
     const params = new URLSearchParams(location.search);
-    const tab = params.get("tab");
+    const state = location.state as { tab?: string } | null;
+    const tab = normalizeTab(params.get("tab") || state?.tab);
     const convId = params.get("conversation");
 
-    if (tab) {
+    if (tab && tab !== activeTab) {
       setActiveTab(tab);
     }
 
@@ -245,8 +341,7 @@ const Profile = () => {
         });
       }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location.search]);
+  }, [location.search, location.state, user?.id, activeTab]);
 
   const loadActiveListings = useCallback(async () => {
     if (!user?.id) return;
@@ -270,7 +365,9 @@ const Profile = () => {
     if (!user?.id) return;
 
     try {
-      setIsLoadingAddress(true);
+      if (!addressData) {
+        setIsLoadingAddress(true);
+      }
 
       // Quick UI: try local cache first to avoid blank loading on mobile
       try {
@@ -494,97 +591,98 @@ const Profile = () => {
     <Layout>
       <div className="container mx-auto px-4 py-8 max-w-6xl">
         {/* Profile Header */}
-        <div className="mb-8">
-          <Card className="border-gray-200 shadow-sm">
-            <CardContent className="p-6 sm:p-8">
-              <div className="flex flex-col gap-6 text-center md:flex-row md:items-center md:justify-between md:text-left">
-                <div className="flex flex-col items-center gap-5 md:flex-row md:items-center md:gap-6">
-                  <div className="relative group">
-                    <Avatar className="w-24 h-24 border-2 border-book-100 shadow-md">
-                      <AvatarImage src={profilePictureUrl} className="object-cover" />
-                      <AvatarFallback className="bg-book-50 text-book-600 text-2xl font-bold">
-                        {(
-                          (profile.name || "U")
-                          .charAt(0)
-                          ?.toUpperCase()
-                        )}
-                      </AvatarFallback>
-                    </Avatar>
+        {/* Profile Header — always visible */}
+          <div className="mb-8">
+            <Card className="border-gray-200 shadow-sm">
+              <CardContent className="p-6 sm:p-8">
+                <div className="flex flex-col gap-6 text-center md:flex-row md:items-center md:justify-between md:text-left">
+                  <div className="flex flex-col items-center gap-5 md:flex-row md:items-center md:gap-6">
+                    <div className="relative group">
+                      <Avatar className="w-24 h-24 border-2 border-book-100 shadow-md">
+                        <AvatarImage src={profilePictureUrl} className="object-cover" />
+                        <AvatarFallback className="bg-book-50 text-book-600 text-2xl font-bold">
+                          {(
+                            (profile.name || "U")
+                            .charAt(0)
+                            ?.toUpperCase()
+                          )}
+                        </AvatarFallback>
+                      </Avatar>
+                      <Button
+                        onClick={() => setIsEditDialogOpen(true)}
+                        size="icon"
+                        variant="secondary"
+                        className="absolute -bottom-1 -right-1 h-8 w-8 rounded-full shadow-lg border-2 border-white scale-90 opacity-0 group-hover:opacity-100 transition-all"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div>
+                        <h1 className="text-3xl font-bold text-gray-900">
+                          {profile.name || "Anonymous User"}
+                        </h1>
+                        <div className="mt-2 flex flex-wrap items-center justify-center gap-4 text-sm text-gray-500 md:justify-start">
+                          <div className="flex items-center gap-1.5">
+                            <Mail className="w-4 h-4 text-book-400" />
+                            {user.email}
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <Calendar className="w-4 h-4 text-book-400" />
+                            Joined{" "}
+                            {profile?.created_at
+                              ? new Date(profile.created_at).toLocaleDateString("en-US", {
+                                  year: "numeric",
+                                  month: "long",
+                                })
+                              : "Unknown"}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap items-center justify-center gap-6 md:justify-start">
+                        <div className="flex items-center gap-2">
+                          <Package className="w-4 h-4 text-book-600" />
+                          <span className="text-xl font-bold text-gray-900">{stats.totalBooks}</span>
+                          <span className="text-lg text-gray-700">Books Listed</span>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <TrendingUp className="w-4 h-4 text-green-600" />
+                          <span className="text-xl font-bold text-gray-900">R{stats.totalValue.toFixed(0)}</span>
+                          <span className="text-lg text-gray-700">Total Value</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col items-stretch gap-3 sm:flex-row md:flex-col md:items-end">
                     <Button
-                      onClick={() => setIsEditDialogOpen(true)}
-                      size="icon"
-                      variant="secondary"
-                      className="absolute -bottom-1 -right-1 h-8 w-8 rounded-full shadow-lg border-2 border-white scale-90 opacity-0 group-hover:opacity-100 transition-all"
+                      onClick={() => navigate("/create-listing")}
+                      className="bg-book-600 hover:bg-book-700 h-11 px-6 font-semibold shadow-sm md:min-w-[190px]"
                     >
-                      <Edit className="h-4 w-4" />
+                      <Plus className="w-4 h-4 mr-2" />
+                      List an Item
+                    </Button>
+                    <Button
+                      onClick={() => setIsShareDialogOpen(true)}
+                      variant="outline"
+                      className="border-book-200 text-book-600 hover:bg-book-50 h-11 px-6 font-semibold md:min-w-[190px]"
+                    >
+                      <Share2 className="w-4 h-4 mr-2" />
+                      Share Profile
                     </Button>
                   </div>
-
-                  <div className="space-y-4">
-                    <div>
-                      <h1 className="text-3xl font-bold text-gray-900">
-                        {profile.name || "Anonymous User"}
-                      </h1>
-                      <div className="mt-2 flex flex-wrap items-center justify-center gap-4 text-sm text-gray-500 md:justify-start">
-                        <div className="flex items-center gap-1.5">
-                          <Mail className="w-4 h-4 text-book-400" />
-                          {user.email}
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <Calendar className="w-4 h-4 text-book-400" />
-                          Joined{" "}
-                          {profile?.created_at
-                            ? new Date(profile.created_at).toLocaleDateString("en-US", {
-                                year: "numeric",
-                                month: "long",
-                              })
-                            : "Unknown"}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-wrap items-center justify-center gap-6 md:justify-start">
-                      <div className="flex items-center gap-2">
-                        <Package className="w-4 h-4 text-book-600" />
-                        <span className="text-xl font-bold text-gray-900">{stats.totalBooks}</span>
-                        <span className="text-lg text-gray-700">Books Listed</span>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <TrendingUp className="w-4 h-4 text-green-600" />
-                        <span className="text-xl font-bold text-gray-900">R{stats.totalValue.toFixed(0)}</span>
-                        <span className="text-lg text-gray-700">Total Value</span>
-                      </div>
-                    </div>
-                  </div>
                 </div>
-
-                <div className="flex flex-col items-stretch gap-3 sm:flex-row md:flex-col md:items-end">
-                  <Button
-                    onClick={() => navigate("/create-listing")}
-                    className="bg-book-600 hover:bg-book-700 h-11 px-6 font-semibold shadow-sm md:min-w-[190px]"
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    List an Item
-                  </Button>
-                  <Button
-                    onClick={() => setIsShareDialogOpen(true)}
-                    variant="outline"
-                    className="border-book-200 text-book-600 hover:bg-book-50 h-11 px-6 font-semibold md:min-w-[190px]"
-                  >
-                    <Share2 className="w-4 h-4 mr-2" />
-                    Share Profile
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+              </CardContent>
+            </Card>
+          </div>
 
         {/* Main Content */}
         <Tabs
           value={activeTab}
-          onValueChange={setActiveTab}
+          onValueChange={handleTabChange}
           className="space-y-6"
         >
           <TabsList className="grid w-full grid-cols-6">
@@ -603,7 +701,7 @@ const Profile = () => {
               <Package className="w-4 h-4" />
               {!isMobile && "Activity"}
               {pendingCommits && pendingCommits.length > 0 && (
-                <span className="absolute top-1 right-1 h-2.5 w-2.5 bg-green-500 rounded-full animate-pulse"></span>
+                <span className="absolute top-1 right-1 h-2.5 w-2.5 bg-red-500 rounded-full animate-pulse" title="Pending commits"></span>
               )}
             </TabsTrigger>
             <TabsTrigger value="settings" className="flex items-center gap-2">
@@ -646,51 +744,99 @@ const Profile = () => {
             </Card>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="flex items-center gap-3">
-                    <div className="p-3 bg-blue-100 rounded-lg">
-                      <BookOpen className="w-6 h-6 text-blue-600" />
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold">{stats.totalBooks}</p>
-                      <p className="text-gray-600">Active Listings</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+              {isLoadingListings ? (
+                <>
+                  <Card>
+                    <CardContent className="pt-6">
+                      <div className="flex items-center gap-3">
+                        <div className="p-3 bg-blue-100 rounded-lg">
+                          <BookOpen className="w-6 h-6 text-blue-600" />
+                        </div>
+                        <div className="flex-1">
+                          <Skeleton className="h-7 w-8 mb-1" />
+                          <p className="text-gray-600">Active Listings</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
 
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="flex items-center gap-3">
-                    <div className="p-3 bg-green-100 rounded-lg">
-                      <TrendingUp className="w-6 h-6 text-green-600" />
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold">
-                        R{stats.totalValue.toFixed(0)}
-                      </p>
-                      <p className="text-gray-600">Total Value</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                  <Card>
+                    <CardContent className="pt-6">
+                      <div className="flex items-center gap-3">
+                        <div className="p-3 bg-green-100 rounded-lg">
+                          <TrendingUp className="w-6 h-6 text-green-600" />
+                        </div>
+                        <div className="flex-1">
+                          <Skeleton className="h-7 w-16 mb-1" />
+                          <p className="text-gray-600">Total Value</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
 
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="flex items-center gap-3">
-                    <div className="p-3 bg-yellow-100 rounded-lg">
-                      <TrendingUp className="w-6 h-6 text-yellow-600" />
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold">
-                        R{stats.avgPrice.toFixed(0)}
-                      </p>
-                      <p className="text-gray-600">Avg Price</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                  <Card>
+                    <CardContent className="pt-6">
+                      <div className="flex items-center gap-3">
+                        <div className="p-3 bg-yellow-100 rounded-lg">
+                          <TrendingUp className="w-6 h-6 text-yellow-600" />
+                        </div>
+                        <div className="flex-1">
+                          <Skeleton className="h-7 w-16 mb-1" />
+                          <p className="text-gray-600">Avg Price</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </>
+              ) : (
+                <>
+                  <Card>
+                    <CardContent className="pt-6">
+                      <div className="flex items-center gap-3">
+                        <div className="p-3 bg-blue-100 rounded-lg">
+                          <BookOpen className="w-6 h-6 text-blue-600" />
+                        </div>
+                        <div>
+                          <p className="text-2xl font-bold">{stats.totalBooks}</p>
+                          <p className="text-gray-600">Active Listings</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardContent className="pt-6">
+                      <div className="flex items-center gap-3">
+                        <div className="p-3 bg-green-100 rounded-lg">
+                          <TrendingUp className="w-6 h-6 text-green-600" />
+                        </div>
+                        <div>
+                          <p className="text-2xl font-bold">
+                            R{stats.totalValue.toFixed(0)}
+                          </p>
+                          <p className="text-gray-600">Total Value</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardContent className="pt-6">
+                      <div className="flex items-center gap-3">
+                        <div className="p-3 bg-yellow-100 rounded-lg">
+                          <TrendingUp className="w-6 h-6 text-yellow-600" />
+                        </div>
+                        <div>
+                          <p className="text-2xl font-bold">
+                            R{stats.avgPrice.toFixed(0)}
+                          </p>
+                          <p className="text-gray-600">Avg Price</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </>
+              )}
                         </div>
 
             {/* My Listings Management */}
@@ -776,11 +922,12 @@ const Profile = () => {
 
           {/* Messages Tab */}
           <TabsContent value="messages" className="m-0">
-            <Card className="h-[600px] overflow-hidden border-gray-200">
+            <Card className="overflow-hidden border-gray-200 h-[500px] md:h-[600px]">
               <div className="grid grid-cols-1 md:grid-cols-3 h-full">
                 {/* Chat List */}
                 <div className={`border-r border-gray-100 h-full ${selectedConversation ? 'hidden md:block' : 'block'}`}>
                   <ChatList
+                    key={listRefreshKey}
                     onSelectConversation={setSelectedConversation}
                     selectedId={selectedConversation?.id}
                     onUnreadChange={setHasUnreadMessages}
@@ -789,11 +936,14 @@ const Profile = () => {
                 </div>
 
                 {/* Chat View */}
-                <div className={`md:col-span-2 h-full bg-gray-50/30 ${selectedConversation ? 'block' : 'hidden md:flex md:items-center md:justify-center'}`}>
+                <div className={`md:col-span-2 h-full min-h-0 overflow-hidden bg-gray-50/30 ${selectedConversation ? 'flex flex-col' : 'hidden md:flex md:items-center md:justify-center'}`}>
                   {selectedConversation ? (
                     <ChatView
                       conversation={selectedConversation}
-                      onBack={() => setSelectedConversation(null)}
+                      onBack={() => {
+                        setSelectedConversation(null);
+                        setListRefreshKey(k => k + 1);
+                      }}
                     />
                   ) : (
                     <div className="flex flex-col items-center justify-center p-8 text-center">
@@ -814,12 +964,15 @@ const Profile = () => {
           {/* Activity Tab */}
           <TabsContent value="activity" className="space-y-6">
             <Tabs defaultValue="commits" className="w-full">
-              <TabsList className="grid grid-cols-2 w-full">
+              <TabsList className="grid grid-cols-3 w-full">
                 <TabsTrigger value="commits" className="flex items-center gap-2">
                   <Clock className="h-4 w-4" /> Commits
                 </TabsTrigger>
                 <TabsTrigger value="orders" className="flex items-center gap-2">
                   <ShoppingBag className="h-4 w-4" /> Ongoing Orders
+                </TabsTrigger>
+                <TabsTrigger value="past" className="flex items-center gap-2">
+                  <History className="h-4 w-4" /> Past Items
                 </TabsTrigger>
               </TabsList>
 
@@ -829,6 +982,10 @@ const Profile = () => {
 
               <TabsContent value="orders">
                 <OrderManagementView />
+              </TabsContent>
+
+              <TabsContent value="past">
+                <PastOrdersActivity />
               </TabsContent>
             </Tabs>
           </TabsContent>
@@ -1055,17 +1212,24 @@ const Profile = () => {
                 </div>
 
                 <Separator />
-                <div className="flex items-center justify-between border rounded-lg p-4">
+                <div className="flex items-center justify-between border rounded-lg p-4 bg-white shadow-sm">
                   <div>
-                    <Label htmlFor="away-mode" className="font-medium">Seller Away Mode</Label>
+                    <Label className="font-semibold text-gray-900 text-sm md:text-base">Seller Away Mode</Label>
                     <p className="text-xs text-gray-500 mt-1">Listings remain visible but buying is disabled while you are away.</p>
                   </div>
-                  <Switch
-                    id="away-mode"
-                    checked={isAway}
+                  <Button
+                    type="button"
+                    variant={isAway ? "destructive" : "default"}
+                    className={cn(
+                      "px-4 py-2 text-xs md:text-sm font-semibold rounded-lg transition-all h-9 md:h-10 shrink-0",
+                      isAway 
+                        ? "bg-red-600 hover:bg-red-700 text-white animate-pulse" 
+                        : "bg-book-600 hover:bg-book-700 text-white"
+                    )}
                     disabled={savingAway}
-                    onCheckedChange={async (checked) => {
+                    onClick={async () => {
                       if (!user?.id) return;
+                      const checked = !isAway;
                       const previous = isAway;
                       setIsAway(checked);
                       setSavingAway(true);
@@ -1075,11 +1239,36 @@ const Profile = () => {
                         if (previous && !checked) {
                           const { data: contacts } = await supabase.rpc("get_seller_wishlist_contacts", { p_seller_id: user.id });
                           for (const row of contacts || []) {
+                            const html = createEmailTemplate(
+                              {
+                                title: "Seller is back",
+                                headerType: "default",
+                                headerText: "Great news!",
+                                headerSubtext: `${profile?.name || "A seller"} is back`,
+                              },
+                              `
+                              <div class="info-box-success">
+                                <p>Hi ${row.wishlist_buyer_name || "there"},</p>
+                                <p>
+                                  Great news! <strong>${profile?.name || "The seller"}</strong> is back and the listing you were interested in is now available.
+                                </p>
+                                <p>
+                                  <strong>${row.listing_title}</strong> is waiting for you. Grab it before someone else does!
+                                </p>
+                              </div>
+                              <div style="text-align: center; margin: 20px 0;">
+                                <a class="btn" href="${window.location.origin}/books/${row.listing_id}">View Listing</a>
+                              </div>
+                              <div class="footer-text">
+                                <p>Thanks for choosing ReBooked Solutions.</p>
+                              </div>
+                              `
+                            );
                             await supabase.functions.invoke("send-email", {
                               body: {
                                 to: row.wishlist_email,
                                 subject: `Good news — ${profile?.name || "Seller"} is back!`,
-                                html: `<p>Good news — ${profile?.name || "Seller"} is back!</p><p>Grab <strong>${row.listing_title}</strong> before someone else does.</p>`,
+                                html: html,
                               },
                             });
                           }
@@ -1092,7 +1281,15 @@ const Profile = () => {
                         setSavingAway(false);
                       }
                     }}
-                  />
+                  >
+                    {savingAway ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : isAway ? (
+                      "Away Mode: ON"
+                    ) : (
+                      "Away Mode: OFF"
+                    )}
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -1109,6 +1306,10 @@ const Profile = () => {
                   addressData={addressData}
                   onSaveAddresses={handleSaveAddresses}
                   isLoading={isLoadingAddress}
+                  pickupEnabled={pickupEnabled}
+                  savingPickup={savingPickup}
+                  setPickupEnabled={setPickupEnabled}
+                  setSavingPickup={setSavingPickup}
                 />
               </CardContent>
             </Card>

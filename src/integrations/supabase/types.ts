@@ -1063,43 +1063,44 @@ export type Database = {
       conversations: {
         Row: {
           buyer_id: string
+          buyer_notified: boolean
           created_at: string
           id: string
+          item_type: string
           last_message_at: string | null
           listing_id: string | null
           seller_id: string
+          seller_notified: boolean
           status: string
           updated_at: string
         }
         Insert: {
           buyer_id: string
+          buyer_notified?: boolean
           created_at?: string
           id?: string
+          item_type?: string
           last_message_at?: string | null
           listing_id?: string | null
           seller_id: string
+          seller_notified?: boolean
           status?: string
           updated_at?: string
         }
         Update: {
           buyer_id?: string
+          buyer_notified?: boolean
           created_at?: string
           id?: string
+          item_type?: string
           last_message_at?: string | null
           listing_id?: string | null
           seller_id?: string
+          seller_notified?: boolean
           status?: string
           updated_at?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "conversations_listing_id_fkey"
-            columns: ["listing_id"]
-            isOneToOne: false
-            referencedRelation: "books"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       coupon_affiliate_earnings: {
         Row: {
@@ -1326,9 +1327,12 @@ export type Database = {
           id: string
           is_encrypted: boolean
           is_flagged: boolean
+          is_system: boolean
           media_type: string | null
           media_url: string | null
+          message_type: string
           read_at: string | null
+          reference_card: Json | null
           sender_id: string
         }
         Insert: {
@@ -1338,9 +1342,12 @@ export type Database = {
           id?: string
           is_encrypted?: boolean
           is_flagged?: boolean
+          is_system?: boolean
           media_type?: string | null
           media_url?: string | null
+          message_type?: string
           read_at?: string | null
+          reference_card?: Json | null
           sender_id: string
         }
         Update: {
@@ -1350,9 +1357,12 @@ export type Database = {
           id?: string
           is_encrypted?: boolean
           is_flagged?: boolean
+          is_system?: boolean
           media_type?: string | null
           media_url?: string | null
+          message_type?: string
           read_at?: string | null
+          reference_card?: Json | null
           sender_id?: string
         }
         Relationships: [
@@ -1470,7 +1480,10 @@ export type Database = {
           item_type: string | null
           items: Json
           metadata: Json | null
+          meetup_location: string | null
+          meetup_time: string | null
           order_id: string | null
+          order_type: string | null
           paid_at: string | null
           payment_data: Json | null
           payment_reference: string | null
@@ -1481,6 +1494,7 @@ export type Database = {
           pickup_locker_location_id: string | null
           pickup_locker_provider_slug: string | null
           pickup_type: string | null
+          pickup_status: string | null
           receipt_html: string | null
           refund_reference: string | null
           refund_status: string | null
@@ -1531,7 +1545,10 @@ export type Database = {
           item_type?: string | null
           items?: Json
           metadata?: Json | null
+          meetup_location?: string | null
+          meetup_time?: string | null
           order_id?: string | null
+          order_type?: string | null
           paid_at?: string | null
           payment_data?: Json | null
           payment_reference?: string | null
@@ -1542,6 +1559,7 @@ export type Database = {
           pickup_locker_location_id?: string | null
           pickup_locker_provider_slug?: string | null
           pickup_type?: string | null
+          pickup_status?: string | null
           receipt_html?: string | null
           refund_reference?: string | null
           refund_status?: string | null
@@ -1592,7 +1610,10 @@ export type Database = {
           item_type?: string | null
           items?: Json
           metadata?: Json | null
+          meetup_location?: string | null
+          meetup_time?: string | null
           order_id?: string | null
+          order_type?: string | null
           paid_at?: string | null
           payment_data?: Json | null
           payment_reference?: string | null
@@ -1603,6 +1624,7 @@ export type Database = {
           pickup_locker_location_id?: string | null
           pickup_locker_provider_slug?: string | null
           pickup_type?: string | null
+          pickup_status?: string | null
           receipt_html?: string | null
           refund_reference?: string | null
           refund_status?: string | null
@@ -1638,6 +1660,8 @@ export type Database = {
           id: string
           items: Json | null
           metadata: Json | null
+          meetup_location: string | null
+          meetup_time: string | null
           order_id: string
           payment_method: string
           paystack_response: Json | null
@@ -1676,6 +1700,8 @@ export type Database = {
           id?: string
           items?: Json | null
           metadata?: Json | null
+          meetup_location?: string | null
+          meetup_time?: string | null
           order_id?: string
           payment_method?: string
           paystack_response?: Json | null
@@ -3413,3 +3439,4 @@ export const Constants = {
     },
   },
 } as const
+

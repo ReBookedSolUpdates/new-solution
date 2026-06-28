@@ -19,7 +19,8 @@ export interface Book {
   sold: boolean;
   status?: string;
   createdAt: string;
-  itemType: "textbook" | "reader" | "uniform" | "school_supply";
+  // Prefer normalized values: 'book' for all book variants, plus uniform and school_supply
+  itemType: "book" | "uniform" | "school_supply" | "textbook" | "reader";
   parcelSize?: 'extra_small' | 'small' | 'medium' | 'large' | 'extra_large';
   grade?: string;
   universityYear?: string;
@@ -45,10 +46,11 @@ export interface Book {
   seller: {
     id: string;
     name: string;
+    full_name?: string;
     email: string;
     createdAt?: string;
-    full_name?: string;
     is_away?: boolean;
+    pickupEnabled?: boolean;
   };
   [key: string]: any;
 }

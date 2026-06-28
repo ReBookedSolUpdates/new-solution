@@ -103,8 +103,18 @@ export class ActivityService {
     try {
       const sessionId = this.getSessionId();
 
-      // For anonymous users: log to analytics_events only (activity_logs requires user_id)
-      if (!userId) {
+      // Verify a live session exists before any authenticated insert.
+      // During logout the session is torn down and inserts will 401 the RLS policy.
+      let liveSession = null as any;
+      try {
+        const { data } = await supabase.auth.getSession();
+        liveSession = data?.session ?? null;
+      } catch (_) {
+        liveSession = null;
+      }
+
+      // For anonymous users (or no live session): log to analytics_events only
+      if (!userId || !liveSession) {
         const anonymousId = getAnonymousId();
         const deviceMeta = this.getDeviceMetaSafe();
         try {

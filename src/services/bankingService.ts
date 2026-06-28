@@ -35,25 +35,19 @@ export class BankingService {
           .single();
 
         if (query.error && query.error.code === "42P01") {
-          let { data: profileData } = await supabase
+          // The legacy profiles.subaccount_code column is no longer available.
+          // Fall back to using profile preferences for business metadata where possible.
+          const { data: profileData } = await supabase
             .from("profiles")
-            .select("subaccount_code, preferences")
+            .select("preferences")
             .eq("id", userId)
             .single();
-          if (!profileData) {
-            const fallback = await supabase
-              .from("profiles")
-              .select("subaccount_code")
-              .eq("id", userId)
-              .single();
-            profileData = fallback.data as any;
-          }
 
-          if (profileData?.subaccount_code) {
+          if (profileData?.preferences) {
             return {
               data: {
                 user_id: userId,
-                subaccount_code: profileData.subaccount_code,
+                subaccount_code: null,
                 status: 'active',
                 business_name: profileData.preferences?.business_name || 'User Business',
                 bank_name: profileData.preferences?.bank_details?.bank_name || 'Bank'
@@ -239,7 +233,6 @@ export class BankingService {
     const { error: profileError } = await supabase
       .from("profiles")
       .update({
-        subaccount_code: bankingDetails.subaccountCode,
         preferences: {
           banking_setup_complete: true,
           business_name: bankingDetails.businessName,

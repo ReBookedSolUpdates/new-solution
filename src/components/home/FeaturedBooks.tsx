@@ -61,7 +61,7 @@ const FeaturedBooks = () => {
             if (!featuredMix.find((e) => e.id === item.id)) featuredMix.push(item);
           });
         }
-        setBooks(featuredMix.slice(0, 5));
+        setBooks(featuredMix.slice(0, 6));
       } catch (error) {
         logErrorSafely("Error fetching featured books:", error);
         setBooks([]);
@@ -122,16 +122,10 @@ const FeaturedBooks = () => {
           </div>
         </div>
 
-        {/* Grid: 5 items — first 2 are featured (span 2 cols each on lg) */}
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {books.map((book, index) => (
-            <FeaturedBookCard
-              key={book.id}
-              book={book}
-              className={
-                index < 2 ? "lg:col-span-2" : ""
-              }
-            />
+        {/* Grid: 6 items — clean 3x2 grid on large screens */}
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {books.map((book) => (
+            <FeaturedBookCard key={book.id} book={book} />
           ))}
         </div>
       </div>

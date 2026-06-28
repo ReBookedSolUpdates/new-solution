@@ -201,64 +201,25 @@ const Shipping = () => {
               </div>
 
               <div className="p-6 space-y-8">
-                {/* Method Groups */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                  {/* Cards & Digital */}
-                  <div className="space-y-4">
-                    <h4 className="text-sm font-semibold text-gray-900">Cards & Digital Wallets</h4>
-                    <div className="grid grid-cols-2 gap-3">
-                      {[
-                        { src: "https://cdn.builder.io/api/v1/image/assets%2Fbe2ca462026542bf80e06aef7423f7d8%2F0dcafa29bfc243b6bd9f8ca37848a776", alt: "Mastercard" },
-                        { src: "https://cdn.builder.io/api/v1/image/assets%2Fbe2ca462026542bf80e06aef7423f7d8%2Fb4a7128bece94bce91c7dbb723bae4aa", alt: "Visa" },
-                        { src: "https://cdn.builder.io/api/v1/image/assets%2Fbe2ca462026542bf80e06aef7423f7d8%2F58416a87bee74a149a037161b4ccecb2", alt: "Amex" },
-                        { src: "https://cdn.builder.io/api/v1/image/assets%2Fbe2ca462026542bf80e06aef7423f7d8%2Fdbd88b71b59d4aa29a7fb7d4e1db328e", alt: "Diners" },
-                        { src: "https://cdn.builder.io/api/v1/image/assets%2Fbe2ca462026542bf80e06aef7423f7d8%2Fb66a58cbee0047d4981eb8e5c3c445d4", alt: "PayShap" },
-                        { src: "https://cdn.builder.io/api/v1/image/assets%2Fbe2ca462026542bf80e06aef7423f7d8%2F18aac1c1e7ba4b7bb6ea87a8502d3494", alt: "Scan to Pay" },
-                      ].map((item, i) => (
-                        <div key={i} className="flex items-center justify-center bg-gray-100 rounded-lg h-14 p-2">
-                          <img src={item.src} alt={item.alt} className="max-h-8 max-w-full object-contain" />
-                        </div>
-                      ))}
-                    </div>
+                {/* Composite Payment Methods Image */}
+                <div className="flex flex-col lg:flex-row gap-8 items-center justify-between">
+                  <div className="flex-1 space-y-4 text-left max-w-lg">
+                    <h4 className="text-base font-semibold text-gray-900">Supported Payment Options</h4>
+                    <p className="text-gray-600 text-sm leading-relaxed">
+                      We support a wide variety of credit card, digital wallet, and bank transfer options through our BobPay gateway:
+                    </p>
+                    <ul className="list-disc list-inside space-y-2 text-sm text-gray-600">
+                      <li><strong>Cards:</strong> Visa, Mastercard, American Express, and Apple Pay / Google Pay.</li>
+                      <li><strong>Bank Transfer:</strong> Instant EFT, Capitec Pay, ABSA Pay, Nedbank Pay, and PayShap.</li>
+                      <li><strong>Other Options:</strong> Scan to Pay, manual bank transfers, and more.</li>
+                    </ul>
                   </div>
-
-                  {/* EFT & Instant Pay */}
-                  <div className="space-y-4">
-                    <h4 className="text-sm font-semibold text-gray-900">EFT & Bank Transfers</h4>
-                    <div className="grid grid-cols-2 gap-3">
-                      {[
-                        { src: "https://cdn.builder.io/api/v1/image/assets%2Fbe2ca462026542bf80e06aef7423f7d8%2F2b87ac3333ab4c1f93eee9ebbcb5ba96", alt: "Instant EFT" },
-                        { src: "https://cdn.builder.io/api/v1/image/assets%2Fbe2ca462026542bf80e06aef7423f7d8%2Ff86c103bcebd46d09d376400d4b98994", alt: "Manual EFT" },
-                        { src: "https://cdn.builder.io/api/v1/image/assets%2Fbe2ca462026542bf80e06aef7423f7d8%2F7b5f53b3422f4126a4e66bf2f2237d2b", alt: "Capitec Pay" },
-                        { src: "https://cdn.builder.io/api/v1/image/assets%2Fbe2ca462026542bf80e06aef7423f7d8%2Fa6df1c109fcb48eb8f700f0ee1ba5838", alt: "Nedbank Pay" },
-                        { src: "https://cdn.builder.io/api/v1/image/assets%2Fbe2ca462026542bf80e06aef7423f7d8%2F8c6f5798a2024ce3ae6175c3acdcda15", alt: "ABSA Pay" },
-                      ].map((item, i) => (
-                        <div key={i} className="flex items-center justify-center bg-gray-100 rounded-lg h-14 p-2">
-                          <img src={item.src} alt={item.alt} className="max-h-8 max-w-full object-contain" />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Trust & Security */}
-                  <div className="space-y-4">
-                    <h4 className="text-sm font-semibold text-gray-900">Security</h4>
-                    <div className="space-y-3">
-                      <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
-                        <ShieldCheck className="h-4 w-4 text-book-600 flex-shrink-0 mt-0.5" />
-                        <div>
-                          <p className="text-sm font-semibold text-gray-900">Encrypted Checkout</p>
-                          <p className="text-xs text-gray-600">256-bit SSL protection</p>
-                        </div>
-                      </div>
-                      <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
-                        <ShieldCheck className="h-4 w-4 text-book-600 flex-shrink-0 mt-0.5" />
-                        <div>
-                          <p className="text-sm font-semibold text-gray-900">Privacy Guaranteed</p>
-                          <p className="text-xs text-gray-600">Your card data never stored</p>
-                        </div>
-                      </div>
-                    </div>
+                  <div className="flex-1 w-full flex justify-center">
+                    <img 
+                      src="/lovable-uploads/bobpay-methods.png" 
+                      alt="BobPay Secure Payments - Visa, Mastercard, Amex, EFT, PayShap, Scan to Pay, Apple Pay, Google Pay" 
+                      className="max-h-72 w-auto object-contain rounded-xl border border-gray-100 shadow-sm"
+                    />
                   </div>
                 </div>
               </div>

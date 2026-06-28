@@ -173,6 +173,97 @@ serve(async (req) => {
       items = [];
     }
 
+    if (order.order_type === 'pickup') {
+      console.log("[commit-to-sale] Handling meetup/pickup order commitment...");
+      // Update order status to committed
+      const { error: updateError } = await supabase
+        .from("orders")
+        .update({
+          status: "committed",
+          committed_at: new Date().toISOString(),
+          pickup_committed_at: new Date().toISOString(),
+          pickup_status: "pending_pickup",
+          delivery_status: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", order_id);
+
+      if (updateError) {
+        console.error("❌ Failed to commit meetup order:", updateError);
+        return new Response(
+          JSON.stringify({ success: false, error: "Failed to commit order: " + updateError.message }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      await supabase.from('order_activity_log').insert({
+        order_id,
+        user_id: user.id,
+        activity_type: 'pickup_committed',
+        description: 'Seller committed to pickup order. Seven-day meetup window started.',
+        metadata: {
+          order_type: 'pickup',
+          pickup_status: 'pending_pickup',
+          refund_automated: false,
+        },
+      });
+
+      // Create notifications
+      await Promise.all([
+        supabase.from('order_notifications').insert({
+          order_id: order_id,
+          user_id: order.buyer_id,
+          type: 'order_committed',
+          title: 'Seller Confirmed Order',
+          message: `The seller has committed to the pickup order. You now have 7 days to meet up and complete the handover.`,
+        }),
+        supabase.from('order_notifications').insert({
+          order_id: order_id,
+          user_id: order.seller_id,
+          type: 'order_committed',
+          title: 'Order Commitment Successful',
+          message: `You have successfully committed to the pickup order. Please coordinate with the buyer in chat to meet up within 7 days.`,
+        }),
+      ]);
+
+      // Send emails (non-blocking)
+      try {
+        const commitDeadlineText = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleString('en-ZA', { year: 'numeric', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+        // Send email to buyer
+        if (order.buyer_email) {
+          const buyerHtml = `
+            <div style="font-family:Arial,sans-serif;background:#f3fef7;padding:20px;color:#1f4e3d;">
+              <div style="max-width:500px;margin:auto;background:#ffffff;padding:30px;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,0.05);">
+                <div style="background:linear-gradient(135deg,#3ab26f,#2d8f58);padding:24px;border-radius:8px 8px 0 0;text-align:center;color:white;margin:-30px -30px 24px;">
+                  <h1 style="margin:0;font-size:22px;">Seller Committed!</h1>
+                  <p style="margin:6px 0 0;opacity:0.9;">Coordinate your meetup</p>
+                </div>
+                <p>Hello,</p>
+                <p>The seller has committed to your pickup order for <strong>${items[0]?.title || "your book"}</strong>.</p>
+                <p><strong>Meetup Window:</strong> You have 7 days (until ${commitDeadlineText}) to meet up with the seller and complete the handoff. The R20 service fee is now non-refundable.</p>
+                <p>Please open the chat to coordinate the time and location.</p>
+              </div>
+            </div>`;
+          await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
+            method: "POST",
+            headers: { "Authorization": `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`, "Content-Type": "application/json" },
+            body: JSON.stringify({
+              to: order.buyer_email,
+              subject: "Pickup Order Seller Committed — ReBooked Solutions",
+              html: buyerHtml,
+            })
+          });
+        }
+      } catch (e) {
+        console.error("Failed to send meetup commitment emails:", e);
+      }
+
+      return new Response(
+        JSON.stringify({ success: true, message: "Meetup order committed successfully" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // CRITICAL: Determine pickup type based on order's saved pickup_type
     let pickupType = order.pickup_type;
     const deliveryType = order.delivery_type || "door";
@@ -1097,3 +1188,6 @@ serve(async (req) => {
     );
   }
 });
+
+
+

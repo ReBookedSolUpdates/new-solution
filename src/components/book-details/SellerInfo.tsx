@@ -4,6 +4,9 @@ import { User, Calendar, Store, Star, MessageSquare, Loader2 } from "lucide-reac
 import { useNavigate } from "react-router-dom";
 import SellerRating from "@/components/reviews/SellerRating";
 import { useStartConversation } from "@/hooks/useChat";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface SellerInfoProps {
   seller: {
@@ -14,11 +17,15 @@ interface SellerInfoProps {
   };
   onViewProfile: () => void;
   bookId?: string;
+  itemType?: string;
 }
 
-const SellerInfo = ({ seller, onViewProfile, bookId }: SellerInfoProps) => {
+const SellerInfo = ({ seller, onViewProfile, bookId, itemType = "book" }: SellerInfoProps) => {
   const navigate = useNavigate();
   const { startConversation, isStarting } = useStartConversation();
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileName, setProfileName] = useState<string | null>(null);
+  const [profileAvatar, setProfileAvatar] = useState<string | null>(null);
 
   const handleViewReviews = () => {
     navigate(`/seller/${seller.id}`);
@@ -26,13 +33,43 @@ const SellerInfo = ({ seller, onViewProfile, bookId }: SellerInfoProps) => {
 
   const handleChatToSeller = async () => {
     if (!bookId) return;
-    const conversationId = await startConversation(bookId, seller.id);
+    const conversationId = await startConversation(bookId, seller.id, itemType);
     if (conversationId) {
       navigate("/chats", { state: { conversationId } });
     }
   };
 
-  const displayName = seller?.name || "Loading...";
+  const baseSellerName = (seller as any)?.full_name || seller?.name || "";
+  const displayName = profileName || baseSellerName;
+
+  useEffect(() => {
+    let mounted = true;
+    const needsFetch = !((seller as any)?.full_name) && (!seller.name || seller.name.startsWith("User "));
+    if (!seller?.id || !needsFetch) return;
+    setProfileLoading(true);
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from("profiles")
+          .select("first_name, last_name, profile_picture_url, created_at")
+          .eq("id", seller.id)
+          .maybeSingle();
+        if (!mounted) return;
+        if (data) {
+          const full = [data.first_name, data.last_name].filter(Boolean).join(" ");
+          const fallback = data.email ? data.email.split("@")[0] : null;
+          setProfileName(full || fallback || "");
+          setProfileAvatar((data as any).profile_picture_url || null);
+        }
+      } catch (err) {
+        // swallow — we will fallback to the seller prop if available
+      } finally {
+        if (mounted) setProfileLoading(false);
+      }
+    })();
+
+    return () => { mounted = false; };
+  }, [seller]);
 
   return (
     <Card>
@@ -41,7 +78,11 @@ const SellerInfo = ({ seller, onViewProfile, bookId }: SellerInfoProps) => {
         <div className="space-y-3">
           <div className="flex items-center gap-2">
             <User className="h-4 w-4 text-gray-500" />
-            <span className="font-medium">{displayName}</span>
+            {profileLoading ? (
+              <Skeleton className="h-4 w-32" />
+            ) : (
+              <span className="font-medium">{displayName || "Seller"}</span>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <Calendar className="h-4 w-4 text-gray-500" />
@@ -49,7 +90,7 @@ const SellerInfo = ({ seller, onViewProfile, bookId }: SellerInfoProps) => {
               Member since {seller?.createdAt ? new Date(seller.createdAt).toLocaleDateString("en-US", {
                 year: "numeric",
                 month: "long",
-              }) : "Unknown"}
+              }) : ""}
             </span>
           </div>
           <div className="flex items-center gap-2 pt-2">

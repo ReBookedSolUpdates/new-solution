@@ -176,8 +176,21 @@ export const getBooks = async (filters?: BookFilters): Promise<Book[]> => {
       });
     });
 
-    // Sort by created_at descending (combined)
-    results.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    // Randomize results with daily consistency (same seed each day)
+    // This ensures the order is randomized but consistent throughout the day
+    const today = new Date().toISOString().split('T')[0]; // Format: YYYY-MM-DD
+    const seed = today.split('-').reduce((acc, part) => acc + parseInt(part, 10), 0);
+
+    // Fisher-Yates shuffle with seeded random for reproducibility
+    const seededRandom = (index: number): number => {
+      const x = Math.sin(seed + index) * 10000;
+      return x - Math.floor(x);
+    };
+
+    for (let i = results.length - 1; i > 0; i--) {
+      const j = Math.floor(seededRandom(i) * (i + 1));
+      [results[i], results[j]] = [results[j], results[i]];
+    }
 
     return results;
   } catch (error) {
@@ -186,22 +199,36 @@ export const getBooks = async (filters?: BookFilters): Promise<Book[]> => {
   }
 };
 
-export const getBookById = async (id: string): Promise<Book | null> => {
+export const getBookById = async (id: string, hintedType?: 'book' | 'uniform' | 'school_supply'): Promise<Book | null> => {
   try {
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (!uuidRegex.test(id)) return null;
 
     const fetchListingOperation = async () => {
-      // Search in books first
-      const { data: bookData } = await supabase.from("books").select("*, profiles!seller_id(*)").eq("id", id).maybeSingle();
+      const tableForType = (t?: string) => {
+        if (t === 'uniform') return 'uniforms';
+        if (t === 'school_supply') return 'school_supplies';
+        return 'books';
+      };
+
+      // If a hint is provided, only query that table to avoid unnecessary cross-table requests
+      if (hintedType) {
+        const table = tableForType(hintedType);
+        const { data } = await supabase.from(table).select('*, profiles!seller_id(*)').eq('id', id).maybeSingle();
+        if (data) {
+          return mapBookFromDatabase({ ...data, item_type: hintedType === 'book' ? undefined : hintedType });
+        }
+        return null;
+      }
+
+      // No hint: fall back to legacy behaviour - search books first, then uniforms, then supplies
+      const { data: bookData } = await supabase.from('books').select('*, profiles!seller_id(*)').eq('id', id).maybeSingle();
       if (bookData) return mapBookFromDatabase(bookData);
 
-      // Search in uniforms
-      const { data: uniformData } = await supabase.from("uniforms").select("*, profiles!seller_id(*)").eq("id", id).maybeSingle();
+      const { data: uniformData } = await supabase.from('uniforms').select('*, profiles!seller_id(*)').eq('id', id).maybeSingle();
       if (uniformData) return mapBookFromDatabase({ ...uniformData, item_type: 'uniform' });
 
-      // Search in school_supplies
-      const { data: supplyData } = await supabase.from("school_supplies").select("*, profiles!seller_id(*)").eq("id", id).maybeSingle();
+      const { data: supplyData } = await supabase.from('school_supplies').select('*, profiles!seller_id(*)').eq('id', id).maybeSingle();
       if (supplyData) return mapBookFromDatabase({ ...supplyData, item_type: 'school_supply' });
 
       return null;

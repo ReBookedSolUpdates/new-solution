@@ -30,8 +30,8 @@ export interface CheckoutBook {
   additional_images?: string[];
   description?: string;
   category?: string;
-  itemType?: string;
-  item_type?: string;
+  itemType?: "book" | "uniform" | "school_supply";
+  item_type?: "book" | "uniform" | "school_supply";
   genre?: string;
   grade?: string;
   universityYear?: string;
@@ -88,7 +88,7 @@ export interface OrderSummary {
   delivery_price: number;
   platform_fee?: number;
   total_price: number;
-  delivery_method?: "home" | "locker";
+  delivery_method?: "home" | "locker" | "pickup";
   selected_locker?: BobGoLocker | null;
   coupon_code?: string;
   coupon_discount?: number;
@@ -144,7 +144,7 @@ export interface CheckoutState {
   delivery_options: DeliveryOption[];
   selected_delivery: DeliveryOption | null;
   order_summary: OrderSummary | null;
-  delivery_method: "home" | "locker" | null;
+  delivery_method: "home" | "locker" | "pickup" | null;
   selected_locker: BobGoLocker | null;
   applied_coupon: any | null;
   loading: boolean;

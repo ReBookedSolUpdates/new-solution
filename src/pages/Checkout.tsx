@@ -155,6 +155,76 @@ const Checkout: React.FC = () => {
     }
   };
 
+  const tryParseItemTypeFromRoute = (candidate: string): "book" | "uniform" | "school_supply" | undefined => {
+    const normalized = candidate.toLowerCase();
+    if (normalized.includes("uniform")) return "uniform";
+    if (normalized.includes("supply") || normalized.includes("school_supply")) return "school_supply";
+    if (normalized.includes("book") || normalized.includes("textbook") || normalized.includes("reader")) return "book";
+    return undefined;
+  };
+
+  const loadItemData = async (itemId: string, hintedType?: "book" | "uniform" | "school_supply") => {
+    const tables: Array<{ table: string; itemType: "book" | "uniform" | "school_supply" }> = [
+      { table: "books", itemType: "book" },
+      { table: "uniforms", itemType: "uniform" },
+      { table: "school_supplies", itemType: "school_supply" },
+    ];
+
+    const orderedTables = hintedType
+      ? [tables.find((t) => t.itemType === hintedType)!, ...tables.filter((t) => t.itemType !== hintedType)]
+      : tables;
+
+    debugLogger.info("Checkout", `Searching for item ID: ${itemId}, hinted type: ${hintedType || "none"}`);
+
+    for (const { table, itemType } of orderedTables) {
+      try {
+        debugLogger.info("Checkout", `Querying ${table} table for item ${itemId}`);
+        // Only books table has front_cover column
+        const selectColumns = table === "books"
+          ? "id, title, price, image_url, front_cover, description, seller_id"
+          : "id, title, price, image_url, description, seller_id";
+
+        const { data, error } = await supabase
+          .from(table)
+          .select(selectColumns)
+          .eq("id", itemId)
+          .maybeSingle();
+
+        if (error) {
+          debugLogger.warn("Checkout", `Error querying ${table}:`, error);
+          continue;
+        }
+
+        if (data) {
+          debugLogger.info("Checkout", `Found item in ${table} table`);
+          // Normalize image: books prefer front_cover, fallback to image_url; others use image_url directly
+          const itemImage = (data as any).front_cover || data.image_url || undefined;
+
+          return {
+            id: data.id,
+            title: data.title,
+            author: (data as any).author || "",
+            price: data.price || 0,
+            condition: (data as any).condition || "",
+            description: data.description || "",
+            image_url: itemImage,
+            front_cover: (data as any).front_cover || undefined,
+            seller_id: data.seller_id,
+            itemType,
+            item_type: itemType,
+          } as CheckoutBook;
+        }
+
+        debugLogger.info("Checkout", `Item not found in ${table} table`);
+      } catch (queryError) {
+        debugLogger.warn("Checkout", `Query exception for ${table}:`, queryError);
+      }
+    }
+
+    debugLogger.warn("Checkout", `Item ${itemId} not found in any table`);
+    return null;
+  };
+
   const loadBookData = async () => {
     try {
       setLoading(true);
@@ -164,79 +234,65 @@ const Checkout: React.FC = () => {
         throw new Error("Invalid item ID");
       }
 
-      // Extract UUID part from ID (remove any timestamp suffixes)
-      const uuidPart = id.split('-').slice(0, 5).join('-');
+      debugLogger.info("Checkout", `Raw ID from route: ${id}`);
 
-      // Validate UUID format
+      // Try to extract UUID from the ID - it might be a full UUID or have a slug attached
+      let uuidPart = id;
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+      // If it's not a valid UUID yet, try to extract it
       if (!uuidRegex.test(uuidPart)) {
-        throw new Error("Invalid item ID format. Please check the link and try again.");
+        // Try splitting by dash and taking first 5 parts (standard UUID)
+        const parts = id.split("-");
+        if (parts.length >= 5) {
+          uuidPart = parts.slice(0, 5).join("-");
+          debugLogger.info("Checkout", `Extracted UUID from slug: ${uuidPart}`);
+        }
       }
 
-      const { getBookById } = await import("@/services/book/bookQueries");
-      const bookData = await getBookById(uuidPart);
+      // Final validation
+      if (!uuidRegex.test(uuidPart)) {
+        throw new Error(`Invalid item ID format: "${id}". Please check the link and try again.`);
+      }
+
+      const hintedType = tryParseItemTypeFromRoute(location.pathname) || undefined;
+      debugLogger.info("Checkout", `Loading item data for ID: ${uuidPart}, hinted type: ${hintedType}`);
+
+      const bookData = await loadItemData(uuidPart, hintedType);
 
       if (!bookData) {
-        throw new Error("Item not found");
+        const errorMsg = `Item with ID "${uuidPart}" was not found in our database. The item may have been deleted or is no longer available.`;
+        debugLogger.error("Checkout", "Item not found after searching all tables", { itemId: uuidPart, hintedType });
+        throw new Error(errorMsg);
       }
 
-      // Check availability
-      if (bookData.sold) {
-        throw new Error("This item has already been sold");
-      }
-
-      // Map to CheckoutBook format
       const checkoutBook: CheckoutBook = {
         id: bookData.id,
         title: bookData.title,
         author: bookData.author,
         price: bookData.price,
         condition: bookData.condition,
-        isbn: bookData.isbn,
         description: bookData.description,
-        category: bookData.category,
-        image_url: bookData.imageUrl,
-        front_cover: bookData.frontCover,
-        additional_images: bookData.additionalImages,
-        grade: bookData.grade,
-        genre: bookData.genre,
-        universityYear: bookData.universityYear,
-        university: bookData.university,
-        curriculum: bookData.curriculum,
-        publisher: bookData.publisher,
-        language: bookData.language,
-        province: bookData.province,
-        schoolName: bookData.schoolName,
-        school_name: (bookData as any).school_name || bookData.schoolName,
-        gender: bookData.gender,
-        size: bookData.size,
-        color: bookData.color,
-        subject: bookData.subject,
-        parcelSize: bookData.parcelSize,
-        quantity: (bookData as any).quantity,
-        availableQuantity: bookData.availableQuantity,
-        available_quantity: (bookData as any).available_quantity,
-        initialQuantity: bookData.initialQuantity,
-        soldQuantity: bookData.soldQuantity,
-        seller_id: bookData.seller.id,
-        seller_name: bookData.seller.name,
+        image_url: bookData.image_url,
+        front_cover: bookData.front_cover,
+        seller_id: bookData.seller_id,
+        seller_name: "",
+        itemType: bookData.itemType,
+        item_type: bookData.item_type,
         seller: {
-          id: bookData.seller.id,
-          name: bookData.seller.name,
-          email: bookData.seller.email,
-          hasAddress: true, // Will be validated in CheckoutFlow
-          hasSubaccount: true, // Optimistically true, checked in payment step if needed
+          id: bookData.seller_id,
+          name: "",
+          email: "",
+          hasAddress: true,
+          hasSubaccount: true,
           isReadyForOrders: true,
         },
-        rawDetails: {
-          ...bookData,
-        },
+        rawDetails: bookData,
       };
 
       setBook(checkoutBook);
     } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : "Failed to load item";
+      const errorMessage = err instanceof Error ? err.message : "Failed to load item";
       setError(errorMessage);
       debugLogger.error("Checkout", "Error loading item data:", err);
     } finally {
@@ -263,12 +319,26 @@ const Checkout: React.FC = () => {
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription className="text-center">
               <div className="mb-4">{error}</div>
-              <button
-                onClick={() => navigate("/textbooks")}
-                className="underline hover:no-underline"
-              >
-                Browse available books
-              </button>
+              <div className="space-y-2">
+                <button
+                  onClick={() => navigate("/textbooks")}
+                  className="block w-full underline hover:no-underline text-sm"
+                >
+                  Browse available textbooks
+                </button>
+                <button
+                  onClick={() => navigate("/uniforms")}
+                  className="block w-full underline hover:no-underline text-sm"
+                >
+                  Browse uniforms
+                </button>
+                <button
+                  onClick={() => navigate("/supplies")}
+                  className="block w-full underline hover:no-underline text-sm"
+                >
+                  Browse school supplies
+                </button>
+              </div>
             </AlertDescription>
           </Alert>
         </div>

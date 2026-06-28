@@ -9,6 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import BookImageCarousel from "@/components/BookImageCarousel";
 import { useNavigate } from "react-router-dom";
 import { getOrCreateConversation } from "@/services/chatService";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
 
 import {
   Package,
@@ -25,6 +27,7 @@ import {
   ChevronUp,
   MessageSquare,
   Loader2,
+  Download,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -45,6 +48,15 @@ export type Order = BaseOrder & {
   cancelled_at?: string | null;
   total_amount?: number;
   delivery_data?: any;
+  order_type?: string | null;
+  pickup_status?: string | null;
+  delivery_option?: string | null;
+  delivery_method?: string | null;
+  meetup_location?: string | null;
+  meetup_time?: string | null;
+  buyer_confirmed_at?: string | null;
+  seller_confirmed_at?: string | null;
+  payment_status?: string | null;
   book?: {
     id?: string;
     title?: string;
@@ -80,6 +92,171 @@ const OrderManagementView: React.FC<OrderManagementViewProps> = () => {
   const [loading, setLoading] = useState(true);
   const [expandedOrders, setExpandedOrders] = useState<CollapsibleOrderState>({});
   const [selectedOrderForGallery, setSelectedOrderForGallery] = useState<Order | null>(null);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+
+  const formatCurrency = (amount?: number | null) =>
+    typeof amount === "number" ? `R${amount.toFixed(2)}` : "R0.00";
+
+  const buildReceiptHtml = (order: Order) => {
+    const isSeller = getUserRole(order) === "seller";
+    const bookPrice = Number(order.book?.price ?? order.total_amount ?? 0);
+    const commission = bookPrice * 0.1;
+    const payout = bookPrice * 0.9;
+    const created = order.created_at ? new Date(order.created_at).toLocaleString() : "Unknown";
+    const status = order.status.replace(/_/g, " ");
+
+    return `
+      <div style="font-family: Arial, sans-serif; padding: 40px; color: #1f4e3d; background:#ffffff; width: 800px;">
+        <!-- Header -->
+        <div style="background: linear-gradient(135deg, #2d8f58, #3ab26f); padding: 28px 36px; border-radius: 12px 12px 0 0; text-align: left; color: white; margin-bottom: 18px;">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 16px;">
+            <div>
+              <h1 style="margin: 0; font-size: 26px; font-weight: 800; letter-spacing: 0.2px;">ReBooked Solutions</h1>
+              <p style="margin: 6px 0 0; font-size: 14px; opacity: 0.92;">${isSeller ? "Sales & Payout Summary" : "Order receipt"}</p>
+            </div>
+            <div style="text-align: right;">
+              <div style="font-size: 11px; opacity: 0.9; letter-spacing: 0.5px; text-transform: uppercase;">Status</div>
+              <div style="margin-top: 4px; display: inline-block; background: rgba(255,255,255,0.16); border: 1px solid rgba(255,255,255,0.25); padding: 6px 10px; border-radius: 999px; font-weight: 800; font-size: 12px; text-transform: capitalize;">${status}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Meta -->
+        <div style="border: 1px solid #e5e7eb; border-radius: 12px; padding: 14px 16px; margin-bottom: 16px;">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px 18px; font-size: 12px;">
+            <div style="display: flex; justify-content: space-between; gap: 10px;">
+              <span style="color: #6b7280; font-weight: 700;">Order ID</span>
+              <span style="font-family: monospace; font-weight: 800; color: #111827;">${order.id.slice(-8)}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; gap: 10px;">
+              <span style="color: #6b7280; font-weight: 700;">Date</span>
+              <span style="color: #111827;">${created}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Items -->
+        <div style="border: 1px solid #d1fae5; background: #f0fdf4; border-radius: 12px; padding: 16px; margin-bottom: 14px;">
+          <div style="font-size: 11px; color: #166534; font-weight: 800; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 10px;">Items</div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px 18px; font-size: 12px;">
+            <div style="display: flex; justify-content: space-between; gap: 10px;">
+              <span style="color: #0f172a; font-weight: 700;">${order.book?.title || "Marketplace Item"}</span>
+              <span style="color: #16a34a; font-weight: 700; text-align: right;">${formatCurrency(bookPrice)}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Buyer & Seller -->
+        <div style="border: 1px solid #e5e7eb; background: #ffffff; border-radius: 12px; padding: 16px; margin-bottom: 14px;">
+          <div style="font-size: 11px; color: #374151; font-weight: 800; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 10px;">Buyer & Seller</div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px 18px; font-size: 12px;">
+            <div style="display: flex; justify-content: space-between; gap: 10px;">
+              <span style="color: #6b7280; font-weight: 700;">Buyer</span>
+              <span style="color: #111827; font-weight: 700; text-align: right;">${order.buyer?.full_name || order.buyer?.name || order.buyer?.email || "Buyer"}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; gap: 10px;">
+              <span style="color: #6b7280; font-weight: 700;">Seller</span>
+              <span style="color: #111827; font-weight: 700; text-align: right;">${order.seller?.full_name || order.seller?.name || order.seller?.email || "Seller"}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Pricing -->
+        <div style="border: 1px solid #bbf7d0; background: #f0fdf4; border-radius: 12px; padding: 16px; margin-bottom: 16px;">
+          <div style="font-size: 11px; color: #166534; font-weight: 800; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 10px;">Pricing</div>
+          <div style="font-size: 12px;">
+            <table style="width: 100%; border-collapse: collapse;">
+              ${isSeller ? `
+              <tr>
+                <td style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #dcfce7;">
+                  <span style="color: #166534; font-weight: 700;">Book Price</span>
+                  <span style="color: #0f172a; font-weight: 800;">${formatCurrency(bookPrice)}</span>
+                </td>
+              </tr>
+              <tr>
+                <td style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #dcfce7;">
+                  <span style="color: #b91c1c; font-weight: 700;">Commission Fee (10%)</span>
+                  <span style="color: #b91c1c; font-weight: 800;">-${formatCurrency(commission)}</span>
+                </td>
+              </tr>
+              <tr>
+                <td style="display: flex; justify-content: space-between; padding: 6px 0;">
+                  <span style="color: #0f172a; font-weight: 900; font-size: 14px;">Estimated Payout (90%)</span>
+                  <span style="color: #16a34a; font-weight: 900; font-size: 16px;">${formatCurrency(payout)}</span>
+                </td>
+              </tr>
+              ` : `
+              <tr>
+                <td style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #dcfce7;">
+                  <span style="color: #166534; font-weight: 700;">Subtotal</span>
+                  <span style="color: #0f172a; font-weight: 800;">${formatCurrency(bookPrice)}</span>
+                </td>
+              </tr>
+              <tr>
+                <td style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #dcfce7;">
+                  <span style="color: #166534; font-weight: 700;">Platform Fee</span>
+                  <span style="color: #0f172a; font-weight: 800;">R20.00</span>
+                </td>
+              </tr>
+              ${order.total_amount && order.total_amount > bookPrice + 20 ? `
+              <tr>
+                <td style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #dcfce7;">
+                  <span style="color: #166534; font-weight: 700;">Shipping</span>
+                  <span style="color: #0f172a; font-weight: 800;">${formatCurrency(order.total_amount - bookPrice - 20)}</span>
+                </td>
+              </tr>
+              ` : ""}
+              <tr>
+                <td style="display: flex; justify-content: space-between; padding: 6px 0;">
+                  <span style="color: #0f172a; font-weight: 900; font-size: 14px;">Total Paid</span>
+                  <span style="color: #16a34a; font-weight: 900; font-size: 16px;">${formatCurrency(order.total_amount || 0)}</span>
+                </td>
+              </tr>
+              `}
+            </table>
+          </div>
+        </div>
+
+        ${order.cancellation_reason ? `<div style="margin-bottom:14px; padding:12px; background:#fef2f2; border:1px solid #fecaca; border-radius:8px; color:#991b1b; font-size: 12px; font-weight: 600;">Cancelled: ${order.cancellation_reason}</div>` : ""}
+
+        <!-- Footer -->
+        <div style="text-align: center; padding-top: 14px; border-top: 1px solid #e5e7eb; font-size: 11px; color: #6b7280;">
+          <div style="font-weight: 900; color: #16a34a; margin-bottom: 4px;">ReBooked Solutions</div>
+          <div>support@rebookedsolutions.co.za</div>
+          <div style="margin-top: 6px;">© ${new Date().getFullYear()} All rights reserved</div>
+        </div>
+      </div>`;
+  };
+
+  const downloadReceipt = async (order: Order) => {
+    setDownloadingId(order.id);
+    try {
+      const html = buildReceiptHtml(order);
+      const temp = document.createElement("div");
+      temp.style.position = "fixed";
+      temp.style.left = "-9999px";
+      temp.style.top = "0";
+      temp.style.width = "800px";
+      temp.innerHTML = html;
+      document.body.appendChild(temp);
+
+      const canvas = await html2canvas(temp, { backgroundColor: "#ffffff", scale: 2, useCORS: true });
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const imgWidth = pageWidth - 20;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      pdf.addImage(imgData, "PNG", 10, 10, imgWidth, imgHeight);
+      pdf.save(`receipt-${order.id.slice(-8)}.pdf`);
+      document.body.removeChild(temp);
+      toast.success("Receipt downloaded");
+    } catch (err: any) {
+      console.error("Receipt download failed", err);
+      toast.error("Could not download receipt. Please try again.");
+    } finally {
+      setDownloadingId(null);
+    }
+  };
 
   useEffect(() => {
     if (user) {
@@ -96,10 +273,12 @@ const OrderManagementView: React.FC<OrderManagementViewProps> = () => {
       const { data: ordersData, error: ordersError } = await supabase
         .from("orders")
         .select(`
-          id, book_id, item_id, item_type, buyer_id, seller_id, status, delivery_status, created_at, updated_at,
+          id, book_id, item_id, item_type, buyer_id, seller_id, status, delivery_status, payment_status, created_at, updated_at,
           cancelled_at, cancellation_reason, tracking_number, tracking_data,
           selected_courier_name, selected_service_name, total_amount, delivery_data,
-          buyer_full_name, buyer_email, seller_full_name, seller_email
+          buyer_full_name, buyer_email, seller_full_name, seller_email,
+          order_type, pickup_status, delivery_option, meetup_location, meetup_time,
+          buyer_confirmed_at, seller_confirmed_at
         `)
         .or(`buyer_id.eq.${user.id},seller_id.eq.${user.id}`)
         .order("created_at", { ascending: false });
@@ -129,11 +308,17 @@ const OrderManagementView: React.FC<OrderManagementViewProps> = () => {
       if (bookIds.length > 0) {
         const { data: booksData, error: booksError } = await supabase
           .from("books")
-          .select("id, title, author, price, image_url, additional_images")
+          .select("id, title, author, price, image_url, front_cover, additional_images")
           .in("id", bookIds);
 
         if (!booksError && booksData) {
-          booksData.forEach(b => { itemMap[b.id] = { ...b, type: 'book' }; });
+          booksData.forEach(b => {
+            itemMap[b.id] = {
+              ...b,
+              image_url: (b as any).image_url || (b as any).front_cover || null,
+              type: 'book',
+            };
+          });
         }
       }
 
@@ -220,9 +405,9 @@ const OrderManagementView: React.FC<OrderManagementViewProps> = () => {
       total: orders.length,
       pending: orders.filter((o) => ["pending", "pending_commit"].includes(o.status)).length,
       active: orders.filter((o) =>
-        ["committed", "pending_delivery", "in_transit", "confirmed", "dispatched", "pending_commit"].includes(o.status),
+        ["committed", "pending_delivery", "in_transit", "confirmed", "dispatched", "pending_commit", "delivered", "awaiting_confirmation"].includes(o.status),
       ).length,
-      completed: orders.filter((o) => ["delivered", "completed"].includes(o.status)).length,
+      completed: orders.filter((o) => ["completed"].includes(o.status)).length,
       cancelled: orders.filter((o) => ["cancelled"].includes(o.status)).length,
     };
     return stats;
@@ -307,8 +492,44 @@ const OrderManagementView: React.FC<OrderManagementViewProps> = () => {
       </div>
     );
   };
-
   const OrderShipmentSummary: React.FC<{ order: Order }> = ({ order }) => {
+    const isPickup = order.order_type === "pickup" || order.delivery_option === "pickup";
+    
+    if (isPickup) {
+      const pickupStatus = order.pickup_status || "pending_pickup";
+      const statusLabels: Record<string, string> = {
+        pending_pickup: "Pending Meetup",
+        awaiting_buyer_confirmation: "Awaiting Buyer Handoff Confirmation",
+        awaiting_seller_confirmation: "Awaiting Seller Handoff Confirmation",
+        completed: "Completed",
+        expired: "Expired",
+        disputed: "Disputed",
+      };
+      
+      return (
+        <div className="space-y-2 text-xs">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+            <div className="space-y-0.5">
+              <div className="text-book-600 font-medium">Meetup Status</div>
+              <Badge variant="secondary" className="capitalize text-xs">
+                {statusLabels[pickupStatus] || pickupStatus.replace(/_/g, " ")}
+              </Badge>
+            </div>
+            <div className="space-y-0.5">
+              <div className="text-book-600 font-medium">Delivery Method</div>
+              <Badge variant="outline" className="text-xs bg-emerald-50 text-emerald-700 border-emerald-200">
+                🤝 In-Person Pickup (Meetup)
+              </Badge>
+            </div>
+          </div>
+          <div className="p-3 bg-blue-50 border border-blue-100 rounded-lg text-blue-800 text-xs mt-2 leading-relaxed">
+            <strong>Coordinate Meetup:</strong> Coordinate the meetup location and time with the other party in chat. 
+            There is a 7-day window to meet up and complete the handoff.
+          </div>
+        </div>
+      );
+    }
+
     const courier = order.selected_courier_name || order.delivery_data?.provider;
     const service = order.selected_service_name || order.delivery_data?.service_level;
     const tracking = order.tracking_number || order.tracking_data?.tracking_number;
@@ -341,7 +562,7 @@ const OrderManagementView: React.FC<OrderManagementViewProps> = () => {
           <div className="space-y-0.5">
             <div className="text-book-600 font-medium">Courier / Service</div>
             <div className="flex flex-wrap items-center gap-1">
-              {courier ? <Badge variant="outline" className="text-xs">{courier}</Badge> : <span>���</span>}
+              {courier ? <Badge variant="outline" className="text-xs">{courier}</Badge> : <span>—</span>}
               {service ? <Badge variant="outline" className="text-xs">{service}</Badge> : null}
             </div>
           </div>
@@ -388,6 +609,80 @@ const OrderManagementView: React.FC<OrderManagementViewProps> = () => {
   };
 
   const OrderTimeline: React.FC<{ order: Order }> = ({ order }) => {
+    const isPickup = order.order_type === "pickup" || order.delivery_option === "pickup";
+
+    if (isPickup) {
+      const steps = ["paid", "awaiting_handoff", "completed"] as const;
+      const stepLabels: Record<string, string> = {
+        paid: "Payment Confirmed",
+        awaiting_handoff: "Handover / Meetup",
+        completed: "Completed",
+      };
+
+      let currentIndex = 0;
+      if (order.status === "completed" || order.pickup_status === "completed") {
+        currentIndex = 2;
+      } else if (
+        order.status === "committed" ||
+        order.pickup_status === "pending_pickup" ||
+        order.pickup_status === "awaiting_buyer_confirmation" ||
+        order.pickup_status === "awaiting_seller_confirmation"
+      ) {
+        currentIndex = 1;
+      }
+
+      return (
+        <div className="space-y-3">
+          <div className="space-y-2">
+            <div className="flex items-start justify-between gap-1">
+              {steps.map((step, idx) => {
+                const isCompleted = idx < currentIndex || (idx === currentIndex && currentIndex === steps.length - 1);
+                const isCurrent = idx === currentIndex && currentIndex < steps.length - 1;
+                const isPending = idx > currentIndex;
+
+                return (
+                  <div key={step} className="flex flex-col items-center gap-2 flex-1">
+                    <div className="flex items-center w-full">
+                      {idx > 0 && (
+                        <div
+                          className={`flex-1 h-1 ${
+                            idx <= currentIndex ? "bg-book-600" : "bg-book-200"
+                          }`}
+                        />
+                      )}
+                      <div
+                        className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold transition-all flex-shrink-0 ${
+                          isCompleted
+                            ? "bg-book-100 text-book-700 border-2 border-book-600"
+                            : isCurrent
+                            ? "bg-book-100 text-book-600 border-2 border-book-600"
+                            : "bg-book-50 text-book-400 border-2 border-book-200"
+                        }`}
+                      >
+                        {isCompleted ? "✓" : idx + 1}
+                      </div>
+                      {idx < steps.length - 1 && (
+                        <div
+                          className={`flex-1 h-1 ${
+                            idx < currentIndex ? "bg-book-600" : "bg-book-200"
+                          }`}
+                        />
+                      )}
+                    </div>
+                    <span className={`text-xs font-medium text-center leading-tight w-full ${
+                      isCompleted || isCurrent ? "text-gray-900" : "text-gray-500"
+                    }`}>
+                      {stepLabels[step]}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     const committed = [
       "committed",
       "pending_delivery",
@@ -516,10 +811,13 @@ const OrderManagementView: React.FC<OrderManagementViewProps> = () => {
         const conv = await getOrCreateConversation(
           listingId,
           order.buyer_id,
-          order.seller_id
+          order.seller_id,
+          (order as any).item_type || "book"
         );
         onNavigate(conv.id);
-      } catch {
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : "Unknown error";
+        console.error("Failed to open chat:", errorMsg);
         toast.error("Could not open chat. Please try again.");
       } finally {
         setIsLoading(false);
@@ -560,7 +858,7 @@ const OrderManagementView: React.FC<OrderManagementViewProps> = () => {
       }
     };
 
-    const isCompleted = ["delivered", "completed"].includes(order.status);
+    const isCompleted = order.status === "completed";
     const isCancelled = order.status === "cancelled";
     const isActive = !isCompleted && !isCancelled;
 
@@ -649,37 +947,31 @@ const OrderManagementView: React.FC<OrderManagementViewProps> = () => {
               </Alert>
             )}
 
-            {/* Delivery Timeline */}
+            {/* Delivery / Meetup Timeline */}
             <div className="bg-white rounded-lg p-3 border border-book-200">
-              <h4 className="text-sm font-semibold text-book-900 mb-3">Delivery Progress</h4>
+              <h4 className="text-sm font-semibold text-book-900 mb-3">
+                {(order.order_type === "pickup" || order.delivery_option === "pickup") ? "Meetup Progress" : "Delivery Progress"}
+              </h4>
               <OrderTimeline order={order} />
             </div>
 
-            {/* Shipment Summary */}
+            {/* Shipment / Meetup Summary */}
             <div className="bg-white rounded-lg p-3 border border-book-200">
-              <h4 className="text-sm font-semibold text-book-900 mb-3">Shipment Details</h4>
+              <h4 className="text-sm font-semibold text-book-900 mb-3">
+                {(order.order_type === "pickup" || order.delivery_option === "pickup") ? "Meetup Details" : "Shipment Details"}
+              </h4>
               <OrderShipmentSummary order={order} />
             </div>
 
-            {/* Action Panel */}
+            {/* Action Panel - includes chat button */}
             {!isCancelled && (
               <OrderActionsPanel order={order} userRole={userRole} onOrderUpdate={fetchOrders} />
             )}
 
-            {/* Chat to Other Party */}
-            {order.status !== "cancelled" && (order.book_id || (order as any).item_id) && order.buyer_id && order.seller_id && (
-              <ChatToPartyButton
-                order={order}
-                userRole={userRole}
-                onNavigate={(conversationId: string) => {
-                  navigate(`/profile?tab=messages&conversation=${conversationId}`);
-                }}
-                currentUserId={user?.id || ""}
-              />
-            )}
-
             {/* Buyer Completion Card */}
-            {userRole === "buyer" && isCompleted && (
+            {userRole === "buyer" &&
+              order.order_type !== "pickup" &&
+              (order.status === "delivered" || order.delivery_status === "delivered" || isCompleted) && (
               <OrderCompletionCard
                 orderId={order.id}
                 bookTitle={order.book?.title || "Item"}
@@ -697,6 +989,28 @@ const OrderManagementView: React.FC<OrderManagementViewProps> = () => {
                 <p className="text-sm text-book-700">
                   <strong>Order Completed:</strong> {formatDate(order.updated_at)}
                 </p>
+              </div>
+            )}
+
+            {/* Download Receipt Button */}
+            {!isCancelled && (
+              <div className="flex justify-end pt-3 border-t border-book-100 mt-2">
+                <Button
+                  onClick={() => downloadReceipt(order)}
+                  disabled={downloadingId === order.id}
+                  size="sm"
+                  className="bg-book-600 hover:bg-book-700 text-white font-semibold flex items-center gap-2"
+                >
+                  {downloadingId === order.id ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" /> Preparing…
+                    </>
+                  ) : (
+                    <>
+                      <Download className="h-4 w-4" /> Download Receipt (PDF)
+                    </>
+                  )}
+                </Button>
               </div>
             )}
           </CardContent>
@@ -744,9 +1058,10 @@ const OrderManagementView: React.FC<OrderManagementViewProps> = () => {
   }
 
   // Group orders into Active, Completed, Cancelled
-  const activeOrders = orders.filter((o) => !["cancelled", "delivered", "completed"].includes(o.status));
-  const completedOrders = orders.filter((o) => ["delivered", "completed"].includes(o.status));
-  const cancelledOrders = orders.filter((o) => ["cancelled"].includes(o.status));
+  const isOrderCompleted = (o: Order) => ["delivered", "completed"].includes(o.status) || o.delivery_status === "delivered";
+  const activeOrders = orders.filter((o) => o.status !== "cancelled" && !isOrderCompleted(o));
+  const completedOrders = orders.filter((o) => isOrderCompleted(o) && o.status !== "cancelled");
+  const cancelledOrders = orders.filter((o) => o.status === "cancelled");
 
   return (
     <div className="space-y-6">

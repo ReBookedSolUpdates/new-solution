@@ -190,10 +190,15 @@ export const getCommitPendingBooks = async (): Promise<any[]> => {
             status,
             payment_status,
             buyer_email,
-            items
+            items,
+            delivery_option,
+            order_type,
+            book_id,
+            item_id,
+            item_type
           `)
           .eq("seller_id", user.id)
-          .in("status", ["pending_commit", "pending"]) // include pending for visibility
+          .or('and(status.eq.pending_commit),and(payment_status.eq.paid,status.in.(pending_payment,pending,pending_commit))')
           .order("created_at", { ascending: true });
 
         if (result.error) {
@@ -219,18 +224,38 @@ export const getCommitPendingBooks = async (): Promise<any[]> => {
       // Extract book info from items JSON
       const items = Array.isArray(order.items) ? order.items : [];
       const firstItem = items[0] || {};
+      const itemId = order.book_id || order.item_id || firstItem.book_id || firstItem.item_id;
+      const itemType = order.item_type || firstItem.item_type || "book";
 
       // Try to get complete book data from books table
       let bookData = null;
-      if (firstItem.book_id) {
+      if (itemId) {
         try {
-          const { data: book } = await supabase
-            .from("books")
-            .select("id, title, author, price, image_url, front_cover, condition")
-            .eq("id", firstItem.book_id)
+          const table = itemType === "uniform" ? "uniforms" : itemType === "school_supply" ? "school_supplies" : "books";
+          const cols = table === "books"
+            ? "id, title, author, price, image_url, front_cover, condition, grade, subject, school_name, size, colour, gender, province, isbn, description, category"
+            : "id, title, price, image_url, condition, description, category";
+          const { data } = await supabase
+            .from(table)
+            .select(cols)
+            .eq("id", itemId)
             .single();
-          bookData = book;
+          bookData = data;
         } catch (error) {
+          // If query fails, try fallback tables
+          const tables = ["books", "uniforms", "school_supplies"];
+          for (const tbl of tables) {
+            try {
+              const cols = tbl === "books"
+                ? "id, title, author, price, image_url, front_cover, condition, grade, subject, school_name, size, colour, gender, province, isbn, description, category"
+                : "id, title, price, image_url, condition, description, category";
+              const { data } = await supabase.from(tbl).select(cols).eq("id", itemId).single();
+              if (data) {
+                bookData = data;
+                break;
+              }
+            } catch {}
+          }
         }
       }
 
@@ -241,7 +266,7 @@ export const getCommitPendingBooks = async (): Promise<any[]> => {
 
       return {
         id: order.id,
-        bookId: firstItem.book_id || bookData?.id || "unknown",
+        bookId: itemId || "unknown",
         title: bookData?.title || firstItem.name || "Order Item",
         expiresAt: expiresAt.toISOString(), // This now uses the real expiry time!
         bookTitle: bookData?.title || firstItem.name || "Order Item",
@@ -251,11 +276,23 @@ export const getCommitPendingBooks = async (): Promise<any[]> => {
         platformFee: platformFee, // Add platform fee info
         createdAt: order.created_at,
         status: "pending",
-        author: bookData?.author || firstItem.author || "Unknown Author",
+        author: (bookData as any)?.author || firstItem.author || (itemType === "uniform" ? "School Uniform" : itemType === "school_supply" ? "School Supply" : "Unknown Author"),
         buyerEmail: order.buyer_email,
         sellerName: "Current User",
-        imageUrl: bookData?.image_url || bookData?.front_cover || null,
+        imageUrl: (bookData as any)?.front_cover || (bookData as any)?.image_url || firstItem.front_cover || firstItem.image_url || (Array.isArray(order.items) && order.items[0]?.front_cover) || (Array.isArray(order.items) && order.items[0]?.image_url) || null,
+        deliveryMethod: order.delivery_option,
+        orderType: order.order_type,
         condition: bookData?.condition || "Good",
+        grade: (bookData as any)?.grade,
+        subject: (bookData as any)?.subject,
+        schoolName: (bookData as any)?.school_name,
+        size: (bookData as any)?.size,
+        colour: (bookData as any)?.colour,
+        gender: (bookData as any)?.gender,
+        province: (bookData as any)?.province,
+        isbn: (bookData as any)?.isbn,
+        description: bookData?.description,
+        category: bookData?.category,
       };
     }));
 

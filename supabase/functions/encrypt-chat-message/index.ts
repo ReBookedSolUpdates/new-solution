@@ -146,13 +146,12 @@ serve(async (req) => {
       encryptedContent = JSON.stringify(bundle);
     }
 
-    // Insert message with encrypted content
+    // Insert message — no content column, encrypted only
     const { data: message, error: insertError } = await supabase
       .from('messages')
       .insert({
         conversation_id,
         sender_id: user.id,
-        content: null, // Don't store plaintext
         content_encrypted: encryptedContent,
         is_encrypted: !!encryptedContent,
         media_url: media_url || null,
@@ -176,13 +175,13 @@ serve(async (req) => {
       .update({ updated_at: new Date().toISOString(), last_message_at: new Date().toISOString() })
       .eq('id', conversation_id);
 
-    // Return message with decrypted content for the sender
+    // Return message with plaintext for sender
     return new Response(
       JSON.stringify({
         success: true,
         message: {
           ...message,
-          content: content, // Return plaintext to sender
+          content: content,
         }
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

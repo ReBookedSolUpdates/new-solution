@@ -6,9 +6,9 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { SchoolSupplyFormData } from '@/types/listing';
-import { SOUTH_AFRICAN_SCHOOLS } from '@/constants/schoolNames';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { ProvinceSelect } from './ProvinceSelect';
+import { SchoolNameField } from './SchoolNameField';
 
 interface SchoolSupplyInformationFormProps {
   formData: SchoolSupplyFormData;
@@ -109,22 +109,13 @@ export const SchoolSupplyInformationForm = ({
         </Select>
       </div>
 
-      {/* School Name */}
-      <div>
-        <Label className={`${labelSize} font-medium`}>
-          School Name <span className="text-gray-400">(Optional)</span>
-        </Label>
-        <Select value={formData.schoolName || ''} onValueChange={(v) => onSelectChange('schoolName', v)}>
-          <SelectTrigger>
-            <SelectValue placeholder="Select school (optional)" />
-          </SelectTrigger>
-          <SelectContent>
-            {SOUTH_AFRICAN_SCHOOLS.map((school) => (
-              <SelectItem key={school} value={school}>{school}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      {/* School Name (required) */}
+      <SchoolNameField
+        value={formData.schoolName || ''}
+        onChange={(v) => onSelectChange('schoolName', v)}
+        error={errors.schoolName}
+        labelSize={labelSize}
+      />
 
       {/* Condition */}
       <div>

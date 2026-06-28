@@ -39,6 +39,8 @@ serve(async (req) => {
         delivery_status, 
         buyer_email, 
         buyer_full_name,
+        seller_email,
+        seller_full_name,
         items
       `)
       .in("status", ["in_transit", "pickup_scheduled", "committed"])
@@ -121,8 +123,11 @@ serve(async (req) => {
           if (mappedStatus === 'delivered' && order.status !== 'delivered') {
             const itemTitle = order.items?.[0]?.title || order.items?.[0]?.name || "Your item(s)";
             const recipientName = order.buyer_full_name || "Valued Customer";
+            const sellerName = order.seller_full_name || "Valued Seller";
+            const itemPrice = Number(order.items?.[0]?.price ?? 0);
+            const payout = (itemPrice * 0.9).toFixed(2);
             
-            // Premium HTML for delivery confirmation
+            // Premium HTML for delivery confirmation (Buyer)
             const deliveryHtml = createEmailTemplate(
               {
                 title: "Item Delivered - Confirm Receipt",
@@ -156,6 +161,38 @@ serve(async (req) => {
                 html: deliveryHtml
               })
             }).catch(e => console.error("Failed to send delivery email:", e));
+
+            // Premium HTML for delivery confirmation (Seller)
+            if (order.seller_email) {
+              const sellerDeliveryHtml = createEmailTemplate(
+                {
+                  title: "Item Delivered - Payout Pending Confirmation",
+                  headerText: "Item Delivered!",
+                  headerType: "default",
+                  headerSubtext: `Hello ${sellerName}!`
+                },
+                `
+                <p>Good news! Your item <strong>${itemTitle}</strong> has been successfully delivered to the buyer.</p>
+                <div class="info-box" style="text-align: center; border-color: #3ab26f; background-color: #f3fef7; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                  <h3 style="margin: 0 0 12px 0; color: #1f4e3d; font-size: 16px;">What happens next?</h3>
+                  <p style="margin: 0 0 10px 0; color: #1f4e3d; font-size: 14px;">The buyer has 48 hours to confirm receipt of the item. Once confirmed (or after 48 hours of automatic confirmation), your payout of <strong>R${payout}</strong> (90% of listing price) will be released to your wallet.</p>
+                </div>
+                `
+              );
+
+              await fetch(EMAIL_FUNCTION_URL, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "Authorization": `Bearer ${SUPABASE_SERVICE_KEY}`
+                },
+                body: JSON.stringify({
+                  to: order.seller_email,
+                  subject: `Delivered! Payout pending buyer confirmation for Order #${order.id}`,
+                  html: sellerDeliveryHtml
+                })
+              }).catch(e => console.error("Failed to send seller delivery email:", e));
+            }
           }
 
           results.push({ order_id: order.id, old: order.status, new: mappedStatus });

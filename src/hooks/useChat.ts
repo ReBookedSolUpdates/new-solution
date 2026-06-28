@@ -23,7 +23,8 @@ export function useConversations(includeArchived = false) {
       const data = await getUserConversations(user.id, includeArchived);
       setConversations(data);
     } catch (err) {
-      console.error("Failed to load conversations:", err);
+      const errorMsg = err instanceof Error ? err.message : JSON.stringify(err);
+      console.error("Failed to load conversations:", errorMsg);
     } finally {
       setIsLoading(false);
     }
@@ -33,11 +34,15 @@ export function useConversations(includeArchived = false) {
 
   useEffect(() => {
     if (!user?.id) return;
-    const channel = supabase
-      .channel("conversations-updates")
+    const channel = supabase.channel("conversations-updates");
+    channel
       .on("postgres_changes", { event: "*", schema: "public", table: "conversations" }, () => { load(); })
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, () => { load(); })
-      .subscribe();
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "messages" }, () => { load(); });
+
+    // subscribe and ignore the subscribe result; keep the channel object for removal
+    channel.subscribe();
+
     return () => { supabase.removeChannel(channel); };
   }, [user?.id, load]);
 
@@ -57,7 +62,8 @@ export function useChatMessages(conversationId: string | null) {
       const data = await getMessages(conversationId);
       setMessages(data);
     } catch (err) {
-      console.error("Failed to load messages:", err);
+      const errorMsg = err instanceof Error ? err.message : JSON.stringify(err);
+      console.error("Failed to load messages:", errorMsg);
       setMessages([]);
     } finally {
       setIsLoading(false);
@@ -68,10 +74,20 @@ export function useChatMessages(conversationId: string | null) {
 
   // Real-time: INSERT new messages
   useEffect(() => {
-    if (!conversationId) return;
-    const channel = supabase
-      .channel(`messages-${conversationId}`)
-      .on(
+    if (!conversationId || !user?.id) return;
+
+    let retryTimeout: NodeJS.Timeout;
+    let isSubscribed = true;
+
+    const setupSubscription = () => {
+      const channel = supabase.channel(`messages-${conversationId}`, {
+        config: {
+          broadcast: { self: true },
+          presence: { key: conversationId },
+        },
+      });
+
+      channel.on(
         "postgres_changes",
         {
           event: "INSERT",
@@ -87,8 +103,9 @@ export function useChatMessages(conversationId: string | null) {
             return [...prev, newMsg];
           });
         }
-      )
-      .on(
+      );
+
+      channel.on(
         "postgres_changes",
         {
           event: "UPDATE",
@@ -100,28 +117,70 @@ export function useChatMessages(conversationId: string | null) {
           const updated = payload.new as ChatMessage;
           setMessages((prev) => prev.map(m => m.id === updated.id ? updated : m));
         }
-      )
-      .subscribe();
+      );
 
-    return () => { supabase.removeChannel(channel); };
+      channel.subscribe((status) => {
+        if (status === "CLOSED" || status === "CHANNEL_ERROR") {
+          // Attempt to reconnect after 3 seconds
+          if (isSubscribed) {
+            retryTimeout = setTimeout(setupSubscription, 3000);
+          }
+        }
+      });
+
+      return channel;
+    };
+
+    const channel = setupSubscription();
+
+    return () => {
+      isSubscribed = false;
+      clearTimeout(retryTimeout);
+      supabase.removeChannel(channel);
+    };
   }, [conversationId]);
 
   const send = useCallback(
     async (content: string, mediaUrl?: string, mediaType?: string) => {
       if (!conversationId || !user?.id) return;
+
+      // Create optimistic message immediately with a temporary ID
+      const optimisticId = `temp-${Date.now()}-${Math.random()}`;
+      const optimisticMessage: ChatMessage = {
+        id: optimisticId,
+        conversation_id: conversationId,
+        sender_id: user.id,
+        content,
+        media_url: mediaUrl,
+        media_type: mediaType,
+        created_at: new Date().toISOString(),
+        read_at: new Date().toISOString(),
+        is_system: false,
+        reference_card: null,
+      } as ChatMessage;
+
+      // Add message optimistically to UI immediately
+      setMessages((prev) => [...prev, optimisticMessage]);
+
       try {
         setIsSending(true);
+        // Send to server asynchronously
         const sent = await sendMessage(conversationId, user.id, content, mediaUrl, mediaType);
-        // Optimistically add if not already added by realtime
+
+        // Replace optimistic message with actual server message
         setMessages((prev) => {
-          if (prev.some(m => m.id === sent.id)) return prev;
-          return [...prev, sent];
+          return prev.map((m) =>
+            m.id === optimisticId ? sent : m
+          );
         });
+
         // Fire-and-forget notification
         supabase.functions.invoke("chat-notification", {
           body: { conversation_id: conversationId, sender_id: user.id, content },
         }).catch(() => {});
       } catch (err) {
+        // Remove optimistic message on error
+        setMessages((prev) => prev.filter((m) => m.id !== optimisticId));
         const errorMessage = err instanceof Error ? err.message : "Failed to send message";
         toast.error(errorMessage);
       } finally {
@@ -139,7 +198,7 @@ export function useStartConversation() {
   const [isStarting, setIsStarting] = useState(false);
 
   const startConversation = useCallback(
-    async (listingId: string, sellerId: string): Promise<string | null> => {
+    async (listingId: string, sellerId: string, itemType: string = "book"): Promise<string | null> => {
       if (!user?.id) {
         toast.error("Please log in to chat with sellers");
         return null;
@@ -150,10 +209,11 @@ export function useStartConversation() {
       }
       try {
         setIsStarting(true);
-        const conversation = await getOrCreateConversation(listingId, user.id, sellerId);
+        const conversation = await getOrCreateConversation(listingId, user.id, sellerId, itemType as "book" | "school_supply" | "uniform");
         return conversation.id;
       } catch (err) {
-        console.error("Failed to start conversation:", err);
+        const errorMsg = err instanceof Error ? err.message : JSON.stringify(err);
+        console.error("Failed to start conversation:", errorMsg);
         toast.error("Failed to start conversation");
         return null;
       } finally {

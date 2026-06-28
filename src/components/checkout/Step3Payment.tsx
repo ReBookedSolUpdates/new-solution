@@ -13,6 +13,7 @@ import {
   CheckCircle,
   AlertTriangle,
   X,
+  Wallet,
 } from "lucide-react";
 import { OrderSummary, OrderConfirmation } from "@/types/checkout";
 import { AppliedCoupon } from "@/types/coupon";
@@ -43,6 +44,7 @@ import {
   prepareAddressForEncryption,
 } from "@/utils/addressNormalizationUtils";
 import { IS_PRODUCTION } from "@/config/envParser";
+import { WalletService } from "@/services/walletService";
 
 interface Step3PaymentProps {
   orderSummary: OrderSummary;
@@ -50,6 +52,8 @@ interface Step3PaymentProps {
   onCancel?: () => void;
   onPaymentSuccess: (orderData: OrderConfirmation) => void;
   onPaymentError: (error: string) => void;
+  onPaymentWindowOpened?: () => void;
+  onPaymentAbandoned?: () => void;
   userId: string;
   onCouponChange?: (coupon: AppliedCoupon | null) => void;
 }
@@ -60,6 +64,8 @@ const Step3Payment: React.FC<Step3PaymentProps> = ({
   onCancel,
   onPaymentSuccess,
   onPaymentError,
+  onPaymentWindowOpened,
+  onPaymentAbandoned,
   userId,
   onCouponChange,
 }) => {
@@ -69,6 +75,8 @@ const Step3Payment: React.FC<Step3PaymentProps> = ({
   const [userEmail, setUserEmail] = useState<string>("");
   const [retryCount, setRetryCount] = useState(0);
   const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null);
+  const [walletBalance, setWalletBalance] = useState<number>(0);
+  const [useWallet, setUseWallet] = useState<boolean>(false);
   const isMobile = useIsMobile();
 
   // Calculate subtotal including delivery and fees
@@ -91,6 +99,9 @@ const Step3Payment: React.FC<Step3PaymentProps> = ({
 
   const totalWithCoupon = calculateTotalWithCoupon();
 
+  const walletDiscount = useWallet ? Math.min(walletBalance, totalWithCoupon) : 0;
+  const finalTotal = Math.max(0, totalWithCoupon - walletDiscount);
+
   const handleCouponApply = (coupon: AppliedCoupon) => {
     setAppliedCoupon(coupon);
     if (onCouponChange) {
@@ -105,21 +116,27 @@ const Step3Payment: React.FC<Step3PaymentProps> = ({
     }
   };
 
-  // Fetch user email only
+  // Fetch user email and wallet balance on mount
   React.useEffect(() => {
-    const fetchUserEmail = async () => {
+    const fetchUserEmailAndWallet = async () => {
       try {
         const email = await getUserEmail();
         setUserEmail(email);
       } catch (err) {
         // Error fetching user email
       }
+      try {
+        const bal = await WalletService.getWalletBalance();
+        setWalletBalance(bal.available_balance || 0);
+      } catch (err) {
+        // Error fetching wallet balance
+      }
     };
-    fetchUserEmail();
+    fetchUserEmailAndWallet();
   }, []);
 
   const handleBobPayPayment = async () => {
-    console.log("[STEP3_PAYMENT] handleBobPayPayment started. Total:", totalWithCoupon);
+    console.log("[STEP3_PAYMENT] handleBobPayPayment started. Total:", totalWithCoupon, "Final Total:", finalTotal);
     setProcessing(true);
     setError(null);
     try {
@@ -138,16 +155,18 @@ const Step3Payment: React.FC<Step3PaymentProps> = ({
         throw new Error(`Order already being processed. Order ID: ${cachedOrderId}. Please wait and check your account.`);
       }
 
-      // Validate pickup setup based on delivery method
-      const pickupType = orderSummary.delivery_method === "locker" ? "locker" : "door";
+      // Validate pickup setup based on delivery method (only for shipping/courier deliveries)
+      if (orderSummary.delivery_method !== "pickup") {
+        const pickupType = orderSummary.delivery_method === "locker" ? "locker" : "door";
 
-      const pickupErrors = validatePickupSetup(
-        pickupType,
-        orderSummary.delivery_method === "locker" ? (orderSummary.selected_locker as any) : null,
-        orderSummary.delivery_method === "home" ? (orderSummary.seller_address as any) : null
-      );
-      if (pickupErrors.length > 0) {
-        throw new Error(`Pickup validation failed: ${pickupErrors.join("; ")}`);
+        const pickupErrors = validatePickupSetup(
+          pickupType,
+          orderSummary.delivery_method === "locker" ? (orderSummary.selected_locker as any) : null,
+          orderSummary.delivery_method === "home" ? (orderSummary.seller_address as any) : null
+        );
+        if (pickupErrors.length > 0) {
+          throw new Error(`Pickup validation failed: ${pickupErrors.join("; ")}`);
+        }
       }
 
       const baseUrl = window.location.origin;
@@ -169,8 +188,8 @@ const Step3Payment: React.FC<Step3PaymentProps> = ({
       const buyerProfile = buyerProfileResult.status === 'fulfilled' ? buyerProfileResult.value.data : null;
       const sellerProfile = sellerProfileResult.status === 'fulfilled' ? sellerProfileResult.value.data : null;
 
-      // Check if buyer has phone number - required for shipping
-      if (!buyerProfile?.phone_number) {
+      // Check if buyer has phone number - required for shipping/courier deliveries
+      if (orderSummary.delivery_method !== "pickup" && !buyerProfile?.phone_number) {
         throw new Error("Phone number is required for shipping. Please add your phone number in your profile before completing the purchase.");
       }
 
@@ -182,9 +201,9 @@ const Step3Payment: React.FC<Step3PaymentProps> = ({
       const deliveryLockerData = orderSummary.delivery_method === "locker" ? orderSummary.selected_locker : null;
       const deliveryLockerLocationId = orderSummary.delivery_method === "locker" ? orderSummary.selected_locker?.id : null;
 
-      // Step 2: Prepare and encrypt the shipping address (only for door deliveries)
+      // Step 2: Prepare and encrypt the shipping address (only for door deliveries, NOT for in-person pickup)
       let shipping_address_encrypted = "";
-      if (deliveryType === "door") {
+      if (deliveryType === "door" && orderSummary.delivery_method !== "pickup") {
         try {
           // Use comprehensive address preparation that preserves all fields
           const shippingObject = prepareAddressForEncryption(orderSummary.buyer_address);
@@ -235,8 +254,12 @@ const Step3Payment: React.FC<Step3PaymentProps> = ({
         // Delivery price in cents (kobo) for backend consistency
         selected_shipping_cost: Math.round(orderSummary.delivery_price * 100),
         delivery_type: deliveryType,
-        // Human-readable delivery method for display: "Home Delivery" or "BobGo Locker"
-        delivery_method: orderSummary.delivery_method === "locker" ? "BobGo Locker" : "Home Delivery",
+        // Human-readable delivery method for display: "Home Delivery", "BobGo Locker" or "In-Person Pickup"
+        delivery_method: orderSummary.delivery_method === "locker" 
+          ? "BobGo Locker" 
+          : orderSummary.delivery_method === "pickup"
+            ? "In-Person Pickup"
+            : "Home Delivery",
         delivery_locker_data: normalizedLockerData,
         delivery_locker_location_id: normalizedLockerLocationId,
         delivery_locker_provider_slug: normalizedLockerData?.provider_slug,
@@ -246,6 +269,8 @@ const Step3Payment: React.FC<Step3PaymentProps> = ({
         pickup_locker_provider_slug: normalizedSellerLockerData?.provider_slug,
         // CRITICAL: Pass seller's preferred pickup method to determine pickup_type correctly
         seller_preferred_pickup_method: sellerProfile?.preferred_pickup_method || (orderSummary.seller_locker_data ? "locker" : "pickup"),
+        order_type: orderSummary.delivery_method === "pickup" ? "pickup" : "delivery",
+        use_wallet: useWallet,
       };
 
       const { data: { session } } = await supabase.auth.getSession();
@@ -288,9 +313,40 @@ const Step3Payment: React.FC<Step3PaymentProps> = ({
         // Affiliate earning processing error - non-blocking
       });
 
-      // Step 4: Initialize BobPay payment with the order_id
+      // Step 3.6: Check if order is already fully paid via wallet
+      if (createOrderResult.order?.payment_status === 'paid') {
+        console.log("[STEP3_PAYMENT] Order fully paid via wallet. Bypassing BobPay.");
+        toast.success("Order fully paid using wallet balance!");
+        onPaymentSuccess({
+          id: createOrderResult.order.id,
+          order_id: createOrderResult.order.order_id,
+          payment_reference: customPaymentId,
+          book_id: orderSummary.book.id,
+          seller_id: orderSummary.book.seller_id,
+          seller_name: orderSummary.book.seller_name || sellerFullName,
+          buyer_id: userId,
+          buyer_name: buyerFullName,
+          book_title: orderSummary.book.title,
+          book_author: orderSummary.book.author || "",
+          book_price: orderSummary.book_price,
+          delivery_method: orderSummary.delivery_method === "locker" 
+            ? "BobGo Locker" 
+            : orderSummary.delivery_method === "pickup"
+              ? "In-Person Pickup"
+              : "Home Delivery",
+          delivery_price: orderSummary.delivery_price,
+          platform_fee: orderSummary.platform_fee || 20,
+          total_paid: totalWithCoupon,
+          created_at: createOrderResult.order.created_at || new Date().toISOString(),
+          status: createOrderResult.order.status,
+          coupon_discount: appliedCoupon?.discountAmount || 0,
+          book: orderSummary.book,
+        });
+        return;
+      }
 
-      const amountToCharge = Number(totalWithCoupon);
+      // Step 4: Initialize BobPay payment with the order_id for the remaining amount
+      const amountToCharge = Number(finalTotal);
       if (!Number.isFinite(amountToCharge) || amountToCharge <= 0) {
         throw new Error('Invalid payment amount. Please refresh checkout and try again.');
       }
@@ -308,6 +364,7 @@ const Step3Payment: React.FC<Step3PaymentProps> = ({
         pending_url: `${baseUrl}/checkout/pending?reference=${customPaymentId}&type=payment`,
         cancel_url: `${baseUrl}/checkout/cancel?reference=${customPaymentId}&type=payment`,
         buyer_id: userId,
+        is_sandbox: !IS_PRODUCTION,
       };
 
       const invokeBobPayInit = async (functionName: string) => {
@@ -334,6 +391,11 @@ const Step3Payment: React.FC<Step3PaymentProps> = ({
       if (paymentUrl) {
         console.log("[STEP3_PAYMENT] Redirecting to BobPay:", paymentUrl);
         toast.success("Redirecting to payment page...");
+
+        // Track payment_window_opened before redirecting
+        if (onPaymentWindowOpened) {
+          onPaymentWindowOpened();
+        }
 
         // Open payment page in the same tab
         window.location.href = paymentUrl;
@@ -416,6 +478,55 @@ Time: ${new Date().toISOString()}
             appliedCoupon={appliedCoupon}
             disabled={processing}
           />
+        </CardContent>
+      </Card>
+
+      {/* Wallet Card */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+            <Wallet className="w-5 h-5 text-book-600" />
+            Virtual Wallet Balance
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between p-4 bg-book-50 rounded-xl border border-book-100">
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-book-900">
+                Available Wallet Balance
+              </p>
+              <p className="text-xl font-bold text-book-700">
+                {WalletService.formatZAR(walletBalance)}
+              </p>
+            </div>
+            {walletBalance > 0 ? (
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="use-wallet-checkbox"
+                  checked={useWallet}
+                  disabled={processing}
+                  onChange={(e) => setUseWallet(e.target.checked)}
+                  className="w-4 h-4 text-book-600 border-gray-300 rounded focus:ring-book-500 cursor-pointer"
+                />
+                <label
+                  htmlFor="use-wallet-checkbox"
+                  className="text-sm font-semibold text-book-800 cursor-pointer select-none"
+                >
+                  Use Balance
+                </label>
+              </div>
+            ) : (
+              <p className="text-xs text-gray-500 font-medium">
+                Balance is R0.00
+              </p>
+            )}
+          </div>
+          {useWallet && walletDiscount > 0 && (
+            <p className="text-xs text-green-600 font-semibold">
+              ✓ R{walletDiscount.toFixed(2)} will be deducted from your wallet at checkout.
+            </p>
+          )}
         </CardContent>
       </Card>
 
@@ -534,27 +645,69 @@ Time: ${new Date().toISOString()}
 
           <Separator />
 
+          {/* Wallet Deduction */}
+          {useWallet && walletDiscount > 0 && (
+            <>
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-purple-100 rounded">
+                  <Wallet className="w-4 h-4 text-purple-600" />
+                </div>
+                <div className="flex-1">
+                  <p className="font-medium">
+                    Wallet Balance Applied
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    Deducted from your virtual wallet
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="font-semibold text-purple-600">
+                    -R{walletDiscount.toFixed(2)}
+                  </p>
+                </div>
+              </div>
+
+              <Separator />
+            </>
+          )}
+
           {/* Total */}
           <div className="space-y-2">
-            {appliedCoupon && appliedCoupon.discountAmount > 0 ? (
+            {(appliedCoupon && appliedCoupon.discountAmount > 0) || (useWallet && walletDiscount > 0) ? (
               <>
                 <div className="flex justify-between items-center text-base font-semibold">
-                  <span className="text-gray-500">Original Total</span>
-                  <span className="text-gray-400 line-through">
+                  <span className="text-gray-500">Subtotal</span>
+                  <span className="text-gray-600">
                     R{subtotal.toFixed(2)}
                   </span>
                 </div>
+                {appliedCoupon && appliedCoupon.discountAmount > 0 && (
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-green-600">Coupon Discount</span>
+                    <span className="text-green-600 font-semibold">
+                      -R{appliedCoupon.discountAmount.toFixed(2)}
+                    </span>
+                  </div>
+                )}
+                {useWallet && walletDiscount > 0 && (
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-purple-600">Wallet Deduction</span>
+                    <span className="text-purple-600 font-semibold">
+                      -R{walletDiscount.toFixed(2)}
+                    </span>
+                  </div>
+                )}
                 <div className="flex justify-between items-center text-lg font-bold">
-                  <span className="text-green-600">Total After Discount</span>
-                  <span className="text-green-600">
-                    R{totalWithCoupon.toFixed(2)}
+                  <span className="text-green-600">Total Amount Due</span>
+                  <span className="text-green-600 font-extrabold text-xl">
+                    R{finalTotal.toFixed(2)}
                   </span>
                 </div>
               </>
             ) : (
               <div className="flex justify-between items-center text-lg font-bold">
                 <span>Total</span>
-                <span className="text-green-600">
+                <span className="text-green-600 font-extrabold text-xl">
                   R{subtotal.toFixed(2)}
                 </span>
               </div>
@@ -668,7 +821,12 @@ Time: ${new Date().toISOString()}
           {onCancel && (
             <Button
               variant="outline"
-              onClick={onCancel}
+              onClick={() => {
+                if (onPaymentAbandoned) {
+                  onPaymentAbandoned();
+                }
+                onCancel();
+              }}
               disabled={processing}
               className="py-3 px-4 sm:px-6 min-h-[44px] text-red-600 border-red-300 hover:bg-red-50 hover:border-red-400"
             >
@@ -687,10 +845,15 @@ Time: ${new Date().toISOString()}
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                 Processing...
               </>
+            ) : finalTotal === 0 ? (
+              <>
+                <CheckCircle className="w-4 h-4 mr-2" />
+                Pay with Wallet (R0.00 due)
+              </>
             ) : (
               <>
                 <CreditCard className="w-4 h-4 mr-2" />
-                Complete Payment
+                {useWallet ? `Pay R${finalTotal.toFixed(2)} with BobPay` : "Complete Payment"}
               </>
             )}
           </Button>

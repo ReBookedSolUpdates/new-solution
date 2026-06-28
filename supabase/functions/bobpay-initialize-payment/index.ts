@@ -17,16 +17,11 @@ const SANDBOX_BOBPAY_ACCOUNT_CODE = Deno.env.get('SANDBOX_BOBPAY_ACCOUNT_CODE');
 const IS_PRODUCTION = Deno.env.get('VITE_PRODUCTION') === 'true';
 
 // Select the correct credential set based on environment flag
-const ACTIVE_API_URL = IS_PRODUCTION ? BOBPAY_API_URL : (SANDBOX_BOBPAY_API_URL || BOBPAY_API_URL);
-const ACTIVE_API_TOKEN = IS_PRODUCTION ? BOBPAY_API_TOKEN : (SANDBOX_BOBPAY_API_TOKEN || BOBPAY_API_TOKEN);
-const ACTIVE_ACCOUNT_CODE = IS_PRODUCTION ? BOBPAY_ACCOUNT_CODE : (SANDBOX_BOBPAY_ACCOUNT_CODE || BOBPAY_ACCOUNT_CODE);
-
+// Move selection inside request handler to support dynamic overrides from client
 console.log('[bobpay-initialize-payment] Config check:', {
   IS_PRODUCTION,
-  hasApiUrl: !!ACTIVE_API_URL,
-  hasApiToken: !!ACTIVE_API_TOKEN,
-  hasAccountCode: !!ACTIVE_ACCOUNT_CODE,
-  apiUrlPreview: ACTIVE_API_URL ? ACTIVE_API_URL.substring(0, 30) + '...' : 'MISSING',
+  hasProductionApiUrl: !!BOBPAY_API_URL,
+  hasSandboxApiUrl: !!SANDBOX_BOBPAY_API_URL,
 });
 
 interface PaymentInitRequest {
@@ -74,13 +69,19 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const paymentData: PaymentInitRequest = await req.json();
+    const paymentData: PaymentInitRequest & { is_sandbox?: boolean } = await req.json();
+
+    // Select the correct credential set based on environment flag or request parameter override
+    const useSandbox = paymentData.is_sandbox || !IS_PRODUCTION;
+    const activeApiUrl = useSandbox ? (SANDBOX_BOBPAY_API_URL || BOBPAY_API_URL) : BOBPAY_API_URL;
+    const activeApiToken = useSandbox ? (SANDBOX_BOBPAY_API_TOKEN || BOBPAY_API_TOKEN) : BOBPAY_API_TOKEN;
+    const activeAccountCode = useSandbox ? (SANDBOX_BOBPAY_ACCOUNT_CODE || BOBPAY_ACCOUNT_CODE) : BOBPAY_ACCOUNT_CODE;
 
     // Validate required config — log exactly what is missing
     const missingConfig: string[] = [];
-    if (!ACTIVE_API_URL) missingConfig.push(IS_PRODUCTION ? 'BOBPAY_API_URL' : 'SANDBOX_BOBPAY_API_URL (or BOBPAY_API_URL)');
-    if (!ACTIVE_API_TOKEN) missingConfig.push(IS_PRODUCTION ? 'BOBPAY_API_TOKEN' : 'SANDBOX_BOBPAY_API_TOKEN (or BOBPAY_API_TOKEN)');
-    if (!ACTIVE_ACCOUNT_CODE) missingConfig.push(IS_PRODUCTION ? 'BOBPAY_ACCOUNT_CODE' : 'SANDBOX_BOBPAY_ACCOUNT_CODE (or BOBPAY_ACCOUNT_CODE)');
+    if (!activeApiUrl) missingConfig.push(useSandbox ? 'SANDBOX_BOBPAY_API_URL (or BOBPAY_API_URL)' : 'BOBPAY_API_URL');
+    if (!activeApiToken) missingConfig.push(useSandbox ? 'SANDBOX_BOBPAY_API_TOKEN (or BOBPAY_API_TOKEN)' : 'BOBPAY_API_TOKEN');
+    if (!activeAccountCode) missingConfig.push(useSandbox ? 'SANDBOX_BOBPAY_ACCOUNT_CODE (or BOBPAY_ACCOUNT_CODE)' : 'BOBPAY_ACCOUNT_CODE');
 
     if (missingConfig.length > 0) {
       const msg = `BobPay configuration missing: ${missingConfig.join(', ')}`;
@@ -99,22 +100,23 @@ Deno.serve(async (req) => {
       throw new Error('custom_payment_id is required');
     }
 
-    const baseUrl = ACTIVE_API_URL!.replace(/\/$/, '');
+    const baseUrl = activeApiUrl!.replace(/\/$/, '');
 
     console.log('[bobpay-initialize-payment] Calling BobPay:', {
       url: `${baseUrl}/payments/intents/link`,
       amount: paymentData.amount,
       custom_payment_id: paymentData.custom_payment_id,
+      useSandbox,
     });
 
     const bobpayResponse = await fetch(`${baseUrl}/payments/intents/link`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${ACTIVE_API_TOKEN}`,
+        'Authorization': `Bearer ${activeApiToken}`,
       },
       body: JSON.stringify({
-        recipient_account_code: ACTIVE_ACCOUNT_CODE,
+        recipient_account_code: activeAccountCode,
         custom_payment_id: paymentData.custom_payment_id,
         email: paymentData.email,
         mobile_number: paymentData.mobile_number || '',
@@ -186,7 +188,7 @@ Deno.serve(async (req) => {
             item_description: paymentData.item_description,
             email: paymentData.email,
             mobile_number: paymentData.mobile_number,
-            is_production: IS_PRODUCTION,
+            is_production: !useSandbox,
           },
         });
 

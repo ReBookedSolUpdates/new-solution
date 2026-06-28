@@ -50,6 +50,11 @@ const BookInfo = ({ book }: BookInfoProps) => {
           {book.condition && <Badge variant="outline">{book.condition}</Badge>}
           {isUniform && <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">Uniform</Badge>}
           {isSchoolSupply && <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">School Supply</Badge>}
+          {book.seller?.pickupEnabled && (
+            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 animate-pulse">
+              Pickup Available
+            </Badge>
+          )}
           {book.sold && <Badge variant="destructive">Sold</Badge>}
         </div>
 

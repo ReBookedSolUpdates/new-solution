@@ -14,7 +14,7 @@ import {
   Info,
   Save,
 } from "lucide-react";
-import { fetchSuggestions, fetchAddressDetails, type Suggestion } from "@/services/addressAutocompleteService";
+import { fetchSuggestions, fetchAddressDetails, isMapboxActive, type Suggestion } from "@/services/addressAutocompleteService";
 import { getBobGoLocations, type BobGoLocation } from "@/services/bobgoLocationsService";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -28,6 +28,7 @@ const PudoLocationsSection: React.FC<PudoLocationsSectionProps> = ({ onLockerSav
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
   const [locations, setLocations] = useState<BobGoLocation[]>([]);
   const [isLoadingLocations, setIsLoadingLocations] = useState(false);
   const [selectedAddress, setSelectedAddress] = useState<string | null>(null);
@@ -37,33 +38,47 @@ const PudoLocationsSection: React.FC<PudoLocationsSectionProps> = ({ onLockerSav
   const debounceTimer = useRef<NodeJS.Timeout>();
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Search for addresses
-  const handleSearch = async (value: string) => {
-    setSearchInput(value);
-
-    if (debounceTimer.current) {
-      clearTimeout(debounceTimer.current);
-    }
-
-    if (!value.trim()) {
+  // Execute address search (used by button click and auto-search)
+  const executeSearch = async () => {
+    if (!searchInput.trim()) {
       setSuggestions([]);
       setShowDropdown(false);
       return;
     }
 
-    debounceTimer.current = setTimeout(async () => {
-      try {
-        setIsSearching(true);
-        const results = await fetchSuggestions(value);
-        setSuggestions(results);
-        setShowDropdown(results.length > 0);
-      } catch (error) {
-        setSuggestions([]);
-      } finally {
-        setIsSearching(false);
-      }
-    }, 300);
+    try {
+      setIsSearching(true);
+      setHasSearched(false);
+      const results = await fetchSuggestions(searchInput);
+      setSuggestions(results);
+      setShowDropdown(results.length > 0);
+      setHasSearched(true);
+    } catch (error) {
+      setSuggestions([]);
+      setHasSearched(true);
+    } finally {
+      setIsSearching(false);
+    }
   };
+
+  // Auto-search as user types when Mapbox is active (debounced)
+  useEffect(() => {
+    if (!isMapboxActive()) return;
+    if (!searchInput.trim() || searchInput.trim().length < 3) {
+      setSuggestions([]);
+      setShowDropdown(false);
+      return;
+    }
+
+    if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    debounceTimer.current = setTimeout(() => {
+      executeSearch();
+    }, 300);
+
+    return () => {
+      if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    };
+  }, [searchInput]);
 
   // Handle address selection and fetch BobGo locations
   const handleSelectAddress = async (placeId: string, description: string) => {
@@ -213,24 +228,42 @@ const PudoLocationsSection: React.FC<PudoLocationsSectionProps> = ({ onLockerSav
           {/* Address Search Input */}
           <div className="relative" ref={dropdownRef}>
             <Label htmlFor="pudo-address-search">Search Address</Label>
-            <div className="relative mt-2">
-              <Input
-                id="pudo-address-search"
-                type="text"
-                value={searchInput}
-                onChange={(e) => handleSearch(e.target.value)}
-                placeholder="Enter an address to find nearby Pudo lockers..."
-                className="pr-10"
-              />
-              {/* Mini Loading Indicator */}
-              {isSearching && (
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                  <div className="flex gap-1">
-                    <span className="w-1.5 h-1.5 bg-book-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
-                    <span className="w-1.5 h-1.5 bg-book-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
-                    <span className="w-1.5 h-1.5 bg-book-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+            <div className="flex gap-2 mt-2">
+              <div className="relative flex-1">
+                <Input
+                  id="pudo-address-search"
+                  type="text"
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      executeSearch();
+                    }
+                  }}
+                  placeholder={isMapboxActive() ? "Start typing your address..." : "Enter an address and click Search..."}
+                  className="pr-10"
+                />
+                {/* Mini Loading Indicator */}
+                {isSearching && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                    <div className="flex gap-1">
+                      <span className="w-1.5 h-1.5 bg-book-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                      <span className="w-1.5 h-1.5 bg-book-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                      <span className="w-1.5 h-1.5 bg-book-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                    </div>
                   </div>
-                </div>
+                )}
+              </div>
+              {!isMapboxActive() && (
+                <Button
+                  type="button"
+                  onClick={executeSearch}
+                  disabled={isSearching}
+                  className="bg-book-600 hover:bg-book-700 text-white"
+                >
+                  Search
+                </Button>
               )}
             </div>
 
@@ -249,6 +282,14 @@ const PudoLocationsSection: React.FC<PudoLocationsSectionProps> = ({ onLockerSav
                     {suggestion.description}
                   </button>
                 ))}
+              </div>
+            )}
+
+            {/* No Results Message */}
+            {hasSearched && !isSearching && suggestions.length === 0 && searchInput.trim() && (
+              <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                <p className="text-sm text-amber-800 font-medium">No addresses found for "{searchInput}"</p>
+                <p className="text-xs text-amber-600 mt-1">Try a simpler search like a street name, suburb, or city name.</p>
               </div>
             )}
           </div>
@@ -428,18 +469,18 @@ const PudoLocationsSection: React.FC<PudoLocationsSectionProps> = ({ onLockerSav
             </div>
           )}
 
-          {/* No Locations Found */}
-          {selectedAddress && locations.length === 0 && !isLoadingLocations && (
-            <Alert className="bg-amber-50 border-amber-200 border-2">
-              <Info className="h-5 w-5 text-amber-600" />
-              <AlertDescription className="text-amber-900 ml-2">
-                <p className="font-bold text-sm mb-1">No Pudo lockers found in this location.</p>
-                <p className="text-xs leading-relaxed">
-                  If there are no lockers available in your area, please consider <strong>adding a door-to-door pickup address</strong> in your profile settings instead. This will allow couriers to collect directly from your home.
-                </p>
-              </AlertDescription>
-            </Alert>
-          )}
+      {/* No Locations Found */}
+      {selectedAddress && locations.length === 0 && !isLoadingLocations && (
+        <Alert className="bg-amber-50 border-amber-200 border-2">
+          <Info className="h-5 w-5 text-amber-600" />
+          <AlertDescription className="text-amber-900 ml-2">
+            <p className="font-bold text-sm mb-1">No Pudo lockers found in this location.</p>
+            <p className="text-xs leading-relaxed">
+              If there are no lockers available in your area, please consider <strong>adding a door-to-door address (pickup address for sellers, delivery address for buyers)</strong> in your profile settings instead. This will allow couriers to collect or deliver directly.
+            </p>
+          </AlertDescription>
+        </Alert>
+      )}
 
           {/* Info Alert - Show when no search has been done yet */}
           {!selectedAddress && locations.length === 0 && !isLoadingLocations && (

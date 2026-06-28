@@ -1,3 +1,5 @@
+import { EMAIL_FOOTER } from "../../shared/email-footer";
+export { EMAIL_FOOTER } from "../../shared/email-footer";
 // CENTRALIZED EMAIL STYLING SYSTEM FOR REBOOKED MARKETPLACE
 // All email templates should use these standardized styles
 
@@ -110,16 +112,6 @@ export const EMAIL_STYLES = `
     color: #3ab26f;
   }
 </style>
-`;
-
-export const EMAIL_FOOTER = `
-<div style="background: #f3fef7; color: #1f4e3d; padding: 20px; text-align: center; font-size: 12px; line-height: 1.5; margin: 30px -30px -30px -30px; border-radius: 0 0 10px 10px; border-top: 1px solid #e5e7eb;">
-  <p><strong>This is an automated message from ReBooked Solutions.</strong><br>
-  Please do not reply to this email.</p>
-  <p>For assistance, contact: <a href="mailto:support@rebookedsolutions.co.za" style="color:#3ab26f;">support@rebookedsolutions.co.za</a><br>
-  Visit us at: <a href="https://rebookedsolutions.co.za" style="color:#3ab26f;">https://rebookedsolutions.co.za</a></p>
-  <p>T&Cs apply. <em>"Pre-Loved Pages, New Adventures"</em></p>
-</div>
 `;
 
 export interface EmailTemplateData {

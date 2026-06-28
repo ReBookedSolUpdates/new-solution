@@ -12,7 +12,6 @@ import "./utils/suppressResizeObserverError";
 // Loading state manager to prevent white screens (Removed due to missing file)
 
 
-import { ThemeProvider } from "next-themes";
 import ErrorBoundary from "./components/ErrorBoundary";
 import NetworkErrorBoundary from "./components/NetworkErrorBoundary";
 import { AuthProvider } from "./contexts/AuthContext";
@@ -76,8 +75,6 @@ import ClearNotifications from "./pages/ClearNotifications";
 import RestoreBooks from "./pages/RestoreBooks";
 import BankingSetup from "./pages/BankingSetup";
 import UserProfile from "./pages/UserProfile";
-import WebhookTest from "./pages/WebhookTest";
-import { GoogleMapsProvider } from "./contexts/GoogleMapsContext";
 // import LockerSearchPage from "./pages/LockerSearchPage"; // DISABLED - Locker functionality removed
 
 
@@ -122,7 +119,11 @@ function AppRoutes() {
         <Route path="/textbooks" element={<Textbooks />} />
         <Route path="/textbooks/*" element={<Textbooks />} />
         {/* Individual book detail — SEO-friendly slug routes */}
-        <Route path="/textbook/:id" element={<BookDetails />} />
+        {/* New multi-segment SEO URLs: /textbook/{title}/{grade}/{id}, etc. */}
+        <Route path="/textbook/*" element={<BookDetails />} />
+        <Route path="/uniform/*" element={<BookDetails />} />
+        <Route path="/school-supplies/*" element={<BookDetails />} />
+        {/* Legacy single-segment routes */}
         <Route path="/school-uniform/:id" element={<BookDetails />} />
         <Route path="/supplies/:id" element={<BookDetails />} />
         {/* Legacy detail routes */}
@@ -130,7 +131,7 @@ function AppRoutes() {
         {/* Legacy redirects */}
         <Route path="/books" element={<Textbooks />} />
         <Route path="/books/:id" element={<BookDetails />} />
-        <Route path="/book/:id" element={<BookDetails />} />
+        <Route path="/book/*" element={<BookDetails />} />
         <Route
           path="/edit-book/:id"
           element={
@@ -326,7 +327,6 @@ function AppRoutes() {
         <Route path="/rebooked-business" element={<ReBookedBusiness />} />
 
         <Route path="/report" element={<Report />} />
-        <Route path="/webhook-test" element={<WebhookTest />} />
 
         {/* 404 Catch All */}
         <Route path="*" element={<Index />} />
@@ -343,17 +343,13 @@ function App() {
     <ErrorBoundary level="app">
       <NetworkErrorBoundary>
         <QueryClientProvider client={queryClient}>
-          <GoogleMapsProvider>
-            <ThemeProvider attribute="class" defaultTheme="light">
-              <AuthProvider>
-                <CartProvider>
-                  <Router>
-                    <AppRoutes />
-                  </Router>
-                </CartProvider>
-              </AuthProvider>
-            </ThemeProvider>
-          </GoogleMapsProvider>
+            <AuthProvider>
+              <CartProvider>
+                <Router>
+                  <AppRoutes />
+                </Router>
+              </CartProvider>
+            </AuthProvider>
         </QueryClientProvider>
         <Analytics />
         <SpeedInsights />

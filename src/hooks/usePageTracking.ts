@@ -63,6 +63,13 @@ async function trackPreviousPageTimeSpent(
   userId?: string
 ): Promise<void> {
   try {
+    // Guard: if a userId was passed in but no live session exists (e.g. logging out),
+    // skip the call so we don't hit RLS-blocked inserts.
+    if (userId) {
+      const { supabase } = await import("@/integrations/supabase/client");
+      const { data } = await supabase.auth.getSession();
+      if (!data?.session) return;
+    }
     await ActivityService.trackPageView(userId, path, {
       time_spent_ms: timeSpentMs,
       source: "page_navigation",

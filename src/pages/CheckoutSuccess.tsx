@@ -243,11 +243,11 @@ const CheckoutSuccess: React.FC = () => {
   };
 
   const handleViewOrders = () => {
-    navigate("/profile", { state: { tab: "orders" } });
+    navigate("/profile?tab=activity");
   };
 
   const handleContinueShopping = () => {
-    navigate("/marketplace");
+    navigate("/profile?tab=activity");
   };
 
   if (loading) {

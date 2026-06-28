@@ -81,7 +81,7 @@ export default function PasswordVerificationForm({ onVerified, onCancel }: Passw
               className={`pl-10 pr-10 h-11 rounded-lg border transition-colors ${
                 error
                   ? "border-red-300 focus:border-red-500 focus:ring-red-500"
-                  : "border-gray-200 focus:border-blue-500 focus:ring-blue-500"
+                  : "border-gray-200 focus:border-book-500 focus:ring-book-500"
               }`}
               placeholder="Enter your password"
               required
@@ -107,7 +107,7 @@ export default function PasswordVerificationForm({ onVerified, onCancel }: Passw
           <Button
             type="submit"
             disabled={isVerifying || !password.trim()}
-            className="flex-1 h-10 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg"
+            className="flex-1 h-10 bg-book-600 hover:bg-book-700 text-white font-medium rounded-lg"
           >
             {isVerifying ? (
               <>

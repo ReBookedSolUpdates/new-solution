@@ -12,6 +12,7 @@ const NotificationsNew = () => {
   const { user } = useAuth();
   const { notifications, unreadCount, isLoading, refreshNotifications } = useNotifications();
   const [displayNotifications, setDisplayNotifications] = useState<any[]>([]);
+  const hasLoadedOnce = displayNotifications.length > 0 || !isLoading;
 
   useEffect(() => {
     setDisplayNotifications(
@@ -141,7 +142,7 @@ const NotificationsNew = () => {
           </div>
         )}
 
-        {isLoading && (
+        {isLoading && !hasLoadedOnce && (
           <div className="py-20 text-center text-gray-400">
             <div className="mx-auto h-6 w-6 animate-spin rounded-full border-2 border-gray-300 border-t-book-600" />
             <p className="mt-3 text-sm">Loading notifications...</p>
