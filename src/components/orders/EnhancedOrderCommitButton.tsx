@@ -56,6 +56,7 @@ const EnhancedOrderCommitButton: React.FC<EnhancedOrderCommitButtonProps> = ({
   const [isLoadingOrder, setIsLoadingOrder] = useState(false);
   const [sellerHasNoAddress, setSellerHasNoAddress] = useState(false);
   const [selectedLocker, setSelectedLocker] = useState<BobGoLocation | null>(null);
+  const [isPickupMeetup, setIsPickupMeetup] = useState(false);
 
   // Load order details to get original pickup and delivery types
   useEffect(() => {
@@ -71,7 +72,7 @@ const EnhancedOrderCommitButton: React.FC<EnhancedOrderCommitButtonProps> = ({
       // Fetch the order to get the original pickup_type and delivery_type
       const { data: order, error } = await supabase
         .from("orders")
-        .select("pickup_type, delivery_type, pickup_address_encrypted, seller_id")
+        .select("pickup_type, delivery_type, pickup_address_encrypted, seller_id, order_type, delivery_option")
         .eq("id", orderId)
         .single();
 
@@ -82,11 +83,13 @@ const EnhancedOrderCommitButton: React.FC<EnhancedOrderCommitButtonProps> = ({
       }
 
       if (order) {
+        const isPickup = order.order_type === "pickup" || order.delivery_option === "pickup";
+        setIsPickupMeetup(isPickup);
         setPickupType((order.pickup_type || "door") as "door" | "locker");
         setDeliveryType((order.delivery_type || "door") as "door" | "locker");
 
         // Check if seller still has an address (for door pickup)
-        if (order.pickup_type === "door" || !order.pickup_type) {
+        if (!isPickup && (order.pickup_type === "door" || !order.pickup_type)) {
           // Check if pickup address exists on order
           if (!order.pickup_address_encrypted) {
             // Check seller profile for address
@@ -214,171 +217,23 @@ const EnhancedOrderCommitButton: React.FC<EnhancedOrderCommitButtonProps> = ({
       }
 
       // Send confirmation emails to buyer and seller
-      let emailsSent = false;
-      try {
-        const deliveryMethodText = orderData.delivery_type === 'locker' ? 'to your selected locker' : 'to your address';
-        const pickupMethodText = orderData.pickup_type === 'locker' ? 'from your selected locker' : 'from your address';
-
-        const items = Array.isArray(orderData.items) ? orderData.items : [];
-        const bookTitles = items.map((item: any) => item.title || "Book").join(", ");
-
-        // Email to buyer
-        const buyerEmailHtml = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>Order Confirmed - Pickup Scheduled</title>
-  <style>
-    body { font-family: Arial, sans-serif; background-color: #f3fef7; padding: 20px; color: #1f4e3d; margin: 0; }
-    .container { max-width: 500px; margin: auto; background-color: #ffffff; padding: 30px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05); }
-    .header { background: #3ab26f; color: white; padding: 20px; text-align: center; border-radius: 10px 10px 0 0; margin: -30px -30px 20px -30px; }
-    .footer { background: #f3fef7; color: #1f4e3d; padding: 20px; text-align: center; font-size: 12px; line-height: 1.5; margin: 30px -30px -30px -30px; border-radius: 0 0 10px 10px; border-top: 1px solid #e5e7eb; }
-    .info-box { background: #f3fef7; border: 1px solid #3ab26f; padding: 15px; border-radius: 5px; margin: 15px 0; }
-    .link { color: #3ab26f; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="header">
-      <h1>🎉 Order Confirmed!</h1>
-    </div>
-    <h2>Great news, ${orderData.buyer_full_name || "Buyer"}!</h2>
-    <p><strong>${orderData.seller_full_name || "Seller"}</strong> has confirmed your order and is preparing your book(s) for delivery ${deliveryMethodText}.</p>
-    <div class="info-box">
-      <h3>📚 Order Details</h3>
-      <p><strong>Order ID:</strong> ${orderId}</p>
-      <p><strong>Book(s):</strong> ${bookTitles}</p>
-      <p><strong>Seller:</strong> ${orderData.seller_full_name || "Seller"}</p>
-      <p><strong>Delivery Method:</strong> ${orderData.delivery_type === 'locker' ? 'Locker Delivery' : 'Door-to-Door'}</p>
-      <p><strong>Estimated Delivery:</strong> 2-3 business days</p>
-      ${data?.tracking_number ? `<p><strong>Tracking Number:</strong> ${data.tracking_number}</p>` : ""}
-    </div>
-    <p>Happy reading! 📖</p>
-    <div class="footer">
-      <p><strong>This is an automated message from ReBooked Solutions.</strong><br/>Please do not reply to this email.</p>
-      <p>For assistance, contact: <a href="mailto:support@rebookedsolutions.co.za" class="link">support@rebookedsolutions.co.za</a><br/>
-      Visit us at: <a href="https://rebookedsolutions.co.za" class="link">https://rebookedsolutions.co.za</a></p>
-      <p>T&Cs apply.</p>
-      <p><em>"Pre-Loved Pages, New Adventures"</em></p>
-    </div>
-  </div>
-</body>
-</html>`;
-
-        // Email to seller
-        const sellerEmailHtml = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>Order Commitment Confirmed - Prepare for Pickup</title>
-  <style>
-    body { font-family: Arial, sans-serif; background-color: #f3fef7; padding: 20px; color: #1f4e3d; margin: 0; }
-    .container { max-width: 500px; margin: auto; background-color: #ffffff; padding: 30px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05); }
-    .header { background: #3ab26f; color: white; padding: 20px; text-align: center; border-radius: 10px 10px 0 0; margin: -30px -30px 20px -30px; }
-    .footer { background: #f3fef7; color: #1f4e3d; padding: 20px; text-align: center; font-size: 12px; line-height: 1.5; margin: 30px -30px -30px -30px; border-radius: 0 0 10px 10px; border-top: 1px solid #e5e7eb; }
-    .info-box { background: #f3fef7; border: 1px solid #3ab26f; padding: 15px; border-radius: 5px; margin: 15px 0; }
-    .link { color: #3ab26f; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="header">
-      <h1>Order Commitment Confirmed!</h1>
-    </div>
-    <h2>Thank you, ${orderData.seller_full_name || "Seller"}!</h2>
-    <p>You've successfully committed to sell your book(s). The buyer has been notified and pickup has been scheduled ${pickupMethodText}.</p>
-    <div class="info-box">
-      <h3>📋 Order Details</h3>
-      <p><strong>Order ID:</strong> ${orderId}</p>
-      <p><strong>Book(s):</strong> ${bookTitles}</p>
-      <p><strong>Buyer:</strong> ${orderData.buyer_full_name || "Buyer"}</p>
-      <p><strong>Pickup Method:</strong> ${orderData.pickup_type === 'locker' ? 'Locker Pickup' : 'Door-to-Door'}</p>
-      ${data?.tracking_number ? `<p><strong>Tracking Number:</strong> ${data.tracking_number}</p>` : ""}
-    </div>
-    <p>${orderData.pickup_type === 'locker' ? 'Please drop off your package at the selected locker location.' : 'A courier will contact you within 24 hours to arrange pickup.'}</p>
-    <p>Thank you for selling with ReBooked Solutions! 📚</p>
-    <div class="footer">
-      <p><strong>This is an automated message from ReBooked Solutions.</strong><br/>Please do not reply to this email.</p>
-      <p>For assistance, contact: <a href="mailto:support@rebookedsolutions.co.za" class="link">support@rebookedsolutions.co.za</a><br/>
-      Visit us at: <a href="https://rebookedsolutions.co.za" class="link">https://rebookedsolutions.co.za</a></p>
-      <p>T&Cs apply.</p>
-      <p><em>"Pre-Loved Pages, New Adventures"</em></p>
-    </div>
-  </div>
-</body>
-</html>`;
-
-        // Send both emails
-        const emailPromises = [];
-
-        if (orderData.buyer_email) {
-          emailPromises.push(
-            supabase.functions.invoke("send-email", {
-              body: {
-                to: orderData.buyer_email,
-                subject: "Order Confirmed - Pickup Scheduled",
-                html: buyerEmailHtml,
-              },
-            })
-          );
-        }
-
-        if (orderData.seller_email) {
-          emailPromises.push(
-            supabase.functions.invoke("send-email", {
-              body: {
-                to: orderData.seller_email,
-                subject: "Order Commitment Confirmed - Prepare for Pickup",
-                html: sellerEmailHtml,
-              },
-            })
-          );
-        }
-
-        const emailResults = await Promise.all(emailPromises);
-        const allEmailsSuccessful = emailResults.every(result => !result.error && result.data?.success);
-        emailsSent = allEmailsSuccessful;
-
-        if (!emailsSent) {
-          toast.warning("Order committed, but email delivery encountered issues. Please check your inbox.", {
-            duration: 7000,
-          });
-        }
-      } catch (emailError) {
-        toast.warning("Order committed, but we couldn't send confirmation emails. We'll retry shortly.", {
-          duration: 7000,
-        });
-      }
+      // NOTE: Emails are now sent by the backend edge function only
 
       // Show success message based on pickup type
       if (pickupType === "locker") {
         toast.success("Order committed! Book will be dropped at locker.", {
           duration: 5000,
         });
-
-        if (emailsSent) {
-          toast.info(
-            "✅ Confirmation emails sent to you and the buyer.",
-            {
-              duration: 7000,
-            },
-          );
-        }
+        toast.info("Confirmation emails are being sent to you and the buyer.", {
+          duration: 6000,
+        });
       } else {
         toast.success("Order committed! Courier pickup will be scheduled automatically.", {
           duration: 5000,
         });
-
-        if (emailsSent) {
-          toast.info(
-            "✅ Confirmation emails sent to you and the buyer.",
-            {
-              duration: 7000,
-            },
-          );
-        }
+        toast.info("Confirmation emails are being sent to you and the buyer.", {
+          duration: 6000,
+        });
       }
 
       // Call success callback
@@ -544,10 +399,25 @@ const EnhancedOrderCommitButton: React.FC<EnhancedOrderCommitButtonProps> = ({
                   <div className="flex items-center justify-center py-8">
                     <Loader2 className="h-6 w-6 animate-spin text-slate-600" />
                   </div>
+                ) : isPickupMeetup ? (
+                  <div className="p-4 border-2 border-emerald-300 bg-emerald-50 rounded-lg relative">
+                    <Badge className="bg-emerald-600 text-white absolute top-3 right-3 text-[9px] px-1.5 py-0.5 font-semibold uppercase tracking-wider rounded-md">Meetup Method</Badge>
+                    <div className="flex items-start gap-3 pr-24">
+                      <div className="flex-1">
+                        <h5 className="font-semibold text-gray-900 flex items-center gap-2 text-sm sm:text-base">
+                          <MapPin className="w-4 h-4 flex-shrink-0 text-emerald-600" />
+                          In-Person Pickup (Meetup)
+                        </h5>
+                        <p className="text-sm text-gray-700 mt-2">
+                          You will meet the buyer in person to hand over the item. Coordinate meetup details in chat.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 ) : pickupType === "locker" ? (
-                  <div className="p-4 border-2 border-indigo-300 bg-indigo-50 rounded-lg">
-                    <div className="flex items-start gap-3">
-                      <Badge className="bg-indigo-600 text-white flex-shrink-0 mt-0.5">Pickup Method</Badge>
+                  <div className="p-4 border-2 border-indigo-300 bg-indigo-50 rounded-lg relative">
+                    <Badge className="bg-indigo-600 text-white absolute top-3 right-3 text-[9px] px-1.5 py-0.5 font-semibold uppercase tracking-wider rounded-md">Pickup Method</Badge>
+                    <div className="flex items-start gap-3 pr-20">
                       <div className="flex-1">
                         <h5 className="font-semibold text-gray-900 flex items-center gap-2 text-sm sm:text-base">
                           <MapPin className="w-4 h-4 flex-shrink-0 text-indigo-600" />
@@ -560,9 +430,9 @@ const EnhancedOrderCommitButton: React.FC<EnhancedOrderCommitButtonProps> = ({
                     </div>
                   </div>
                 ) : (
-                  <div className="p-4 border-2 border-blue-300 bg-blue-50 rounded-lg">
-                    <div className="flex items-start gap-3">
-                      <Badge className="bg-blue-600 text-white flex-shrink-0 mt-0.5">Pickup Method</Badge>
+                  <div className="p-4 border-2 border-blue-300 bg-blue-50 rounded-lg relative">
+                    <Badge className="bg-blue-600 text-white absolute top-3 right-3 text-[9px] px-1.5 py-0.5 font-semibold uppercase tracking-wider rounded-md">Pickup Method</Badge>
+                    <div className="flex items-start gap-3 pr-20">
                       <div className="flex-1">
                         <h5 className="font-semibold text-gray-900 flex items-center gap-2 text-sm sm:text-base">
                           <Home className="w-4 h-4 flex-shrink-0 text-blue-600" />
@@ -586,18 +456,37 @@ const EnhancedOrderCommitButton: React.FC<EnhancedOrderCommitButtonProps> = ({
               What happens next:
             </h4>
             <ul className="text-sm text-emerald-800 space-y-2">
-              <li className="flex gap-2">
-                <span className="flex-shrink-0 text-emerald-600 font-bold">1</span>
-                <span>{sellerHasNoAddress ? "Drop off your parcel at the selected locker" : "Courier pickup will be automatically scheduled"}</span>
-              </li>
-              <li className="flex gap-2">
-                <span className="flex-shrink-0 text-emerald-600 font-bold">2</span>
-                <span>You'll receive pickup details via email within 24 hours</span>
-              </li>
-              <li className="flex gap-2">
-                <span className="flex-shrink-0 text-emerald-600 font-bold">3</span>
-                <span>Payment will be processed once delivery is confirmed</span>
-              </li>
+              {isPickupMeetup ? (
+                <>
+                  <li className="flex gap-2">
+                    <span className="flex-shrink-0 text-emerald-600 font-bold">1</span>
+                    <span>Coordinate meetup time and location with the buyer in chat</span>
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="flex-shrink-0 text-emerald-600 font-bold">2</span>
+                    <span>Meet the buyer in person to hand over the item</span>
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="flex-shrink-0 text-emerald-600 font-bold">3</span>
+                    <span>Confirm handover completion in chat to initiate payment release</span>
+                  </li>
+                </>
+              ) : (
+                <>
+                  <li className="flex gap-2">
+                    <span className="flex-shrink-0 text-emerald-600 font-bold">1</span>
+                    <span>{sellerHasNoAddress ? "Drop off your parcel at the selected locker" : "Courier pickup will be automatically scheduled"}</span>
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="flex-shrink-0 text-emerald-600 font-bold">2</span>
+                    <span>You'll receive pickup details via email within 24 hours</span>
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="flex-shrink-0 text-emerald-600 font-bold">3</span>
+                    <span>Payment will be processed once delivery is confirmed</span>
+                  </li>
+                </>
+              )}
             </ul>
           </div>
 
@@ -607,7 +496,11 @@ const EnhancedOrderCommitButton: React.FC<EnhancedOrderCommitButtonProps> = ({
               <AlertCircle className="w-5 h-5 text-rose-600 flex-shrink-0 mt-0.5" />
               <div className="text-sm text-rose-800">
                 <strong className="text-rose-900 block mb-1">Important Commitment</strong>
-                <p>Once you confirm, you are obligated to fulfill this order. Failure to complete pickup may result in penalties and affect your seller rating.</p>
+                <p>
+                  {isPickupMeetup
+                    ? "Once you confirm, you are obligated to arrange the meetup and fulfill this order. Failure to complete handover within 7 days may result in order cancellation and affect your seller rating."
+                    : "Once you confirm, you are obligated to fulfill this order. Failure to complete pickup may result in penalties and affect your seller rating."}
+                </p>
               </div>
             </div>
           </div>

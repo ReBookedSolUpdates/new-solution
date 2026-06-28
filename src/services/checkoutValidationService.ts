@@ -87,15 +87,36 @@ export const getSellerCheckoutData = async (sellerId: string) => {
 
 export const getBuyerCheckoutData = async (userId: string) => {
   try {
-    // Get buyer profile with address info
-    const { data: profile, error: profileError } = await supabase
+    // Get buyer profile with address info — use maybeSingle to avoid PGRST116 throws
+    let { data: profile, error: profileError } = await supabase
       .from("profiles")
       .select("*")
       .eq("id", userId)
-      .single();
+      .maybeSingle();
 
-    if (profileError || !profile) {
-      throw new Error("User profile not found");
+    // If profile is missing (legacy user, race condition), auto-create a minimal one
+    if (!profile && !profileError) {
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      const email = authUser?.email || "";
+      const insertPayload: any = {
+        id: userId,
+        email,
+        name: authUser?.user_metadata?.name || authUser?.user_metadata?.full_name || (email ? email.split("@")[0] : "User"),
+        first_name: authUser?.user_metadata?.first_name || null,
+        last_name: authUser?.user_metadata?.last_name || null,
+        status: "active",
+      };
+      const { data: created } = await supabase
+        .from("profiles")
+        .insert(insertPayload)
+        .select("*")
+        .maybeSingle();
+      profile = created || ({ id: userId, email } as any);
+    }
+
+    if (!profile) {
+      // Last resort — return minimal so checkout can still proceed (no address)
+      profile = { id: userId, email: "" } as any;
     }
 
     // Extract address if available - prioritize encrypted address

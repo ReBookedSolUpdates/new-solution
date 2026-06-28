@@ -10,7 +10,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { User, Mail, Loader2, Camera, X } from "lucide-react";
+import { User, Loader2, Camera, X } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -25,7 +25,6 @@ const ProfileEditDialog = ({ isOpen, onClose }: ProfileEditDialogProps) => {
   const { user, profile, refreshProfile } = useAuth();
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [email, setEmail] = useState("");
   const [profilePictureUrl, setProfilePictureUrl] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -34,7 +33,6 @@ const ProfileEditDialog = ({ isOpen, onClose }: ProfileEditDialogProps) => {
     if (isOpen && profile) {
       setFirstName((profile as any)?.first_name || "");
       setLastName((profile as any)?.last_name || "");
-      setEmail(profile.email || user?.email || "");
       setProfilePictureUrl(profile.profile_picture_url || "");
     }
   }, [isOpen, profile, user]);
@@ -93,37 +91,42 @@ const ProfileEditDialog = ({ isOpen, onClose }: ProfileEditDialogProps) => {
     setIsLoading(true);
 
     try {
-      // Only update the name, not the email
+      // Update the profile with first_name and last_name
+      const fullName = `${firstName.trim()} ${lastName.trim()}`.trim();
       const { error } = await supabase
         .from("profiles")
         .update({
           first_name: firstName.trim(),
           last_name: lastName.trim(),
-          full_name: `${firstName.trim()} ${lastName.trim()}`.trim(),
-          name: `${firstName.trim()} ${lastName.trim()}`.trim(),
+          name: fullName,
           profile_picture_url: profilePictureUrl,
           updated_at: new Date().toISOString(),
         })
         .eq("id", user.id);
 
       if (error) {
-        toast.error("Failed to update profile");
+        console.error("Profile update error:", error);
+        toast.error(error.message || "Failed to update profile");
         return;
       }
 
+      // Immediately refresh the profile in context to update the display
+      await refreshProfile();
+
       toast.success("Profile updated successfully!");
 
-      // Log profile update activity
+      // Log profile update activity (non-blocking)
       try {
         await ActivityService.logProfileUpdate(user.id);
       } catch (activityError) {
+        // Non-fatal error, don't show to user
       }
 
-      // Refresh profile in context instead of reloading page
-      await refreshProfile();
+      // Close dialog after successful refresh
       onClose();
     } catch (error) {
-      toast.error("Failed to update profile");
+      console.error("Profile update exception:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to update profile");
     } finally {
       setIsLoading(false);
     }
@@ -233,30 +236,6 @@ const ProfileEditDialog = ({ isOpen, onClose }: ProfileEditDialogProps) => {
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label
-              htmlFor="email"
-              className="text-sm font-medium text-gray-600"
-            >
-              Email Address
-            </Label>
-            <div className="relative">
-              <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                className="pl-10 bg-gray-100 text-gray-600 cursor-not-allowed"
-                placeholder="Email cannot be changed"
-                disabled={true}
-                readOnly={true}
-              />
-            </div>
-            <p className="text-xs text-gray-500 mt-1">
-              For security reasons, email addresses cannot be changed. Contact
-              support if you need to update your email.
-            </p>
-          </div>
         </form>
 
         <DialogFooter>

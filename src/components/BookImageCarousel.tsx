@@ -56,13 +56,22 @@ const BookImageCarousel = ({ images }: BookImageCarouselProps) => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isLightboxOpen, currentImageIndex]);
 
+  const PLACEHOLDER = "https://images.unsplash.com/photo-1618160702438-9b02ab6515c9?w=400&h=300&fit=crop&auto=format&q=80";
+  const safeImages = images.map(img => (typeof img === 'string' && img.startsWith('blob:')) ? PLACEHOLDER : img);
+
   return (
     <>
       <div className="space-y-4">
         {/* Main Image */}
+        {/** Replace any blob: URLs with a placeholder to avoid invalid external blob references */}
+        {/** Use a lightweight placeholder image when necessary */}
+        {
+          // sanitize images
+        }
+        
         <div className="relative aspect-[3/4] bg-gray-100 rounded-lg overflow-hidden cursor-pointer group">
           <img
-            src={images[currentImageIndex]}
+            src={safeImages[currentImageIndex]}
             alt={`Book image ${currentImageIndex + 1}`}
             className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
             onClick={openLightbox}
@@ -104,7 +113,7 @@ const BookImageCarousel = ({ images }: BookImageCarouselProps) => {
                 onClick={() => setCurrentImageIndex(index)}
               >
                 <img
-                  src={image}
+                  src={safeImages[index]}
                   alt={`Thumbnail ${index + 1}`}
                   className="w-full h-full object-cover"
                 />
@@ -127,7 +136,7 @@ const BookImageCarousel = ({ images }: BookImageCarouselProps) => {
           {/* Image container */}
           <div className="flex-1 flex items-center justify-center w-full h-full overflow-hidden min-h-[300px] sm:min-h-[500px]">
             <img
-              src={images[currentImageIndex]}
+              src={safeImages[currentImageIndex]}
               alt={`Book image ${currentImageIndex + 1}`}
               className="max-w-full max-h-full object-contain"
             />

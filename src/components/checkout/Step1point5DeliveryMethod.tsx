@@ -24,15 +24,16 @@ import { BobGoLocation as PudoLocker } from "@/services/bobgoLocationsService";
 interface Step1point5DeliveryMethodProps {
   bookTitle: string;
   onSelectDeliveryMethod: (
-    method: "home" | "locker",
+    method: "home" | "locker" | "pickup",
     locker?: PudoLocker | null
   ) => void;
   onBack: () => void;
   onCancel?: () => void;
   loading?: boolean;
-  preSelectedMethod?: "home" | "locker" | null;
+  preSelectedMethod?: "home" | "locker" | "pickup" | null;
   sellerLockerData?: PudoLocker | null;
   sellerAddress?: any | null;
+  sellerPickupEnabled?: boolean;
 }
 
 const Step1point5DeliveryMethod: React.FC<Step1point5DeliveryMethodProps> = ({
@@ -44,9 +45,10 @@ const Step1point5DeliveryMethod: React.FC<Step1point5DeliveryMethodProps> = ({
   preSelectedMethod = null,
   sellerLockerData = null,
   sellerAddress = null,
+  sellerPickupEnabled = false,
 }) => {
-  console.log("[STEP1.5_METHOD] Component rendered. Pre-selected:", preSelectedMethod, "Seller Locker:", !!sellerLockerData, "Seller Address:", !!sellerAddress);
-  const [deliveryMethod, setDeliveryMethod] = useState<"home" | "locker">(preSelectedMethod || "locker");
+  console.log("[STEP1.5_METHOD] Component rendered. Pre-selected:", preSelectedMethod, "Seller Locker:", !!sellerLockerData, "Seller Address:", !!sellerAddress, "Seller Pickup Enabled:", sellerPickupEnabled);
+  const [deliveryMethod, setDeliveryMethod] = useState<"home" | "locker" | "pickup">(preSelectedMethod || "locker");
   const [selectedLocker, setSelectedLocker] = useState<PudoLocker | null>(null);
   const [savedLocker, setSavedLocker] = useState<PudoLocker | null>(null);
   const [isLoadingSavedLocker, setIsLoadingSavedLocker] = useState(true);
@@ -221,6 +223,8 @@ const Step1point5DeliveryMethod: React.FC<Step1point5DeliveryMethodProps> = ({
     console.log("[STEP1.5_METHOD] handleProceed called. Method:", deliveryMethod, "Selected Locker:", !!selectedLocker, "Saved Locker:", !!savedLocker);
     if (deliveryMethod === "home") {
       onSelectDeliveryMethod("home", null);
+    } else if (deliveryMethod === "pickup") {
+      onSelectDeliveryMethod("pickup", null);
     } else if (deliveryMethod === "locker") {
       // Prioritize selectedLocker (newly selected), fallback to savedLocker if not changing
       const lockerToUse = selectedLocker || (savedLocker && !wantToChangeLocker ? savedLocker : null);
@@ -361,6 +365,47 @@ const Step1point5DeliveryMethod: React.FC<Step1point5DeliveryMethodProps> = ({
             </div>
           </div>
         </div>
+
+        {/* In-Person Meetup/Pickup Option */}
+        {sellerPickupEnabled && (
+          <div
+            className={`p-5 sm:p-6 border-2 rounded-xl cursor-pointer transition-all shadow-sm hover:shadow-md ${
+              deliveryMethod === "pickup"
+                ? "bg-blue-50 border-blue-400 shadow-md"
+                : "bg-white border-gray-200 hover:border-blue-300"
+            }`}
+            onClick={() => {
+              setDeliveryMethod("pickup");
+              setSelectedLocker(null);
+            }}
+            role="radio"
+            aria-checked={deliveryMethod === "pickup"}
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                setDeliveryMethod("pickup");
+                setSelectedLocker(null);
+              }
+            }}
+          >
+            <div className="flex items-start gap-4">
+              <div className="mt-1 flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center"
+                style={deliveryMethod === "pickup" ? { borderColor: "#3b82f6", backgroundColor: "#3b82f6" } : { borderColor: "#d1d5db" }}>
+                {deliveryMethod === "pickup" && <div className="w-2.5 h-2.5 bg-white rounded-full"></div>}
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center gap-2 font-semibold mb-1">
+                  <MapPin className="w-5 h-5 text-blue-600 flex-shrink-0" />
+                  <span className="text-base sm:text-lg">In-Person Pickup (Meetup)</span>
+                </div>
+                <p className="text-sm sm:text-base text-gray-600 leading-relaxed">
+                  Meet the seller in person at their location.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Locker Selection Section */}

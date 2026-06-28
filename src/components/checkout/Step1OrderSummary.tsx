@@ -135,15 +135,56 @@ const Step1OrderSummary: React.FC<Step1OrderSummaryProps> = ({
       });
   }, [cartData?.sellerId]);
 
+  const [expandedIndex, setExpandedIndex] = useState<number>(0);
+
+  const renderItemDetails = (item: any) => {
+    return (
+      <div className="space-y-4">
+        {/* Full Detail Grid */}
+        <div className="bg-white rounded-lg border border-gray-100 px-4 py-3 divide-y divide-gray-50">
+          <DetailRow label="ISBN" value={item.isbn} icon={<Hash className="w-3.5 h-3.5" />} />
+          <DetailRow label="Publisher" value={item.publisher} icon={<BookOpen className="w-3.5 h-3.5" />} />
+          <DetailRow label="Language" value={item.language} icon={<Globe className="w-3.5 h-3.5" />} />
+          <DetailRow label="Curriculum" value={item.curriculum} icon={<Layers className="w-3.5 h-3.5" />} />
+          <DetailRow
+            label="Grade / Year"
+            value={item.grade || item.universityYear}
+            icon={<GraduationCap className="w-3.5 h-3.5" />}
+          />
+          <DetailRow label="School Name" value={item.school_name || item.schoolName} icon={<BookOpen className="w-3.5 h-3.5" />} />
+          <DetailRow label="Gender" value={item.gender} icon={<Tag className="w-3.5 h-3.5" />} />
+          <DetailRow label="Size" value={item.size} icon={<Tag className="w-3.5 h-3.5" />} />
+          <DetailRow label="Color" value={item.color} icon={<Tag className="w-3.5 h-3.5" />} />
+          <DetailRow label="Subject" value={item.subject} icon={<BookOpen className="w-3.5 h-3.5" />} />
+          <DetailRow label="Quantity Available" value={item.quantity || item.available_quantity || item.availableQuantity} icon={<Hash className="w-3.5 h-3.5" />} />
+          <DetailRow label="Item Type" value={item.itemType || item.item_type} icon={<Tag className="w-3.5 h-3.5" />} />
+          <DetailRow label="Province" value={item.province} icon={<Globe className="w-3.5 h-3.5" />} />
+        </div>
+
+        {/* Description */}
+        {item.description && (
+          <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
+            <div className="flex items-center gap-1.5 mb-2">
+              <FileText className="w-4 h-4 text-gray-500" />
+              <h4 className="font-semibold text-sm sm:text-base text-gray-900">Description</h4>
+            </div>
+            <p className="text-sm text-gray-700 leading-relaxed">{item.description}</p>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const isCartCheckout = cartData?.items && cartData.items.length >= 1;
 
-  const rawDetails = (book as any)?.rawDetails || {};
+  const rawDetails = (book as any)?.rawDetails || (Object.keys((book as any)?.rawDetails || {}).length === 0 ? book : {});
   const knownDetailKeys = new Set([
     'id', 'title', 'author', 'price', 'condition', 'isbn', 'image_url', 'description', 'category',
     'front_cover', 'additional_images', 'seller_id', 'seller_name', 'seller', 'rawDetails',
     'language', 'publisher', 'curriculum', 'province', 'grade', 'universityYear', 'university',
-    'schoolName', 'school_name', 'gender', 'size', 'color', 'subject', 'parcelSize', 'quantity',
+    'schoolName', 'school_name', 'gender', 'size', 'color', 'colour', 'subject', 'parcelSize', 'quantity',
     'availableQuantity', 'available_quantity', 'initialQuantity', 'soldQuantity', 'itemType', 'item_type',
+    'imageUrls', 'images', 'created_at', 'createdAt', 'status', 'sold', 'metadata'
   ]);
 
   const extraDetailEntries = Object.entries(rawDetails)
@@ -193,42 +234,70 @@ const Step1OrderSummary: React.FC<Step1OrderSummaryProps> = ({
         <CardContent className="pt-6 space-y-5">
           {isCartCheckout && cartData ? (
             <div className="space-y-4">
-              {cartData.items.map((item: any, index: number) => (
-                <div key={item.id || index} className="flex gap-4 p-4 rounded-lg bg-gray-50 border border-gray-100 hover:bg-gray-100 transition-colors">
-                  <div className="w-16 h-24 flex-shrink-0">
-                    <img
-                      src={item.imageUrl || item.image_url || "/placeholder.svg"}
-                      alt={item.title || "Item cover"}
-                      className="w-full h-full object-cover rounded-md border border-gray-200"
-                      onError={(e) => { e.currentTarget.src = "/placeholder.svg"; }}
-                    />
-                  </div>
-                  <div className="flex-1 flex flex-col justify-between py-1">
-                    <div>
-                      <h3 className="font-semibold text-sm sm:text-base text-gray-900 line-clamp-2">{item.title}</h3>
-                      <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1">
-                        {item.author && <span className="text-xs text-gray-600">by {item.author}</span>}
-                        {item.isbn && <span className="text-xs text-gray-500">ISBN: {item.isbn}</span>}
-                        {item.school_name && <span className="text-xs text-gray-500">School: {item.school_name}</span>}
-                        {item.size && <span className="text-xs text-gray-500">Size: {item.size}</span>}
+              {cartData.items.map((item: any, index: number) => {
+                const isExpanded = index === expandedIndex;
+                return (
+                  <div
+                    key={item.id || index}
+                    className="p-4 rounded-lg bg-gray-50 border border-gray-100 transition-colors space-y-4"
+                  >
+                    {/* Header/Summary row (always visible, click to toggle) */}
+                    <div
+                      className="flex gap-4 cursor-pointer hover:opacity-95"
+                      onClick={() => setExpandedIndex(isExpanded ? -1 : index)}
+                    >
+                      <div className="w-16 h-24 flex-shrink-0">
+                        <img
+                          src={item.imageUrl || item.image_url || "/placeholder.svg"}
+                          alt={item.title || "Item cover"}
+                          className="w-full h-full object-cover rounded-md border border-gray-200"
+                          onError={(e) => { e.currentTarget.src = "/placeholder.svg"; }}
+                        />
                       </div>
-                      <div className="flex gap-2 flex-wrap mt-2">
-                        {item.condition && (
-                          <Badge className={`text-[10px] px-1.5 h-4 ${conditionColor(item.condition)}`}>{item.condition}</Badge>
-                        )}
-                        {(item.item_type || item.itemType) && (
-                          <Badge className="text-[10px] px-1.5 h-4 bg-gray-100 text-gray-600 border-gray-200">
-                            {item.item_type || item.itemType}
-                          </Badge>
-                        )}
+                      <div className="flex-1 flex flex-col justify-between py-1">
+                        <div>
+                          <div className="flex justify-between items-start">
+                            <h3 className="font-semibold text-sm sm:text-base text-gray-900 line-clamp-2">{item.title}</h3>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-xs text-blue-600 hover:text-blue-700 p-1 h-auto shrink-0"
+                            >
+                              {isExpanded ? "Collapse" : "Expand"}
+                            </Button>
+                          </div>
+                          <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1">
+                            {item.author && <span className="text-xs text-gray-600">by {item.author}</span>}
+                            {item.isbn && <span className="text-xs text-gray-500">ISBN: {item.isbn}</span>}
+                            {item.school_name && <span className="text-xs text-gray-500">School: {item.school_name}</span>}
+                            {item.size && <span className="text-xs text-gray-500">Size: {item.size}</span>}
+                          </div>
+                          <div className="flex gap-2 flex-wrap mt-2">
+                            {item.condition && (
+                              <Badge className={`text-[10px] px-1.5 h-4 ${conditionColor(item.condition)}`}>{item.condition}</Badge>
+                            )}
+                            {(item.item_type || item.itemType) && (
+                              <Badge className="text-[10px] px-1.5 h-4 bg-gray-100 text-gray-600 border-gray-200">
+                                {item.item_type || item.itemType}
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                        <p className="text-base sm:text-lg font-bold text-green-600 mt-2">
+                          R{Number(item.price).toFixed(2)}
+                        </p>
                       </div>
                     </div>
-                    <p className="text-base sm:text-lg font-bold text-green-600 mt-2">
-                      R{Number(item.price).toFixed(2)}
-                    </p>
+
+                    {/* Expandable details showing everything about the item */}
+                    {isExpanded && (
+                      <div className="pt-4 border-t border-gray-200 space-y-4">
+                        {renderItemDetails(item)}
+                      </div>
+                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
               <div className="bg-blue-50 border border-blue-100 rounded-lg p-4 mt-4">
                 <div className="flex justify-between items-center">
                   <span className="font-semibold text-gray-900 text-sm sm:text-base">Total ({cartData.items.length} items):</span>
@@ -274,26 +343,29 @@ const Step1OrderSummary: React.FC<Step1OrderSummaryProps> = ({
               {/* Full Detail Grid */}
               <div className="bg-white rounded-lg border border-gray-100 px-4 py-3 divide-y divide-gray-50">
                 {/* Book-specific */}
-                <DetailRow label="ISBN" value={book.isbn} icon={<Hash className="w-3.5 h-3.5" />} />
-                <DetailRow label="Publisher" value={(book as any).publisher} icon={<BookOpen className="w-3.5 h-3.5" />} />
-                <DetailRow label="Language" value={(book as any).language} icon={<Globe className="w-3.5 h-3.5" />} />
-                <DetailRow label="Curriculum" value={(book as any).curriculum} icon={<Layers className="w-3.5 h-3.5" />} />
+                <DetailRow label="ISBN" value={book.isbn || (book as any).isbn} icon={<Hash className="w-3.5 h-3.5" />} />
+                <DetailRow label="Publisher" value={(book as any).publisher || (book as any).publisher} icon={<BookOpen className="w-3.5 h-3.5" />} />
+                <DetailRow label="Language" value={(book as any).language || (book as any).language} icon={<Globe className="w-3.5 h-3.5" />} />
+                <DetailRow label="Curriculum" value={(book as any).curriculum || (book as any).curriculum} icon={<Layers className="w-3.5 h-3.5" />} />
                 <DetailRow
                   label="Grade / Year"
-                  value={(book as any).grade || (book as any).universityYear}
+                  value={(book as any).grade || (book as any).universityYear || (book as any).university_year}
                   icon={<GraduationCap className="w-3.5 h-3.5" />}
                 />
                 {/* Uniform-specific */}
-                <DetailRow label="School Name" value={(book as any).school_name} icon={<BookOpen className="w-3.5 h-3.5" />} />
+                <DetailRow label="School Name" value={(book as any).school_name || (book as any).schoolName} icon={<BookOpen className="w-3.5 h-3.5" />} />
                 <DetailRow label="Gender" value={(book as any).gender} icon={<Tag className="w-3.5 h-3.5" />} />
                 <DetailRow label="Size" value={(book as any).size} icon={<Tag className="w-3.5 h-3.5" />} />
-                <DetailRow label="Color" value={(book as any).color} icon={<Tag className="w-3.5 h-3.5" />} />
+                <DetailRow label="Color" value={(book as any).color || (book as any).colour} icon={<Tag className="w-3.5 h-3.5" />} />
                 {/* Supply-specific */}
                 <DetailRow label="Subject" value={(book as any).subject} icon={<BookOpen className="w-3.5 h-3.5" />} />
-                <DetailRow label="Quantity Available" value={(book as any).quantity || (book as any).available_quantity} icon={<Hash className="w-3.5 h-3.5" />} />
+                <DetailRow label="Quantity Available" value={(book as any).quantity || (book as any).available_quantity || (book as any).availableQuantity} icon={<Hash className="w-3.5 h-3.5" />} />
                 {/* Shared */}
                 <DetailRow label="Item Type" value={(book as any).itemType || (book as any).item_type} icon={<Tag className="w-3.5 h-3.5" />} />
                 <DetailRow label="Province" value={(book as any).province} icon={<Globe className="w-3.5 h-3.5" />} />
+                {extraDetailEntries.map((detail) => (
+                  <DetailRow key={detail.key} label={detail.label} value={detail.value} icon={<Tag className="w-3.5 h-3.5" />} />
+                ))}
               </div>
 
               {/* Description */}

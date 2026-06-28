@@ -83,6 +83,61 @@ export class PayoutService {
           .eq("id", payoutId);
       }
 
+      // Send notifications for cash out processing
+      try {
+        const { NotificationService } = await import("@/services/notificationService");
+        await NotificationService.createNotification({
+          userId: user.id,
+          type: "wallet",
+          title: "Cash Out Processing",
+          message: `Your request to cash out R${data.amount} has been received and is being processed. It may take 1-3 business days to reflect in your account.`,
+        });
+      } catch (notifErr) {
+        console.warn("Failed to create cash out app notification:", notifErr);
+      }
+
+      try {
+        const { data: profileData } = await supabase
+          .from("profiles")
+          .select("name, first_name, last_name")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        const userName = profileData
+          ? [profileData.first_name, profileData.last_name].filter(Boolean).join(" ") || profileData.name || "there"
+          : "there";
+
+        const { EmailService } = await import("@/services/emailService");
+        const { createEmailTemplate } = await import("@/email-templates/styles");
+        const emailService = new EmailService();
+        const htmlContent = createEmailTemplate(
+          {
+            title: "Cash Out Processing",
+            headerType: "default",
+            headerText: "💸 Cash Out Request",
+            headerSubtext: "Your cash out is being processed"
+          },
+          `
+          <p>Hi ${userName},</p>
+          <p>Your request to cash out <strong>R${data.amount}</strong> from your ReBooked wallet has been received and is currently being processed.</p>
+          <div class="info-box-success">
+            <p><strong>Requested Amount:</strong> R${data.amount}</p>
+            <p><strong>Status:</strong> Processing</p>
+          </div>
+          <p>Payouts are typically processed to your registered South African bank account within 1–3 business days, provided there are no active holds or disputes on your account.</p>
+          <p>We will notify you as soon as the funds have been paid out.</p>
+          `
+        );
+
+        await emailService.sendEmail({
+          to: user.email!,
+          subject: `Cash out request processing - R${data.amount}`,
+          html: htmlContent,
+        });
+      } catch (emailErr) {
+        console.warn("Failed to send cash out email:", emailErr);
+      }
+
       return {
         success: true,
         payout_id: payoutId,

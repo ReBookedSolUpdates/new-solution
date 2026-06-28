@@ -20,6 +20,16 @@ interface PendingCommit {
   imageUrl?: string;
   condition?: string;
   buyerEmail?: string;
+  grade?: string;
+  subject?: string;
+  schoolName?: string;
+  size?: string;
+  colour?: string;
+  gender?: string;
+  province?: string;
+  isbn?: string;
+  description?: string;
+  category?: string;
 }
 
 interface UseCommitReturn {

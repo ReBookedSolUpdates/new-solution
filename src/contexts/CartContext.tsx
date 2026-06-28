@@ -6,10 +6,30 @@ import debugLogger from "@/utils/debugLogger";
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
-export const useCart = () => {
+const SAFE_DEFAULT_CART: CartContextType = {
+  items: [],
+  addToCart: () => {},
+  removeFromCart: () => {},
+  updateQuantity: () => {},
+  clearCart: () => {},
+  getTotalPrice: () => 0,
+  getTotalItems: () => 0,
+  getSellerTotals: () => ({}),
+  sellerCarts: [],
+  getCartBySeller: () => undefined,
+  removeFromSellerCart: () => {},
+  clearSellerCart: () => {},
+  getTotalCarts: () => 0,
+  getActiveCart: () => undefined,
+  setActiveCart: () => {},
+  activeCartId: null,
+};
+
+export const useCart = (): CartContextType => {
   const context = useContext(CartContext);
   if (!context) {
-    throw new Error("useCart must be used within a CartProvider");
+    // Defensive fallback during hot-reload or transient renders outside provider.
+    return SAFE_DEFAULT_CART;
   }
   return context;
 };
@@ -136,7 +156,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
       price: book.price,
       imageUrl: book.imageUrl || book.frontCover || "",
       sellerId: book.seller.id,
-      sellerName: book.seller.name || "Unknown Seller",
+      sellerName: (book.seller.full_name || book.seller.name) || "Seller",
       quantity: 1,
     };
 
@@ -146,7 +166,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({
 
     if (hasMultipleSellers || sellerCarts.length > 0) {
       // Use multi-cart system
-      addToSellerCart(book.seller.id, book.seller.name || "Unknown Seller", newItem);
+      addToSellerCart(book.seller.id, (book.seller.full_name || book.seller.name) || "Seller", newItem);
     } else {
       // Use legacy single cart
       setItems((prev) => {

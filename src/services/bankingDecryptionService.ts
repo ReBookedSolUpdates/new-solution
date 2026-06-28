@@ -58,16 +58,40 @@ export class BankingDecryptionService {
           };
         }
 
+        // Handle FunctionsHttpError (non-2xx response with a body)
+        if (error.name === "FunctionsHttpError") {
+          try {
+            const errorBody = typeof error.context === "object" ? error.context : JSON.parse(String(error.context || "{}"));
+            const detail = errorBody?.error || error.message || "Unknown server error";
+            debugLogger.error("bankingDecryptionService", "Server error detail:", detail);
+            return {
+              success: false,
+              error: detail,
+            };
+          } catch (_parseErr) {
+            // context wasn't JSON — use message directly
+          }
+        }
+
         return {
           success: false,
           error: error.message || "Failed to decrypt banking details",
         };
       }
 
-      if (!data?.success) {
+      // Guard against null / non-object responses
+      if (!data || typeof data !== "object") {
+        debugLogger.error("bankingDecryptionService", "Unexpected response shape:", data);
         return {
           success: false,
-          error: data?.error || "Failed to decrypt banking details",
+          error: "Received an unexpected response from the server. Please try again.",
+        };
+      }
+
+      if (!data.success) {
+        return {
+          success: false,
+          error: data.error || "Failed to decrypt banking details",
         };
       }
 

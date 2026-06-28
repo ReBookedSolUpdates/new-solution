@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
+import { EMAIL_FOOTER } from "../../../shared/email-footer.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -77,13 +78,6 @@ const EMAIL_STYLES = `<style>
   p { margin: 10px 0; line-height: 1.6; }
 </style>`;
 
-const EMAIL_FOOTER = `<div class="footer">
-  <p>This is an automated message from ReBooked Solutions. Please do not reply to this email.</p>
-  <p>For assistance, contact: <a href="mailto:support@rebookedsolutions.co.za" class="link">support@rebookedsolutions.co.za</a></p>
-  <p>Visit us at: <a href="https://rebookedsolutions.co.za" class="link">https://rebookedsolutions.co.za</a></p>
-  <p style="margin-top: 15px; font-style: italic;">"Pre-Loved Pages, New Adventures"</p>
-</div>`;
-
 function generateSellerCreditEmailHTML(data: {
   sellerName: string;
   bookTitle: string;
@@ -103,12 +97,12 @@ function generateSellerCreditEmailHTML(data: {
   <div class="container">
     <div class="header">
       <h1>Payment Received!</h1>
-      <p>Your book has been delivered and credit has been added</p>
+      <p>Your item has been delivered and credit has been added</p>
     </div>
 
     <p>Hello ${data.sellerName},</p>
 
-    <p><strong>Great news!</strong> Your book <strong>"${data.bookTitle}"</strong> has been successfully delivered and received by the buyer. Your payment is now available in your wallet!</p>
+    <p><strong>Great news!</strong> Your item <strong>"${data.bookTitle}"</strong> has been successfully delivered and received by the buyer. Your payment is now available in your wallet!</p>
 
     <div class="info-box-success">
       <h3 style="margin-top: 0; color: #10b981;">✅ Payment Confirmed</h3>
@@ -117,8 +111,8 @@ function generateSellerCreditEmailHTML(data: {
 
     <div class="info-box">
       <h3 style="margin-top: 0;">📋 Transaction Details</h3>
-      <p><strong>Book Title:</strong> ${data.bookTitle}</p>
-      <p><strong>Book Price:</strong> R${data.bookPrice.toFixed(2)}</p>
+      <p><strong>Item Title:</strong> ${data.bookTitle}</p>
+      <p><strong>Item Price:</strong> R${data.bookPrice.toFixed(2)}</p>
       <p><strong>Commission Rate:</strong> 10% (You keep 90%)</p>
       <p style="border-top: 1px solid #ddd; padding-top: 10px; margin-top: 10px;"><strong>Credit Added:</strong> <span style="font-size: 1.2em; color: #10b981;">R${data.creditAmount.toFixed(2)}</span></p>
       <p><strong>Order ID:</strong> ${data.orderId}</p>
@@ -131,17 +125,17 @@ function generateSellerCreditEmailHTML(data: {
 
     <h3>💡 What You Can Do Next:</h3>
     <ul>
-      <li><strong>List More Books:</strong> Add more books to your inventory and earn from sales</li>
+      <li><strong>List More Items:</strong> Add more items to your inventory and earn from sales</li>
       <li><strong>Request Payout:</strong> Once you have accumulated funds, you can request a withdrawal to your bank account</li>
       <li><strong>View Transactions:</strong> Check your wallet history anytime in your profile</li>
       <li><strong>Track Orders:</strong> Monitor all your sales and deliveries</li>
     </ul>
 
-    <h3>📊 Payment Methods:</h3>
-    <p>You have two options to receive your funds:</p>
+    <h3>📊 How Payouts Work:</h3>
+    <p>All earnings are credited to your virtual wallet. You can choose to:</p>
     <ol>
-      <li><strong>Direct Bank Transfer:</strong> If you've set up banking details, payments are sent directly to your account within 1-2 business days</li>
-      <li><strong>Wallet Credit:</strong> Funds are held in your wallet and can be used for future purchases or withdrawn anytime</li>
+      <li><strong>Use Wallet Balance:</strong> Apply your wallet funds to purchase other items on ReBooked Solutions</li>
+      <li><strong>Request Payout:</strong> Withdraw your available balance directly to your bank account at any time from your profile tab</li>
     </ol>
 
     <h3>🚀 Ready to Make More Sales?</h3>
@@ -244,7 +238,7 @@ serve(async (req) => {
     // Get order details with seller info
     const { data: order, error: orderError } = await supabase
       .from("orders")
-      .select("id, total_amount, book_id, status, delivery_status, seller_email, seller_full_name")
+      .select("id, total_amount, book_id, status, delivery_status, seller_email, seller_full_name, items")
       .eq("id", order_id)
       .single();
 
@@ -267,109 +261,64 @@ serve(async (req) => {
         JSON.stringify({
           success: false,
           error: "NO_BOOK_ID",
-          message: "Order does not have a book_id",
+          message: "Order does not have a book_id/item_id",
           order_id
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Fetch the book details to get the correct price
-    const { data: book, error: bookError } = await supabase
-      .from("books")
-      .select("id, price, title")
-      .eq("id", order.book_id)
-      .single();
+    // Helper to find item details from books, uniforms, or school_supplies tables
+    const findItem = async (itemId: string) => {
+      const tables = ['books', 'uniforms', 'school_supplies'];
+      for (const table of tables) {
+        const { data } = await supabase
+          .from(table)
+          .select("id, price, title")
+          .eq("id", itemId)
+          .maybeSingle();
+        if (data) return { data, table };
+      }
+      return { data: null, table: null };
+    };
 
-    if (bookError || !book) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: "BOOK_NOT_FOUND",
-          message: bookError?.message || "Book not found",
-          book_id: order.book_id
-        }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    const { data: itemData } = await findItem(order.book_id);
+
+    let bookPrice = 0;
+    let itemTitle = "Marketplace Item";
+
+    if (itemData) {
+      bookPrice = Number(itemData.price);
+      itemTitle = itemData.title;
+    } else {
+      console.log("⚠️ Item not found in tables, attempting fallback to orders.items metadata");
+      const orderItems = Array.isArray(order.items) ? order.items : [];
+      const orderItem = orderItems[0];
+      if (orderItem) {
+        bookPrice = Number(orderItem.price || orderItem.amount || 0);
+        itemTitle = orderItem.title || orderItem.name || "Marketplace Item";
+      }
     }
-
-
-    // Use the book's price directly
-    const bookPrice = Number(book.price);
 
     if (!bookPrice || bookPrice <= 0) {
       return new Response(
         JSON.stringify({
           success: false,
-          error: "INVALID_BOOK_PRICE",
-          message: "Book price is invalid or zero",
-          book_id: book.id,
+          error: "INVALID_ITEM_PRICE",
+          message: "Item price is invalid or zero",
+          book_id: order.book_id,
           book_price: bookPrice
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-
-    // Check if seller has active banking details
-    const { data: bankingDetails } = await supabase
-      .from("banking_subaccounts")
-      .select("id, status")
-      .eq("user_id", seller_id)
-      .eq("status", "active")
-      .single();
-
-    // If seller has active banking details, payment will be sent directly
-    if (bankingDetails) {
-      // Send bank transfer email to seller
-      const sellerEmail = order.seller_email;
-      const sellerName = order.seller_full_name || "Seller";
-
-      if (sellerEmail) {
-        try {
-          // Send bank transfer email using the send-email function
-          await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
-            },
-            body: JSON.stringify({
-              templateId: 'payment-on-the-way-bank-transfer',
-              to: sellerEmail,
-              data: {
-                sellerName: sellerName,
-                bookTitle: book.title,
-                orderId: order_id,
-              }
-            })
-          });
-        } catch (emailErr) {
-          // Log email error but don't fail the whole function
-          console.error("Failed to send bank transfer email:", emailErr);
-        }
-      }
-
-      return new Response(
-        JSON.stringify({
-          success: true,
-          message: "Seller has banking details. Payment will be sent directly to their account.",
-          order_id,
-          seller_id,
-          payment_method: "direct_bank_transfer",
-          book_price: bookPrice
-        }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // No banking details - credit wallet
-    // Call RPC with explicit numeric type cast
+    // Call RPC with explicit numeric type cast (converted to cents)
     const { data: creditResult, error: creditError } = await supabase
       .rpc('credit_wallet_on_collection', {
         p_seller_id: seller_id,
         p_order_id: order_id,
-        p_book_price: bookPrice.toString(), // Convert to string to match numeric type
+        p_book_price: Math.round(bookPrice * 100).toString(),
       });
 
     if (creditError) {
@@ -419,39 +368,42 @@ serve(async (req) => {
       );
     }
 
+    // Update order status to completed
+    await supabase
+      .from("orders")
+      .update({
+        status: "completed",
+        delivery_status: "delivered",
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", order_id);
 
-    // Get amounts from RPC result (already in rands, not cents)
-    const creditAmount = Number(rpcResult.credit_amount);
-    const newBalance = Number(rpcResult.new_balance);
+    // Get amounts from RPC result (convert cents to rands for notifications and emails)
+    const creditAmount = Number(rpcResult.credit_amount) / 100;
+    const newBalance = Number(rpcResult.new_balance) / 100;
 
     // Get seller details from order
     const sellerEmail = order.seller_email;
     const sellerName = order.seller_full_name || "Seller";
 
     if (sellerEmail) {
-
       // Create in-app notification
       try {
-        const { error: notifError } = await supabase.from("notifications").insert({
+        await supabase.from("notifications").insert({
           user_id: seller_id,
           type: "success",
           title: "💰 Payment Received!",
-          message: `Credit of R${creditAmount.toFixed(2)} has been added to your wallet for "${book.title}". New balance: R${newBalance.toFixed(2)}`
+          message: `Credit of R${creditAmount.toFixed(2)} has been added to your wallet for "${itemTitle}". New balance: R${newBalance.toFixed(2)}`
         });
-
-        if (notifError) {
-          // Failed to create notification
-        } else {
-          // Notification created
-        }
       } catch (notificationError) {
+        console.error("Failed to create app notification:", notificationError);
       }
 
       // Send email notification
       try {
         const emailHtml = generateSellerCreditEmailHTML({
           sellerName,
-          bookTitle: book.title,
+          bookTitle: itemTitle,
           bookPrice: bookPrice,
           creditAmount: creditAmount,
           orderId: order_id,
@@ -472,33 +424,28 @@ serve(async (req) => {
           },
         });
 
-        const { data: emailResult, error: emailError } = await serviceClient.functions.invoke("send-email", {
+        await serviceClient.functions.invoke("send-email", {
           body: {
             to: sellerEmail,
             subject: '💰 Payment Received - Credit Added to Your Account - ReBooked Solutions',
             html: emailHtml,
-            text: `Payment Received! Credit of R${creditAmount.toFixed(2)} has been added to your wallet for "${book.title}". New balance: R${newBalance.toFixed(2)}`,
+            text: `Payment Received! Credit of R${creditAmount.toFixed(2)} has been added to your wallet for "${itemTitle}". New balance: R${newBalance.toFixed(2)}`,
           },
         });
-
-        if (emailError) {
-          // Failed to send email
-        } else {
-          // Email sent successfully
-        }
       } catch (emailError) {
+        console.error("Failed to send credit notification email:", emailError);
       }
     }
 
     return new Response(
       JSON.stringify({
         success: true,
-        message: "Wallet credited successfully with 90% of book price",
+        message: "Wallet credited successfully with 90% of item price",
         order_id,
         seller_id,
         payment_method: "wallet_credit",
         book_price: bookPrice,
-        credit_amount: creditAmount,
+        credit_amount: creditAmount * 100, // keep response contract in cents
         percentage: "90%"
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

@@ -28,8 +28,8 @@ export const mapBookFromDatabase = (bookData: any): Book => {
 
   return {
     id: bookData.id,
-    title: bookData.title || "Unknown Title",
-    author: bookData.author || (itemType === 'uniform' ? bookData.school_name : itemType === 'school_supply' ? bookData.subject : "Unknown Author"),
+    title: bookData.title || "",
+    author: bookData.author || (itemType === 'uniform' ? bookData.school_name : itemType === 'school_supply' ? bookData.subject : ""),
     description: bookData.description || "",
     price: bookData.price || 0,
     category: bookData.category || (itemType === 'uniform' ? 'Uniform' : itemType === 'school_supply' ? 'School Supply' : "Other"),
@@ -72,10 +72,15 @@ export const mapBookFromDatabase = (bookData: any): Book => {
     soldQuantity: bookData.sold_quantity ?? undefined,
     seller: {
       id: bookData.seller_id,
-      name: (profile && (profile as any).name) || `User ${bookData.seller_id.slice(0, 8)}`,
+      full_name: profile ? [profile.first_name, profile.last_name].filter(Boolean).join(" ") || (profile as any).name || "" : "",
+      name:
+        profile
+          ? [profile.first_name, profile.last_name].filter(Boolean).join(" ") || (profile as any).name || profile.email?.split("@")[0] || ""
+          : "",
       email: profile?.email || "",
       createdAt: (profile as any)?.created_at || undefined,
       is_away: !!(profile as any)?.is_away,
+      pickupEnabled: !!profile?.pickup_enabled,
     },
   };
 };

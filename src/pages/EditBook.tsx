@@ -93,7 +93,7 @@ const EditBook = () => {
         setIsLoading(true);
         setError(null);
 
-        const bookData = await getBookById(bookId);
+        const bookData = await getBookById(bookId, 'book');
 
         if (bookData) {
           if (bookData.seller.id !== user.id) {

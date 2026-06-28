@@ -21,7 +21,14 @@ export const useBookDetails = (bookId: string | undefined) => {
     setError(null);
 
     try {
-      const bookData = await getBookById(bookId);
+      // Derive a hint from the current path so we only query the correct table
+      const path = typeof window !== 'undefined' ? window.location.pathname : '';
+      let hinted: 'book' | 'uniform' | 'school_supply' | undefined;
+      if (path.includes('/supplies/') || path.includes('/supplies')) hinted = 'school_supply';
+      else if (path.includes('/uniform') || path.includes('/edit-uniform') || path.includes('/uniforms')) hinted = 'uniform';
+      else hinted = undefined;
+
+      const bookData = await getBookById(bookId, hinted);
 
       if (!bookData) {
         setError("Book not found");
@@ -110,7 +117,7 @@ export const useBookDetails = (bookId: string | undefined) => {
         price: book.price,
         imageUrl: book.frontCover || book.imageUrl,
         sellerId: book.seller?.id || "",
-        sellerName: book.seller?.name || "Unknown Seller",
+        sellerName: book.seller?.name || "Seller",
       });
       toast.success("Book added to cart");
     }

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import BackButton from "@/components/ui/BackButton";
 import { useCart } from "@/contexts/CartContext";
@@ -19,6 +19,7 @@ import SEO from "@/components/SEO";
 import { generateBookSEO } from "@/utils/seoUtils";
 import { useBookDetails } from "@/hooks/useBookDetails";
 import { extractBookId } from "@/utils/bookUtils";
+import { extractListingId, buildItemListingUrl } from "@/utils/itemListingUrl";
 import { toast } from "sonner";
 import { ActivityService } from "@/services/activityService";
 import { toggleWishlistItem, getWishlistIds } from "@/services/wishlistService";
@@ -29,7 +30,10 @@ import { emailService } from "@/services/emailService";
 import { sendSellerAwayNotificationEmail } from "@/email-templates";
 
 const BookDetails = () => {
-  const { id } = useParams<{ id: string }>();
+  const params = useParams<{ id?: string; '*'?: string }>();
+  const location = useLocation();
+  // Support both legacy /:id routes and new /textbook/{title}/{grade}/{id} wildcard routes
+  const id = params.id || extractListingId(params['*'] || location.pathname);
   const navigate = useNavigate();
   const { user, isAdmin } = useAuth();
   const { addToCart } = useCart();
@@ -50,6 +54,23 @@ const BookDetails = () => {
   }, [id, navigate]);
 
   const { book, isLoading, error } = useBookDetails(id || "");
+
+  // Canonicalize: if the current URL doesn't match the canonical for this item, redirect.
+  useEffect(() => {
+    if (!book) return;
+    const canonical = buildItemListingUrl({
+      id: book.id,
+      title: book.title,
+      author: (book as any).author,
+      itemType: (book as any).itemType,
+      grade: (book as any).grade,
+      universityYear: (book as any).universityYear,
+      schoolName: (book as any).schoolName,
+    });
+    if (location.pathname !== canonical) {
+      navigate(canonical, { replace: true });
+    }
+  }, [book, location.pathname, navigate]);
 
   useEffect(() => {
     const loadWishlistState = async () => {
@@ -225,7 +246,7 @@ const BookDetails = () => {
       setIsWishlisted(nowWishlisted);
       toast.success(nowWishlisted ? "Added to wishlist" : "Removed from wishlist");
       if (nowWishlisted && book.seller?.is_away && user.email) {
-        const buyerName = user.full_name || user.email;
+        const buyerName = (user.user_metadata?.full_name as string) || user.email;
         const sellerName = book.seller?.name || book.seller?.email || "Seller";
         const listingUrl = `${window.location.origin}/books/${book.id}`;
 
@@ -377,6 +398,7 @@ const BookDetails = () => {
               seller={book.seller}
               onViewProfile={handleViewSellerProfile}
               bookId={book.id}
+              itemType={(book as any).item_type || "book"}
             />
 
             {!isOwner && (

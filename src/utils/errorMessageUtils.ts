@@ -30,6 +30,10 @@ export function getSafeErrorMessage(
     if (error === "[object Object]" || error.trim() === "") {
       return fallback;
     }
+    const lowerError = error.toLowerCase();
+    if (lowerError.includes("edge function error") || lowerError.includes("edge function") || lowerError.includes("functions/v1/")) {
+      return "We encountered a temporary connection issue. Please try again shortly.";
+    }
     return error;
   }
 
@@ -51,6 +55,10 @@ export function getSafeErrorMessage(
         candidate.trim() !== "" &&
         candidate !== "[object Object]"
       ) {
+        const lowerCand = candidate.toLowerCase();
+        if (lowerCand.includes("edge function error") || lowerCand.includes("edge function") || lowerCand.includes("functions/v1/")) {
+          return "We encountered a temporary connection issue. Please try again shortly.";
+        }
         return candidate;
       }
     }

@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
+import { EMAIL_FOOTER } from "../../../shared/email-footer.ts";
 import { crypto } from 'https://deno.land/std@0.177.0/crypto/mod.ts';
 
 const corsHeaders = {
@@ -343,12 +344,15 @@ Deno.serve(async (req) => {
         .update({
           status: 'pending_commit',
           payment_status: 'paid',
-          payment_confirmed_at: new Date().toISOString(),
+          paid_at: new Date().toISOString(),
           commit_deadline: commitDeadlineIso,
           payment_data: webhookData,
           updated_at: new Date().toISOString(),
         })
         .eq('id', orders.id);
+      if (updateError) {
+        console.error('❌ Failed to set order to pending_commit:', updateError);
+      }
 
       // STEP 3: Notifications
       await Promise.all([
@@ -413,13 +417,22 @@ Deno.serve(async (req) => {
       const paymentReference = orders.payment_reference || orders.paystack_reference || webhookData.custom_payment_id;
       const commitDeadlineText = new Date(commitDeadlineIso).toLocaleString('en-ZA', { year: 'numeric', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' });
 
-      const FOOTER = `
-        <div style="margin-top:32px;padding-top:20px;border-top:2px solid #3ab26f;text-align:center;font-size:12px;color:#4e7a63;">
-          <p style="margin:4px 0;font-weight:bold;color:#3ab26f;">ReBooked Solutions</p>
-          <p style="margin:4px 0;">support@rebookedsolutions.co.za | rebookedsolutions.co.za</p>
-          <p style="margin:4px 0;font-style:italic;">"Pre-Loved Pages, New Adventures"</p>
-          <p style="margin:8px 0 0;font-size:11px;color:#9ca3af;">This is an automated message. Please do not reply. © ${new Date().getFullYear()} ReBooked Solutions.</p>
-        </div>`;
+      let itemImageUrl = "";
+      if (bookId) {
+        const table = await findItemTable(supabaseClient, bookId);
+        if (table) {
+          const { data: itemData } = await supabaseClient
+            .from(table)
+            .select('image_url')
+            .eq('id', bookId)
+            .maybeSingle();
+          if (itemData?.image_url) {
+            itemImageUrl = itemData.image_url;
+          }
+        }
+      }
+
+      const FOOTER = EMAIL_FOOTER;
 
       if (buyerEmail && supabaseUrl && supabaseServiceKey) {
         const buyerEmailHtml = `
@@ -435,8 +448,9 @@ Deno.serve(async (req) => {
                 <h3 style="margin:0 0 12px;color:#1f4e3d;font-size:14px;">🧾 Receipt</h3>
                 <table style="width:100%;border-collapse:collapse;font-size:13px;">
                   <tr><td style="padding:4px 0;color:#6b7280;font-weight:600;width:40%;">Item</td><td style="padding:4px 0;">${bookTitle}</td></tr>
+                  ${itemImageUrl ? `<tr><td style="padding:4px 0;color:#6b7280;font-weight:600;">Photo</td><td style="padding:4px 0;"><img src="${itemImageUrl}" alt="${bookTitle}" style="width: 80px; height: auto; border-radius: 4px;" /></td></tr>` : ''}
                   <tr><td style="padding:4px 0;color:#6b7280;font-weight:600;">Seller</td><td style="padding:4px 0;">${sellerName}</td></tr>
-                  <tr><td style="padding:4px 0;color:#6b7280;font-weight:600;">Order ID</td><td style="padding:4px 0;font-family:monospace;font-size:11px;">${orders.id}</td></tr>
+                  <tr><td style="padding:4px 0;color:#6b7280;font-weight:600;">Order ID</td><td style="padding:4px 0;font-family:monospace;font-size:11px;">${orders.order_id || orders.id}</td></tr>
                   <tr><td style="padding:4px 0;color:#6b7280;font-weight:600;">Payment Reference</td><td style="padding:4px 0;font-family:monospace;font-size:11px;">${paymentReference}</td></tr>
                   <tr><td style="padding:4px 0;color:#6b7280;font-weight:600;">Total Paid</td><td style="padding:4px 0;font-weight:bold;color:#3ab26f;">R${webhookData.paid_amount.toFixed(2)}</td></tr>
                   <tr><td style="padding:4px 0;color:#6b7280;font-weight:600;">Seller Commit Deadline</td><td style="padding:4px 0;">${commitDeadlineText}</td></tr>
@@ -481,8 +495,9 @@ Deno.serve(async (req) => {
                 <h3 style="margin:0 0 12px;color:#1f4e3d;font-size:14px;">📋 Sale Details</h3>
                 <table style="width:100%;border-collapse:collapse;font-size:13px;">
                   <tr><td style="padding:4px 0;color:#6b7280;font-weight:600;width:40%;">Item</td><td style="padding:4px 0;">${bookTitle}</td></tr>
+                  ${itemImageUrl ? `<tr><td style="padding:4px 0;color:#6b7280;font-weight:600;">Photo</td><td style="padding:4px 0;"><img src="${itemImageUrl}" alt="${bookTitle}" style="width: 80px; height: auto; border-radius: 4px;" /></td></tr>` : ''}
                   <tr><td style="padding:4px 0;color:#6b7280;font-weight:600;">Buyer</td><td style="padding:4px 0;">${buyerName}</td></tr>
-                  <tr><td style="padding:4px 0;color:#6b7280;font-weight:600;">Order ID</td><td style="padding:4px 0;font-family:monospace;font-size:11px;">${orders.id}</td></tr>
+                  <tr><td style="padding:4px 0;color:#6b7280;font-weight:600;">Order ID</td><td style="padding:4px 0;font-family:monospace;font-size:11px;">${orders.order_id || orders.id}</td></tr>
                 </table>
               </div>
               <p style="font-size:13px;"><strong>Steps to confirm:</strong><br/>

@@ -97,7 +97,7 @@ Thank you for using ReBooked Solutions!
 Best regards,
 The ReBooked Solutions Team
 
-"Pre-Loved Pages, New Adventures"
+"Books · Uniforms · Everything In Between"
   `;
 
   return { subject, html, text };

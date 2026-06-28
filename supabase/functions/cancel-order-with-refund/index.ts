@@ -106,6 +106,72 @@ serve(async (req) => {
       );
     }
 
+    if (order.order_type === 'pickup') {
+      const actor =
+        cancelled_by ||
+        (order.buyer_id === user?.id ? "buyer" : order.seller_id === user?.id ? "seller" : "admin");
+      const reviewReason = reason || 'Pickup order cancellation/dispute requested';
+
+      await supabase
+        .from('orders')
+        .update({
+          pickup_status: 'disputed',
+          cancellation_reason: `${reviewReason} - manual review required`,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', order_id);
+
+      await supabase.from('order_activity_log').insert({
+        order_id,
+        user_id: user?.id || order.buyer_id || order.seller_id,
+        activity_type: 'pickup_manual_review_requested',
+        description: 'Pickup order cancellation/dispute requested. Manual admin review required; no automatic refund or wallet credit was issued.',
+        metadata: {
+          order_type: 'pickup',
+          pickup_status: 'disputed',
+          actor,
+          reason: reviewReason,
+          refund_automated: false,
+          shipment_cancelled: false,
+        },
+      });
+
+      try {
+        await supabase.from('order_notifications').insert([
+          {
+            order_id,
+            user_id: order.buyer_id,
+            type: 'pickup_review_required',
+            title: 'Pickup Review Requested',
+            message: 'This pickup order has been sent to ReBooked support for manual review. No automatic refund has been issued.',
+          },
+          {
+            order_id,
+            user_id: order.seller_id,
+            type: 'pickup_review_required',
+            title: 'Pickup Review Requested',
+            message: 'This pickup order has been sent to ReBooked support for manual review. No automatic refund has been issued.',
+          },
+        ]);
+      } catch {
+        // Non-blocking.
+      }
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: 'Pickup order flagged for manual review. No automatic refund or shipment cancellation was performed.',
+          data: {
+            order_id,
+            pickup_status: 'disputed',
+            refund_processed: false,
+            shipment_cancelled: false,
+            manual_review_required: true,
+          },
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
+      );
+    }
     // Shipment status guard: track shipment before allowing cancellation.
     let liveShipmentStatus = order.delivery_status || "";
     if (order.tracking_number || order.id) {
@@ -139,7 +205,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({
           success: false,
-          error: "Order cannot be cancelled — item is already in transit",
+          error: "this order has already been collected and can no longer be cancelled — contact support",
         }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
@@ -178,49 +244,71 @@ serve(async (req) => {
       }
     }
 
-    // STEP 2: Process refund with BobPay
+    // STEP 2: Process refund with BobPay (if cash was paid)
     let refundProcessed = false;
     let refundId = null;
-    let refundAmount = null;
+    let refundAmount = 0;
 
-    try {
-      const refundUrl = `${SUPABASE_URL}/functions/v1/bobpay-refund`;
+    const isFullyWalletPaid = order.wallet_deducted_amount && order.wallet_deducted_amount >= order.amount;
 
-      const refundResponse = await fetch(refundUrl, {
-        method: 'POST',
-        headers: {
-          'Authorization': isServiceRoleRequest ? `Bearer ${SUPABASE_SERVICE_KEY}` : authHeader!,
-          'Content-Type': 'application/json',
-          'apikey': SUPABASE_ANON_KEY,
-        },
-        body: JSON.stringify({
-          order_id: order_id,
-          reason: reason || 'Order cancelled by user',
-        }),
-      });
+    if (!isFullyWalletPaid) {
+      try {
+        const refundUrl = `${SUPABASE_URL}/functions/v1/bobpay-refund`;
 
-      const refundResult = await refundResponse.json();
+        const refundResponse = await fetch(refundUrl, {
+          method: 'POST',
+          headers: {
+            'Authorization': isServiceRoleRequest ? `Bearer ${SUPABASE_SERVICE_KEY}` : authHeader!,
+            'Content-Type': 'application/json',
+            'apikey': SUPABASE_ANON_KEY,
+          },
+          body: JSON.stringify({
+            order_id: order_id,
+            reason: reason || 'Order cancelled by user',
+          }),
+        });
 
-      if (refundResponse.ok && refundResult.success) {
-        refundProcessed = true;
-        refundId = refundResult.data?.refund_id;
-        refundAmount = refundResult.data?.amount;
-      } else {
-        throw new Error(refundResult.error || 'Refund processing failed');
+        const refundResult = await refundResponse.json();
+
+        if (refundResponse.ok && refundResult.success) {
+          refundProcessed = true;
+          refundId = refundResult.data?.refund_id;
+          refundAmount = Number(refundResult.data?.amount || 0);
+        } else {
+          throw new Error(refundResult.error || 'Refund processing failed');
+        }
+      } catch (error: any) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: `Refund failed: ${error.message}`,
+            shipment_cancelled: shipmentCancelled,
+            shipment_cancel_error: shipmentCancelError,
+          }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
       }
-    } catch (error: any) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: `Refund failed: ${error.message}`,
-          shipment_cancelled: shipmentCancelled,
-          shipment_cancel_error: shipmentCancelError,
-        }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    } else {
+      refundProcessed = true;
     }
 
-    // STEP 3: Update order status (should be done by refund function, but ensure it's done)
+    // STEP 2.5: Process wallet refund if applicable
+    if (order.wallet_deducted_amount && order.wallet_deducted_amount > 0) {
+      console.log(`Refunding wallet deduction of ${order.wallet_deducted_amount} cents to buyer ${order.buyer_id}`);
+      const { error: walletError } = await supabase.rpc("credit_wallet_on_refund", {
+        p_user_id: order.buyer_id,
+        p_amount: order.wallet_deducted_amount,
+        p_order_id: order.id,
+        p_reason: `Refund for cancelled order ${order.order_id}`
+      });
+      if (walletError) {
+        console.error("❌ Failed to refund wallet amount:", walletError);
+      } else {
+        refundAmount += (order.wallet_deducted_amount / 100);
+      }
+    }
+
+    // STEP 3: Update order status
     const { error: updateError } = await supabase
       .from('orders')
       .update({
@@ -352,3 +440,5 @@ serve(async (req) => {
     );
   }
 });
+
+

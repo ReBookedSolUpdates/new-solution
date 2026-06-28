@@ -35,6 +35,7 @@ import { supabase } from "@/integrations/supabase/client";
 import PudoLockerSelector from "@/components/checkout/BobGoLockerSelector";
 import { ParcelSizeKey } from "@/constants/parcelSizes";
 import { cn } from "@/lib/utils";
+import { validateSchoolName, SOUTH_AFRICAN_SCHOOLS } from "@/constants/schoolNames";
 
 // ─── Initial States ───────────────────────────────────────────────────────────
 const initialBookForm: BookFormData = {
@@ -290,7 +291,15 @@ const CreateListing = () => {
       if (!uniformFormData.quantity || uniformFormData.quantity < 1) newErrors.quantity = "Quantity must be at least 1";
       if (!uniformFormData.parcelSize) newErrors.parcelSize = "Please select the parcel size for this item";
       if (!uniformFormData.province) newErrors.province = "Province is required";
-      if (!itemImages.frontCover) newErrors.frontCover = "At least one photo is required";
+      const uSchool = (uniformFormData.schoolName || '').trim();
+      if (!uSchool) newErrors.schoolName = "School name is required";
+      else if (!SOUTH_AFRICAN_SCHOOLS.includes(uSchool)) {
+        const err = validateSchoolName(uSchool);
+        if (err) newErrors.schoolName = err;
+      }
+      if (!itemImages.frontCover) newErrors.frontCover = "Front view photo is required";
+      if (!itemImages.backCover) newErrors.backCover = "Back view photo is required";
+      if (!itemImages.insidePages) newErrors.insidePages = "Label / tag photo is required";
     }
 
     if (activeCategory === "school_supply") {
@@ -301,7 +310,15 @@ const CreateListing = () => {
       if (!supplyFormData.quantity || supplyFormData.quantity < 1) newErrors.quantity = "Quantity must be at least 1";
       if (!supplyFormData.parcelSize) newErrors.parcelSize = "Please select the parcel size for this item";
       if (!supplyFormData.province) newErrors.province = "Province is required";
-      if (!itemImages.frontCover) newErrors.frontCover = "At least one photo is required";
+      const sSchool = (supplyFormData.schoolName || '').trim();
+      if (!sSchool) newErrors.schoolName = "School name is required";
+      else if (!SOUTH_AFRICAN_SCHOOLS.includes(sSchool)) {
+        const err = validateSchoolName(sSchool);
+        if (err) newErrors.schoolName = err;
+      }
+      if (!itemImages.frontCover) newErrors.frontCover = "Main photo is required";
+      if (!itemImages.backCover) newErrors.backCover = "Detail shot is required";
+      if (!itemImages.insidePages) newErrors.insidePages = "Contents photo is required";
     }
 
     setErrors(newErrors);
@@ -365,57 +382,119 @@ const CreateListing = () => {
         await handlePostListingFlow();
 
       } else if (activeCategory === "uniform") {
-        // Insert directly
+        // Guard: do not persist blob: preview URLs into the DB
+        const hasBlob = [itemImages.frontCover, itemImages.backCover, itemImages.insidePages, itemImages.extra1, itemImages.extra2].some(u => typeof u === 'string' && u.startsWith('blob:'));
+        if (hasBlob) throw new Error('One or more images are not uploaded yet. Please wait for uploads to complete before listing.');
         const province = uniformFormData.province || null;
+        const additionalImages = [itemImages.backCover, itemImages.insidePages, itemImages.extra1, itemImages.extra2].filter(Boolean);
 
-        const { error } = await supabase.from("uniforms").insert([{
-          seller_id: user.id,
-          title: uniformFormData.title,
-          description: uniformFormData.description,
-          price: uniformFormData.price,
-          condition: uniformFormData.condition,
-          quantity: uniformFormData.quantity || 1,
-          parcel_size: uniformFormData.parcelSize,
-          school_name: uniformFormData.schoolName || null,
-          gender: uniformFormData.gender || null,
-          size: uniformFormData.size || null,
-          color: uniformFormData.color || null,
-          grade: uniformFormData.grade || null,
-          image_url: itemImages.frontCover,
-          additional_images: [itemImages.backCover, itemImages.insidePages, itemImages.extra1, itemImages.extra2].filter(Boolean),
-          province,
-          initial_quantity: uniformFormData.quantity || 1,
-          available_quantity: uniformFormData.quantity || 1,
-          sold_quantity: 0,
-        }]);
+        // Insert and return the created row so we have its real id for Relay
+        const { data: createdUniform, error } = await supabase
+          .from("uniforms")
+          .insert([{
+            seller_id: user.id,
+            title: uniformFormData.title,
+            description: uniformFormData.description,
+            price: uniformFormData.price,
+            condition: uniformFormData.condition,
+            quantity: uniformFormData.quantity || 1,
+            parcel_size: uniformFormData.parcelSize,
+            school_name: uniformFormData.schoolName || null,
+            gender: uniformFormData.gender || null,
+            size: uniformFormData.size || null,
+            color: uniformFormData.color || null,
+            grade: uniformFormData.grade || null,
+            image_url: itemImages.frontCover,
+            additional_images: additionalImages,
+            province,
+            initial_quantity: uniformFormData.quantity || 1,
+            available_quantity: uniformFormData.quantity || 1,
+            sold_quantity: 0,
+          }])
+          .select("*")
+          .single();
 
-        if (error) throw new Error(error.message);
+        if (error || !createdUniform) throw new Error(error?.message || "Failed to create uniform listing");
+
+        // Forward listing to Relay webhook (non-blocking, fire-and-forget)
+        void (async () => {
+          try {
+            const { sendListingToRelay } = await import("@/utils/relayAddListing");
+            await sendListingToRelay({
+              ...createdUniform,
+              item_type: "uniform",
+              additional_images: createdUniform.additional_images || additionalImages,
+            });
+          } catch (relayError) {
+            console.warn("[CreateListing] relay forward failed (uniform):", relayError);
+          }
+        })();
+
+        try {
+          await NotificationService.createNotification({
+            userId: user.id,
+            type: 'listing',
+            title: 'Item Listed Successfully!',
+            message: `Your uniform "${uniformFormData.title}" has been listed successfully.`,
+          });
+        } catch {}
+
         toast.success("Your uniform has been listed successfully!", { duration: 5000 });
         setShowShareProfileDialog(true);
 
       } else if (activeCategory === "school_supply") {
+        const hasBlob = [itemImages.frontCover, itemImages.backCover, itemImages.insidePages, itemImages.extra1, itemImages.extra2].some(u => typeof u === 'string' && u.startsWith('blob:'));
+        if (hasBlob) throw new Error('One or more images are not uploaded yet. Please wait for uploads to complete before listing.');
         const province = supplyFormData.province || null;
+        const additionalImages = [itemImages.backCover, itemImages.insidePages, itemImages.extra1, itemImages.extra2].filter(Boolean);
 
-        const { error } = await supabase.from("school_supplies").insert([{
-          seller_id: user.id,
-          title: supplyFormData.title,
-          description: supplyFormData.description,
-          price: supplyFormData.price,
-          condition: supplyFormData.condition,
-          quantity: supplyFormData.quantity || 1,
-          parcel_size: supplyFormData.parcelSize,
-          subject: supplyFormData.subject || null,
-          grade: supplyFormData.grade || null,
-          school_name: supplyFormData.schoolName || null,
-          image_url: itemImages.frontCover,
-          additional_images: [itemImages.backCover, itemImages.insidePages, itemImages.extra1, itemImages.extra2].filter(Boolean),
-          province,
-          initial_quantity: supplyFormData.quantity || 1,
-          available_quantity: supplyFormData.quantity || 1,
-          sold_quantity: 0,
-        }]);
+        const { data: createdSupply, error } = await supabase
+          .from("school_supplies")
+          .insert([{
+            seller_id: user.id,
+            title: supplyFormData.title,
+            description: supplyFormData.description,
+            price: supplyFormData.price,
+            condition: supplyFormData.condition,
+            quantity: supplyFormData.quantity || 1,
+            parcel_size: supplyFormData.parcelSize,
+            subject: supplyFormData.subject || null,
+            grade: supplyFormData.grade || null,
+            school_name: supplyFormData.schoolName || null,
+            image_url: itemImages.frontCover,
+            additional_images: additionalImages,
+            province,
+            initial_quantity: supplyFormData.quantity || 1,
+            available_quantity: supplyFormData.quantity || 1,
+            sold_quantity: 0,
+          }])
+          .select("*")
+          .single();
 
-        if (error) throw new Error(error.message);
+        if (error || !createdSupply) throw new Error(error?.message || "Failed to create school supply listing");
+
+        void (async () => {
+          try {
+            const { sendListingToRelay } = await import("@/utils/relayAddListing");
+            await sendListingToRelay({
+              ...createdSupply,
+              item_type: "school_supply",
+              additional_images: createdSupply.additional_images || additionalImages,
+            });
+          } catch (relayError) {
+            console.warn("[CreateListing] relay forward failed (supply):", relayError);
+          }
+        })();
+
+        try {
+          await NotificationService.createNotification({
+            userId: user.id,
+            type: 'listing',
+            title: 'Item Listed Successfully!',
+            message: `Your school supply "${supplyFormData.title}" has been listed successfully.`,
+          });
+        } catch {}
+
         toast.success("Your school supply has been listed successfully!", { duration: 5000 });
         setShowShareProfileDialog(true);
       }

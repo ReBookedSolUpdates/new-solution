@@ -3,6 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="google-site-verification" content="E0P16yBGkHipOCxsD6Ec0Bqh4RX_w-1aDMGgwRrWdJ0" />
 
     <!-- Comprehensive Content Security Policy -->
   <meta
@@ -16,7 +17,6 @@
       https://fundingchoicesmessages.google.com
       https://googleads.g.doubleclick.net
       https://tpc.googlesyndication.com
-      https://js.paystack.co
       https://cdn.gpteng.co
       https://cdn.builder.io
       https://vercel.live
@@ -27,8 +27,7 @@
 
     style-src 'self' 'unsafe-inline'
       https://fonts.googleapis.com
-      https://cdn.builder.io
-      https://paystack.com;
+      https://cdn.builder.io;
 
     font-src 'self'
       https://fonts.gstatic.com
@@ -46,7 +45,6 @@
     media-src 'self' data: blob: https:;
 
     frame-src 'self'
-      https://checkout.paystack.com
       https://www.google.com
       https://fundingchoicesmessages.google.com
       https://googleads.g.doubleclick.net
@@ -58,8 +56,6 @@
       wss://*.supabase.co
       https://kbpjqzaqbqukutflwixf.supabase.co
       wss://kbpjqzaqbqukutflwixf.supabase.co
-      https://api.paystack.co
-      https://js.paystack.co
       https://cdn.gpteng.co
       https://cdn.builder.io
       https://www.googletagmanager.com
@@ -78,7 +74,7 @@
     worker-src 'self' blob:;
     object-src 'none';
     base-uri 'self';
-    form-action 'self' https://checkout.paystack.com;
+    form-action 'self';
   "
 />
 
@@ -86,7 +82,7 @@
     <meta name="description" content="ReBooked Solutions - Your secure platform for buying and selling used school supplies, uniforms, sports gear, and textbooks">
     <meta name="author" content="ReBooked Solutions" />
     <!-- Favicon configuration -->
-    <link rel="icon" type="image/svg+xml" href="/rebooked-solutions-logo.svg">
+    <link rel="icon" type="image/webp" href="/favicon.webp">
     <link rel="manifest" href="/manifest.json" />
 
     
@@ -111,8 +107,6 @@
     <link rel="preconnect" href="https://images.unsplash.com" crossorigin />
     <link rel="dns-prefetch" href="https://kbpjqzaqbqukutflwixf.supabase.co" />
     <link rel="preconnect" href="https://kbpjqzaqbqukutflwixf.supabase.co" crossorigin />
-    <link rel="dns-prefetch" href="https://js.paystack.co" />
-    <link rel="preconnect" href="https://js.paystack.co" crossorigin />
 
 
     <!-- Google tag (gtag.js) -->
@@ -201,12 +195,6 @@
           true
         );
 
-        // Register service worker for error blocking only if needed
-        if ("serviceWorker" in navigator) {
-          navigator.serviceWorker.register("/error-block-sw.js").catch(() => {
-            // Silently fail if service worker is not available
-          });
-        }
       })();
     </script>
     <meta property="og:title" content="ReBooked Solutions - Buy and Sell School Supplies Securely">

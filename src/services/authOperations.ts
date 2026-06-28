@@ -1,4 +1,5 @@
 import { User } from "@supabase/supabase-js";
+import { EMAIL_FOOTER } from "@/email-templates/styles";
 import { supabase } from "@/integrations/supabase/client";
 import {
   logError,
@@ -159,14 +160,7 @@ const generateWelcomeEmailHTML = (name: string, email: string): string => `
 
       <a href="${window.location.origin}/books" class="btn">Start Browsing Books</a>
 
-      <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
-
-      <p style="font-size: 12px; color: #6b7280;">
-        <strong>Thank you for joining ReBooked Solutions!</strong><br>
-        Account: ${email}<br>
-        Support: support@rebookedsolutions.co.za<br>
-        <em>"Pre-Loved Pages, New Adventures"</em>
-      </p>
+      ${EMAIL_FOOTER}
     </div>
   </body>
   </html>
@@ -190,7 +184,7 @@ const generateWelcomeEmailText = (name: string, email: string): string => `
   Account: ${email}
   Support: support@rebookedsolutions.co.za
 
-  "Pre-Loved Pages, New Adventures"
+  "Books · Uniforms · Everything In Between"
 `;
 
 export const logoutUser = async (userId?: string) => {

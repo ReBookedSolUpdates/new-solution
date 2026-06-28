@@ -89,6 +89,13 @@ export const createBook = async (bookData: BookFormData, aiAssisted: boolean = f
     // Create book data with all required fields (no plaintext address storage)
     const quantity = Math.max(1, Number((bookData as any).quantity || 1));
 
+    const isBlobUrl = (u: any) => typeof u === 'string' && u.startsWith('blob:');
+
+    // Guard: never persist blob: URLs to the database
+    if (isBlobUrl(bookData.imageUrl) || isBlobUrl(bookData.frontCover) || isBlobUrl(bookData.backCover) || isBlobUrl(bookData.insidePages) || (Array.isArray(bookData.additionalImages) && bookData.additionalImages.some(isBlobUrl))) {
+      throw new Error('Invalid image detected. Please retry the upload so images are stored in cloud storage.');
+    }
+
     const fullBookData = {
       seller_id: user.id,
       title: bookData.title,
@@ -184,6 +191,14 @@ export const createBook = async (bookData: BookFormData, aiAssisted: boolean = f
       // Don't throw here - book creation was successful, activity logging is secondary
     }
 
+    // Forward listing to Relay webhook (Google Merchant feed). Non-blocking.
+    try {
+      const { sendListingToRelay } = await import("@/utils/relayAddListing");
+      await sendListingToRelay({ ...book, ...bookData, id: book.id });
+    } catch (relayError) {
+      // Silent fail - relay forwarding must not block listing creation
+    }
+
     return mappedBook;
   } catch (error) {
     handleBookServiceError(error, "create book");
@@ -220,6 +235,15 @@ export const updateBook = async (
     }
 
     const updateData: any = {};
+
+    const isBlobUrl = (u: any) => typeof u === 'string' && u.startsWith('blob:');
+
+    // Guard against saving blob: URLs
+    if (bookData.imageUrl !== undefined && isBlobUrl(bookData.imageUrl)) throw new Error('Invalid image URL');
+    if (bookData.frontCover !== undefined && isBlobUrl(bookData.frontCover)) throw new Error('Invalid image URL');
+    if (bookData.backCover !== undefined && isBlobUrl(bookData.backCover)) throw new Error('Invalid image URL');
+    if (bookData.insidePages !== undefined && isBlobUrl(bookData.insidePages)) throw new Error('Invalid image URL');
+    if (bookData.additionalImages !== undefined && Array.isArray(bookData.additionalImages) && bookData.additionalImages.some(isBlobUrl)) throw new Error('Invalid image URL');
 
     if (bookData.title !== undefined) updateData.title = bookData.title;
     if (bookData.author !== undefined) updateData.author = bookData.author;

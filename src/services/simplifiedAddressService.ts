@@ -134,8 +134,7 @@ const decryptAddress = async (params: { table: string; target_id: string; addres
         const { data, error } = await supabase.functions.invoke('decrypt-address', {
           body: requestBody,
           headers: {
-            'Content-Type': 'application/json',
-            ...(isMobile && { 'X-Mobile-Request': 'true' })
+            'Content-Type': 'application/json'
           }
         });
 

@@ -151,14 +151,13 @@ const BookGrid = ({
 
   return (
     <div className="lg:w-3/4">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
         {books.map((book, index) => {
           const isUnavailable =
             (book as Book & { status?: string }).status === "unavailable";
           const isPendingCommit =
             (book as Book & { status?: string }).status === "pending_commit";
           const isOwner = currentUserId && book.seller?.id === currentUserId;
-          const isSellerAway = !!book.seller?.is_away;
 
           const optimizedSrc = getOptimizedImageUrl(book.imageUrl, {
             width: 400,
@@ -193,13 +192,6 @@ const BookGrid = ({
                       Seller must add a pickup address to activate this listing
                     </p>
                   </div>
-                </div>
-              )}
-              {isSellerAway && !isUnavailable && (
-                <div className="absolute left-2 top-2 z-10">
-                  <Badge variant="secondary" className="bg-amber-100 text-amber-800 border border-amber-200">
-                    Seller is currently away
-                  </Badge>
                 </div>
               )}
 

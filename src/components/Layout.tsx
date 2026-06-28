@@ -7,6 +7,8 @@ import DevelopmentModeBanner from "./DevelopmentModeBanner";
 
 import { useAuth } from "@/contexts/AuthContext";
 import { useEmailConfirmationWelcome } from "@/hooks/useEmailConfirmationWelcome";
+import { useLocation } from "react-router-dom";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface LayoutProps {
   children: ReactNode;
@@ -14,6 +16,8 @@ interface LayoutProps {
 
 const Layout = ({ children }: LayoutProps) => {
   const { user } = useAuth();
+  const location = useLocation();
+  const isMobile = useIsMobile();
 
   // Initialize email confirmation welcome hook (this will handle showing the welcome message)
   useEmailConfirmationWelcome();

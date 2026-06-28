@@ -34,6 +34,7 @@ interface Step2DeliveryOptionsProps {
   onEditAddress?: () => void;
   selectedDelivery?: DeliveryOption;
   preSelectedLocker?: PudoLocker | null;
+  book?: any;
 }
 
 const Step2DeliveryOptions: React.FC<Step2DeliveryOptionsProps> = ({
@@ -47,6 +48,7 @@ const Step2DeliveryOptions: React.FC<Step2DeliveryOptionsProps> = ({
   onEditAddress,
   selectedDelivery,
   preSelectedLocker,
+  book,
 }) => {
   const { user } = useAuth();
   const [deliveryOptions, setDeliveryOptions] = useState<DeliveryOption[]>([]);
@@ -56,6 +58,26 @@ const Step2DeliveryOptions: React.FC<Step2DeliveryOptionsProps> = ({
   const [selectedLocker, setSelectedLocker] = useState<PudoLocker | null>(null);
   const [lockerRatesLoading, setLockerRatesLoading] = useState(false);
   const [localSelectedDelivery, setLocalSelectedDelivery] = useState<DeliveryOption | undefined>(selectedDelivery);
+
+  const matchSize = (serviceName: string, parcelSize: string) => {
+    if (!serviceName) return false;
+    const normalizedService = serviceName.toLowerCase().replace(/[^a-z0-9]/g, "");
+    const normalizedSize = parcelSize.toLowerCase().replace(/[^a-z0-9]/g, "");
+    
+    if (normalizedSize === 'extrasmall') {
+      return normalizedService.includes('extrasmall') || normalizedService.includes('xs');
+    }
+    if (normalizedSize === 'extralarge') {
+      return normalizedService.includes('extralarge') || normalizedService.includes('xl');
+    }
+    if (normalizedSize === 'small') {
+      return normalizedService.includes('small') && !normalizedService.includes('extrasmall') && !normalizedService.includes('xs');
+    }
+    if (normalizedSize === 'large') {
+      return normalizedService.includes('large') && !normalizedService.includes('extralarge') && !normalizedService.includes('xl');
+    }
+    return normalizedService.includes(normalizedSize);
+  };
 
   useEffect(() => {
     console.log("[STEP2_DELIVERY] Component mounted. Buyer Address:", !!buyerAddress, "Seller Address:", !!sellerAddress, "Pre-selected Locker:", !!preSelectedLocker);
@@ -221,28 +243,36 @@ const Step2DeliveryOptions: React.FC<Step2DeliveryOptionsProps> = ({
         throw new Error("No shipping quotes could be found for this route.");
       }
 
-      setQuotes(quotesResp);
+      let filteredQuotes = quotesResp;
+      if (book?.parcelSize) {
+        filteredQuotes = quotesResp.filter(q => matchSize(q.service_name, book.parcelSize));
+        if (filteredQuotes.length === 0) {
+          filteredQuotes = quotesResp;
+        }
+      }
 
-        const DELIVERY_MARKUP = 9;
-        const options: DeliveryOption[] = quotesResp.map((q) => {
-          let price = q.cost + DELIVERY_MARKUP;
-          // Enforce R120 for Standard Delivery as requested by user
-          if (q.service_name?.toLowerCase().includes("standard")) {
-            price = Math.max(price, 120);
-          }
+      setQuotes(filteredQuotes);
 
-          return {
-            courier: "bobgo",
-            service_name: q.service_name,
-            price: price,
-            estimated_days: typeof q.transit_days === "number" ? q.transit_days : 3,
-            description: `${q.provider_name || q.provider || "Courier"} - ${q.features?.join(", ") || "Tracked"}`,
-            zone_type: "locker",
-            provider_name: q.provider_name,
-            provider_slug: q.provider_slug,
-            service_level_code: q.service_level_code,
-          };
-        });
+      const DELIVERY_MARKUP = 9;
+      const options: DeliveryOption[] = filteredQuotes.map((q) => {
+        let price = q.cost + DELIVERY_MARKUP;
+        // Enforce R120 for Standard Delivery as requested by user
+        if (q.service_name?.toLowerCase().includes("standard")) {
+          price = Math.max(price, 120);
+        }
+
+        return {
+          courier: "bobgo",
+          service_name: q.service_name,
+          price: price,
+          estimated_days: typeof q.transit_days === "number" ? q.transit_days : 3,
+          description: `${q.provider_name || q.provider || "Courier"} - ${q.features?.join(", ") || "Tracked"}`,
+          zone_type: "locker",
+          provider_name: q.provider_name,
+          provider_slug: q.provider_slug,
+          service_level_code: q.service_level_code,
+        };
+      });
 
       if (options.length > 0) {
         setDeliveryOptions(options);
@@ -322,10 +352,18 @@ const Step2DeliveryOptions: React.FC<Step2DeliveryOptionsProps> = ({
         const quotesResp = await getAllDeliveryQuotes(quoteRequest);
         console.log("[STEP2_DELIVERY] Quotes received (Locker):", quotesResp.length);
 
-        setQuotes(quotesResp);
+        let filteredQuotes = quotesResp;
+        if (book?.parcelSize) {
+          filteredQuotes = quotesResp.filter(q => matchSize(q.service_name, book.parcelSize));
+          if (filteredQuotes.length === 0) {
+            filteredQuotes = quotesResp;
+          }
+        }
 
-          const DELIVERY_MARKUP = 9;
-        const options: DeliveryOption[] = quotesResp.map((q) => {
+        setQuotes(filteredQuotes);
+
+        const DELIVERY_MARKUP = 9;
+        const options: DeliveryOption[] = filteredQuotes.map((q) => {
           let price = q.cost + DELIVERY_MARKUP;
           // Enforce R120 for Standard Delivery as requested by user
           if (q.service_name?.toLowerCase().includes("standard")) {
@@ -398,22 +436,37 @@ const Step2DeliveryOptions: React.FC<Step2DeliveryOptionsProps> = ({
         const quotesResp = await getAllDeliveryQuotes(quoteRequest);
         console.log("[STEP2_DELIVERY] Quotes received (Home):", quotesResp.length);
 
-        setQuotes(quotesResp);
+        let filteredQuotes = quotesResp;
+        if (book?.parcelSize) {
+          filteredQuotes = quotesResp.filter(q => matchSize(q.service_name, book.parcelSize));
+          if (filteredQuotes.length === 0) {
+            filteredQuotes = quotesResp;
+          }
+        }
+
+        setQuotes(filteredQuotes);
 
         const DELIVERY_MARKUP = 9;
-        const options: DeliveryOption[] = quotesResp.map((q) => ({
-          courier: "bobgo",
-          service_name: q.service_name,
-          price: q.cost + DELIVERY_MARKUP,
-          estimated_days: q.transit_days,
-          description: `${q.provider_name} - ${q.features?.join(", ") || "Tracked"}`,
-          zone_type: buyerAddress.province === sellerAddress.province
-            ? (buyerAddress.city === sellerAddress.city ? "local" : "provincial")
-            : "national",
-          provider_name: q.provider_name,
-          provider_slug: q.provider_slug,
-          service_level_code: q.service_level_code,
-        }));
+        const options: DeliveryOption[] = filteredQuotes.map((q) => {
+          let price = q.cost + DELIVERY_MARKUP;
+          // Enforce R120 for Standard Delivery as requested by user
+          if (q.service_name?.toLowerCase().includes("standard")) {
+            price = Math.max(price, 120);
+          }
+          return {
+            courier: "bobgo",
+            service_name: q.service_name,
+            price: price,
+            estimated_days: q.transit_days,
+            description: `${q.provider_name} - ${q.features?.join(", ") || "Tracked"}`,
+            zone_type: buyerAddress.province === sellerAddress.province
+              ? (buyerAddress.city === sellerAddress.city ? "local" : "provincial")
+              : "national",
+            provider_name: q.provider_name,
+            provider_slug: q.provider_slug,
+            service_level_code: q.service_level_code,
+          };
+        });
 
         if (options.length === 0) {
           throw new Error("No quotes available");
@@ -704,35 +757,36 @@ const Step2DeliveryOptions: React.FC<Step2DeliveryOptionsProps> = ({
       )}
 
       {/* Navigation Buttons */}
-      <div className="flex justify-between items-center gap-3 pt-6 border-t">
+      <div className="flex gap-3 pt-6 sm:pt-8 border-t mt-8">
         <Button
           variant="outline"
           onClick={onBack}
-          className="py-2 px-4"
+          className="px-5 py-3 sm:py-4 text-base font-medium border-2"
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
           <span className="hidden sm:inline">Back</span>
-          <span className="sm:hidden">←</span>
+          <span className="sm:hidden">Back</span>
         </Button>
 
-        <div className="flex gap-3">
+        <div className="flex gap-3 flex-1">
           {onCancel && (
             <Button
               variant="outline"
               onClick={onCancel}
-              className="py-2 px-4 text-red-600 border-red-300 hover:bg-red-50 hover:border-red-400"
+              className="px-5 py-3 sm:py-4 text-base font-medium border-2 text-red-600 border-red-300 hover:bg-red-50 hover:border-red-400"
             >
               <X className="w-4 h-4 mr-2" />
               <span className="hidden sm:inline">Cancel</span>
+              <span className="sm:hidden">Cancel</span>
             </Button>
           )}
           <Button
             onClick={() => localSelectedDelivery && onSelectDelivery(localSelectedDelivery)}
-            disabled={!localSelectedDelivery}
-            className="py-2 px-4 bg-green-600 hover:bg-green-700"
+            disabled={!localSelectedDelivery || loading}
+            className="flex-1 px-6 py-3 sm:py-4 text-base font-semibold bg-green-600 hover:bg-green-700 shadow-md hover:shadow-lg transition-all"
           >
             Next: Payment
-            <ArrowRight className="w-4 h-4 ml-2" />
+            <ArrowRight className="w-5 h-5 ml-2" />
           </Button>
         </div>
       </div>

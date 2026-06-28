@@ -117,7 +117,7 @@ const Step4Confirmation: React.FC<Step4ConfirmationProps> = ({
 
         const { data } = await supabase
           .from("orders")
-          .select("id, order_id, item_type, items, amount, total_amount, selected_shipping_cost, platform_fee, selected_courier_name, selected_service_name, delivery_type, delivery_locker_data, tracking_number, commit_deadline, payment_reference, paystack_reference")
+          .select("id, order_id, item_type, items, amount, total_amount, selected_shipping_cost, platform_fee, order_type, pickup_status, meetup_location, meetup_time, selected_courier_name, selected_service_name, delivery_type, delivery_locker_data, tracking_number, commit_deadline, payment_reference, paystack_reference")
           .eq("id", orderData.id)
           .maybeSingle();
 
@@ -151,9 +151,10 @@ const Step4Confirmation: React.FC<Step4ConfirmationProps> = ({
         }
 
         // Only decrypt address for door deliveries. Lockers use delivery_locker_data.
+        const orderType = (data as any)?.order_type || (orderData.delivery_method === "pickup" ? "pickup" : "delivery");
         const type = (data as any)?.delivery_type || orderData.delivery_method;
         const isDoor = String(type || "").toLowerCase().includes("door") || String(type || "").toLowerCase().includes("home");
-        if (isDoor) {
+        if (orderType !== "pickup" && isDoor) {
           const addr = await getOrderShippingAddress(orderData.id);
           if (!cancelled) setDeliveryAddress(addr);
         }
@@ -169,15 +170,20 @@ const Step4Confirmation: React.FC<Step4ConfirmationProps> = ({
     ? buyerProfile.full_name || `${buyerProfile.first_name || ''} ${buyerProfile.last_name || ''}`.trim()
     : orderData.buyer_id;
 
-  const deliveryDisplayName = orderData.delivery_method?.toLowerCase().includes('locker')
+  const isPickupOrder = (orderRow as any)?.order_type === "pickup" || orderData.delivery_method === "pickup";
+
+  const deliveryDisplayName = isPickupOrder
+    ? "In-Person Pickup"
+    : orderData.delivery_method?.toLowerCase().includes('locker')
     ? 'Locker-to-Locker'
     : orderData.delivery_method?.toLowerCase().includes('door') || orderData.delivery_method?.toLowerCase().includes('home')
     ? 'Door-to-Door'
     : orderData.delivery_method || 'Standard Delivery';
 
-  const deliverySubtitle =
-    deliveryMeta?.selected_service_name || deliveryMeta?.selected_courier_name
-      ? [deliveryMeta.selected_courier_name, deliveryMeta.selected_service_name].filter(Boolean).join(" â€¢ ")
+  const deliverySubtitle = isPickupOrder
+    ? "Coordinate meetup details in chat"
+    : (deliveryMeta?.selected_service_name || deliveryMeta?.selected_courier_name)
+      ? [deliveryMeta.selected_courier_name, deliveryMeta.selected_service_name].filter(Boolean).join(" • ")
       : null;
 
   const book = orderData.book as any;
@@ -205,7 +211,7 @@ const Step4Confirmation: React.FC<Step4ConfirmationProps> = ({
       ? Number(orderRow.total_amount)
       : computedTotal;
 
-  const trackingNumber = (orderRow?.tracking_number as string | null) || null;
+  const trackingNumber = isPickupOrder ? null : ((orderRow?.tracking_number as string | null) || null);
   const paymentRef = (orderRow?.payment_reference as string | null) || (orderRow?.paystack_reference as string | null) || orderData.payment_reference || null;
   const commitDeadline = (orderRow?.commit_deadline as string | null) || null;
 
@@ -481,8 +487,8 @@ const Step4Confirmation: React.FC<Step4ConfirmationProps> = ({
             </div>
             <div className="mt-3 bg-gray-50 rounded-lg p-4 border border-gray-100">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6">
-                <Row label="Courier" value={deliveryMeta?.selected_courier_name || null} />
-                <Row label="Service" value={deliveryMeta?.selected_service_name || null} />
+                {!isPickupOrder && <Row label="Courier" value={deliveryMeta?.selected_courier_name || null} />}
+                {!isPickupOrder && <Row label="Service" value={deliveryMeta?.selected_service_name || null} />}
                 <Row
                   label="Delivery Type"
                   value={
@@ -493,7 +499,7 @@ const Step4Confirmation: React.FC<Step4ConfirmationProps> = ({
                       : deliveryDisplayName
                   }
                 />
-                <Row label="Tracking Number" value={trackingNumber || "Pending"} />
+                {!isPickupOrder && <Row label="Tracking Number" value={trackingNumber || "Pending"} />}
                 <Row label="Commit Deadline" value={formatDateTime(commitDeadline)} />
                 <Row label="Payment Reference" value={paymentRef || "Pending"} />
               </div>
@@ -561,7 +567,7 @@ const Step4Confirmation: React.FC<Step4ConfirmationProps> = ({
           </div>
           <div className="flex items-center gap-3 text-sm">
             <Truck className="w-4 h-4 text-green-500" />
-            <span>You'll receive tracking information via email once shipped</span>
+            <span>{isPickupOrder ? 'Coordinate meetup details with the seller in chat' : 'You\'ll receive tracking information via email once shipped'}</span>
           </div>
         </CardContent>
       </Card>
@@ -809,3 +815,6 @@ const Step4Confirmation: React.FC<Step4ConfirmationProps> = ({
 };
 
 export default Step4Confirmation;
+
+
+

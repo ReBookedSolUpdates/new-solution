@@ -130,122 +130,66 @@ const Index = () => {
         url="https://www.rebookedsolutions.co.za/"
       />
 
-      {/* ═══ HERO — Redesigned 2-column layout with collage visuals ═══ */}
-      <section className="min-h-[60vh] bg-book-100 overflow-hidden">
-        <div className="container mx-auto px-4 py-10 lg:py-14">
+      {/* ═══ HERO ═══ */}
+      <section className="bg-book-100 overflow-hidden">
+        <div className="container mx-auto px-4 py-10 lg:py-16">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center">
-            {/* Left content */}
+            {/* Left — text content */}
             <div className="space-y-6 text-center lg:text-left">
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold uppercase tracking-tight leading-[0.95] text-gray-900">
-                Rebooked
-                <br />
-                Solutions
+              <Badge className="bg-book-600 text-white border-book-600 hover:bg-book-700">
+                Books · Uniforms · Everything In Between
+              </Badge>
+
+              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight leading-tight text-gray-900">
+                Rebooked <span className="text-book-600">Solutions</span>
               </h1>
 
-              <div className="inline-block bg-book-700 text-white px-6 py-3 rounded-full">
-                <span className="text-sm sm:text-base font-semibold tracking-wide uppercase">
-                  Books · Uniforms · Everything In Between
-                </span>
-              </div>
-
-              <p className="text-sm sm:text-base uppercase tracking-widest leading-relaxed max-w-lg mx-auto lg:mx-0 text-gray-600 font-semibold">
-                ReBooked Solutions — South Africa's trusted school marketplace for buying and selling textbooks, uniforms, and school supplies safely and affordably.
+              <p className="text-sm sm:text-base text-gray-600 leading-relaxed max-w-xl mx-auto lg:mx-0">
+                South Africa's trusted school marketplace for buying and selling textbooks, uniforms, and school supplies safely and affordably.
               </p>
 
-              <div className="flex flex-col gap-3 items-center lg:items-start w-full sm:w-auto">
-                <button className="inline-flex items-center justify-center bg-book-600 text-white font-semibold text-base px-8 py-2 rounded-full hover:opacity-90 transition-opacity w-full max-w-md mx-auto lg:mx-0">
+              <div className="flex flex-col sm:flex-row gap-3 items-center lg:items-start">
+                <Button
+                  size="lg"
+                  onClick={() => navigate("/listings")}
+                  className="bg-book-600 hover:bg-book-700 text-white font-semibold px-8 rounded-full w-full sm:w-auto"
+                >
                   Shop Now
-                </button>
-                <Link to="/create-listing" className="inline-flex items-center justify-center w-full max-w-md rounded-full border border-book-600 bg-white px-8 py-2 text-base font-semibold text-book-700 hover:bg-book-50 transition-colors">
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+                <Button
+                  size="lg"
+                  variant="outline"
+                  onClick={() => navigate("/create-listing")}
+                  className="border-book-600 text-book-700 hover:bg-book-50 font-semibold px-8 rounded-full w-full sm:w-auto"
+                >
                   Make A Listing
-                </Link>
+                </Button>
               </div>
 
               <div className="flex flex-wrap gap-6 pt-2 justify-center lg:justify-start">
                 <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-gray-600 font-semibold">
-                  <Shield className="w-4 h-4" />
+                  <Shield className="w-4 h-4 text-book-600" />
                   <span>Secure Payments</span>
                 </div>
                 <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-gray-600 font-semibold">
-                  <CheckCircle className="w-4 h-4" />
+                  <CheckCircle className="w-4 h-4 text-book-600" />
                   <span>Verified Listings</span>
                 </div>
                 <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-gray-600 font-semibold">
-                  <Truck className="w-4 h-4" />
+                  <Truck className="w-4 h-4 text-book-600" />
                   <span>Nationwide Delivery</span>
                 </div>
               </div>
             </div>
 
-            {/* Mobile carousel (visible on small screens) */}
-            <div className="lg:hidden">
-              <Carousel opts={{ align: "center", containScroll: "trimSnaps", dragFree: true, loop: false }} setApi={setHeroApi}>
-                <CarouselContent className="touch-pan-x">
-                  {heroImages.map((image) => (
-                    <CarouselItem key={image.alt} className="min-w-full">
-                      <img
-                        src={image.src}
-                        alt={image.alt}
-                        className="w-full h-[16rem] sm:h-[18rem] object-cover rounded-[2rem]"
-                        loading="lazy"
-                      />
-                    </CarouselItem>
-                  ))}
-                </CarouselContent>
-              </Carousel>
-                {/* pagination dots */}
-                <div className="flex items-center justify-center gap-2 mt-3">
-                  {heroImages.map((_, idx) => (
-                    <button
-                      key={idx}
-                      aria-label={`Go to slide ${idx + 1}`}
-                      onClick={() => heroApi?.scrollTo(idx)}
-                      className={
-                        "h-2 w-8 rounded-full transition-all duration-200 bg-white/50" + (heroIndex === idx ? " bg-white" : " bg-white/30")
-                      }
-                    />
-                  ))}
-                </div>
-            </div>
-
-            {/* Right image grid — symmetric, equal padding both sides */}
-            <div className="hidden lg:grid grid-cols-2 gap-5 lg:gap-6">
-              <div className="grid gap-5 lg:gap-6">
-                <img
-                  src="https://images.pexels.com/photos/256455/pexels-photo-256455.jpeg"
-                  alt="Students with textbooks"
-                  className="w-full h-[22rem] lg:h-[24rem] object-cover rounded-[2rem]"
-                  width={640}
-                  height={800}
-                />
-                <img
-                  src="https://images.pexels.com/photos/4145190/pexels-photo-4145190.jpeg"
-                  alt="Students sharing supplies"
-                  className="w-full h-[13rem] lg:h-[14rem] object-cover rounded-[2rem]"
-                  loading="lazy"
-                  width={640}
-                  height={640}
-                />
-              </div>
-
-              <div className="grid gap-5 lg:gap-6">
-                <img
-                  src="https://images.pexels.com/photos/1720186/pexels-photo-1720186.jpeg"
-                  alt="Student with books"
-                  className="w-full h-[13rem] lg:h-[14rem] object-cover rounded-[2rem]"
-                  loading="lazy"
-                  width={640}
-                  height={640}
-                />
-                <img
-                  src="/lovable-uploads/bd1bff70-5398-480d-ab05-1a01e839c2d0.png"
-                  alt="Student in blazer"
-                  className="w-full h-[22rem] lg:h-[24rem] object-cover rounded-[2rem]"
-                  loading="lazy"
-                  width={640}
-                  height={800}
-                />
-              </div>
+            {/* Right — single image */}
+            <div>
+              <img
+                src="/lovable-uploads/bd1bff70-5398-480d-ab05-1a01e839c2d0.png"
+                alt="Student in blazer"
+                className="w-full h-[20rem] sm:h-[24rem] lg:h-[28rem] object-cover rounded-2xl"
+              />
             </div>
           </div>
         </div>

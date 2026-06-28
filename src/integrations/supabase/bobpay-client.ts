@@ -62,7 +62,10 @@ export async function initializeBobPayPayment(
         headers: {
           Authorization: `Bearer ${authToken}`,
         },
-        body: paymentData,
+        body: {
+          ...paymentData,
+          is_sandbox: !IS_PRODUCTION,
+        },
       }
     );
 

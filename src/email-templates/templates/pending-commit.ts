@@ -114,7 +114,7 @@ Visit: https://rebookedsolutions.co.za/profile?tab=orders
 Best regards,
 The ReBooked Solutions Team
 
-"Pre-Loved Pages, New Adventures"
+"Books · Uniforms · Everything In Between"
   `;
 
   return { subject, html, text };

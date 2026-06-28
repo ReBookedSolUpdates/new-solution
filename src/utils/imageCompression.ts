@@ -41,18 +41,19 @@ export const compressImage = async (
   options: CompressionOptions = {}
 ): Promise<CompressionResult> => {
   const {
-    maxWidth = 1600,
-    maxHeight = 1600,
-    quality = 0.8,
+    maxWidth = 800,
+    maxHeight = 800,
+    quality = 0.75,
     format = "image/webp",
-  } = options;
+  } = options as any;
 
-  // If very small already, skip expensive work
-  if (file.size < 150 * 1024) {
+  // If it is a GIF, skip compression to preserve animation
+  const isGif = file.type === "image/gif" || file.name.toLowerCase().endsWith(".gif");
+  if (isGif || file.size < 150 * 1024) {
     return {
       blob: file,
-      mimeType: file.type || "application/octet-stream",
-      extension: (file.name.split(".").pop() || "").toLowerCase() || "jpg",
+      mimeType: file.type || (isGif ? "image/gif" : "application/octet-stream"),
+      extension: (file.name.split(".").pop() || "").toLowerCase() || (isGif ? "gif" : "jpg"),
       width: 0,
       height: 0,
     };
@@ -107,9 +108,21 @@ export const compressImage = async (
   const mimeType = format;
   const extension = format === "image/webp" ? "webp" : "jpg";
 
-  const blob: Blob = await new Promise((resolve) =>
-    canvas.toBlob((b) => resolve(b || file), mimeType, quality)
-  );
+  // Best-effort size limiting: try decreasing quality if result is larger than target
+  const maxFileSize = 500 * 1024; // 500KB
+  let q = Math.min(Math.max(quality, 0.1), 0.95);
+  let blob: Blob | null = null;
+  for (let attempt = 0; attempt < 6; attempt++) {
+    // eslint-disable-next-line no-await-in-loop
+    blob = await new Promise((resolve) => canvas.toBlob((b) => resolve(b || file), mimeType, q));
+    if (!blob) break;
+    if (blob.size <= maxFileSize) break;
+    q = Math.max(0.2, q * 0.7);
+  }
 
-  return { blob, mimeType, extension, width: targetWidth, height: targetHeight };
+  if (!blob) {
+    return { blob: file, mimeType: file.type || mimeType, extension: (file.name.split('.').pop() || '').toLowerCase() || extension, width: srcWidth, height: srcHeight };
+  }
+
+  return { blob, mimeType: blob.type || mimeType, extension, width: targetWidth, height: targetHeight };
 };

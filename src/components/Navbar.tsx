@@ -75,37 +75,34 @@ const Navbar = () => {
           <div className="flex justify-between items-center h-16">
             {/* Logo */}
             <div className="flex items-center min-w-0">
-              <Link
-                to="/"
-                className="flex items-center space-x-2 hover:opacity-80 transition-opacity"
-              >
-                <div className="w-7 h-7 sm:w-8 sm:h-8 bg-book-600 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <BookOpen className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-                </div>
-                <div className="flex flex-col">
+              <div className="flex items-center space-x-2">
+                <Link to="/" className="flex items-center space-x-2 hover:opacity-80 transition-opacity">
+                  <div className="w-7 h-7 sm:w-8 sm:h-8 bg-book-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <BookOpen className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                  </div>
                   <span className="text-lg sm:text-xl font-bold text-book-600 truncate">
                     ReBooked Solutions
                   </span>
-                  <div className="mt-0.5 flex flex-wrap gap-1">
-                    <a
-                      href="https://genius.rebookedsolutions.co.za/"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-[10px] font-semibold uppercase tracking-[0.15em] text-book-600 bg-book-50 px-2 py-0.5 rounded-full hover:bg-book-100 transition-colors"
-                    >
-                      Genius
-                    </a>
-                    <a
-                      href="https://living.rebookedsolutions.co.za/"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-[10px] font-semibold uppercase tracking-[0.15em] text-book-600 bg-book-50 px-2 py-0.5 rounded-full hover:bg-book-100 transition-colors"
-                    >
-                      Living
-                    </a>
-                  </div>
+                </Link>
+                <div className="flex flex-wrap gap-1">
+                  <a
+                    href="https://genius.rebookedsolutions.co.za/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[10px] font-semibold uppercase tracking-[0.15em] text-book-600 bg-book-50 px-2 py-0.5 rounded-full hover:bg-book-100 transition-colors"
+                  >
+                    Genius
+                  </a>
+                  <a
+                    href="https://living.rebookedsolutions.co.za/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[10px] font-semibold uppercase tracking-[0.15em] text-book-600 bg-book-50 px-2 py-0.5 rounded-full hover:bg-book-100 transition-colors"
+                  >
+                    Living
+                  </a>
                 </div>
-              </Link>
+              </div>
             </div>
 
             {/* Show basic navigation even during loading */}
@@ -142,51 +139,47 @@ const Navbar = () => {
   }
 
   return (
-    <nav className="bg-white border-b border-gray-100 sticky top-0 z-50">
+    <nav className="bg-white/95 backdrop-blur-sm border-b border-gray-200/60 sticky top-0 z-50 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
-          {/* Logo */}
-          <div className="flex items-center min-w-0">
-            <Link
-              to="/"
-              className="flex items-center space-x-2 hover:opacity-80 transition-opacity"
-            >
-              <div className="w-7 h-7 sm:w-8 sm:h-8 bg-book-600 rounded-lg flex items-center justify-center flex-shrink-0">
-                <BookOpen className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+          {/* Logo + Sub-brands */}
+          <div className="flex items-center gap-3 min-w-0">
+            <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+              <div className="w-8 h-8 bg-book-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                <BookOpen className="w-5 h-5 text-white" />
               </div>
-              <div className="flex flex-col">
-                <span className="text-lg sm:text-xl font-bold text-book-600 truncate">
-                  <span className="hidden sm:inline">ReBooked Solutions</span>
-                  <span className="sm:hidden">ReBooked Solutions</span>
-                </span>
-                <div className="mt-0.5 flex flex-wrap gap-1">
-                  <a
-                    href="https://genius.rebookedsolutions.co.za/"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-[10px] font-semibold uppercase tracking-[0.15em] text-book-600 bg-book-50 px-2 py-0.5 rounded-full hover:bg-book-100 transition-colors"
-                  >
-                    Genius
-                  </a>
-                  <a
-                    href="https://living.rebookedsolutions.co.za/"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-[10px] font-semibold uppercase tracking-[0.15em] text-book-600 bg-book-50 px-2 py-0.5 rounded-full hover:bg-book-100 transition-colors"
-                  >
-                    Living
-                  </a>
-                </div>
-              </div>
+              <span className="text-lg sm:text-xl font-bold text-black truncate">
+                ReBooked <span className="text-book-600">Solutions</span>
+              </span>
             </Link>
+            <div className="hidden sm:flex items-center gap-1 ml-1">
+              <a
+                href="https://genius.rebookedsolutions.co.za/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[10px] font-bold uppercase tracking-wider text-book-600 bg-book-50 border border-book-200 px-2 py-0.5 rounded hover:bg-book-100 transition-colors"
+              >
+                Genius
+              </a>
+              <a
+                href="https://living.rebookedsolutions.co.za/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[10px] font-bold uppercase tracking-wider text-book-600 bg-book-50 border border-book-200 px-2 py-0.5 rounded hover:bg-book-100 transition-colors"
+              >
+                Living
+              </a>
+            </div>
           </div>
 
-          {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-4 lg:space-x-8">
+          {/* Desktop Navigation — center */}
+          <div className="hidden md:flex items-center gap-1">
             <Link
               to="/listings"
-              className={`flex items-center space-x-1 text-sm font-medium transition-colors hover:text-book-600 ${
-                isActive("/listings") || isActive("/textbooks") ? "text-book-600" : "text-gray-700"
+              className={`flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-lg transition-colors ${
+                isActive("/listings") || isActive("/textbooks")
+                  ? "bg-book-50 text-book-600"
+                  : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
               }`}
             >
               <BookOpen className="w-4 h-4" />
@@ -194,11 +187,12 @@ const Navbar = () => {
               <span className="lg:hidden">Listings</span>
             </Link>
 
-
             <Link
               to="/shipping"
-              className={`flex items-center space-x-1 text-sm font-medium transition-colors hover:text-book-600 ${
-                isActive("/shipping") ? "text-book-600" : "text-gray-700"
+              className={`flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-lg transition-colors ${
+                isActive("/shipping")
+                  ? "bg-book-50 text-book-600"
+                  : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
               }`}
             >
               <Truck className="w-4 h-4" />
@@ -207,34 +201,25 @@ const Navbar = () => {
 
             <Link
               to="/tracking"
-              className={`flex items-center space-x-1 text-sm font-medium transition-colors hover:text-book-600 ${
-                isActive("/tracking") ? "text-book-600" : "text-gray-700"
+              className={`flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-lg transition-colors ${
+                isActive("/tracking")
+                  ? "bg-book-50 text-book-600"
+                  : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
               }`}
             >
               <PackageSearch className="w-4 h-4" />
               <span>Track</span>
             </Link>
-
-            {/* DISABLED - Locker functionality removed */}
-            {/* <Link
-              to="/lockers"
-              className={`flex items-center space-x-1 text-sm font-medium transition-colors hover:text-book-600 ${
-                isActive("/lockers") ? "text-book-600" : "text-gray-700"
-              }`}
-            >
-              <MapPin className="w-4 h-4" />
-              <span>Lockers</span>
-            </Link> */}
           </div>
 
-          {/* Right Side Actions */}
-          <div className="hidden md:flex items-center space-x-2 lg:space-x-4 transition-all duration-200 ease-in-out">
+          {/* Right Side Actions — desktop */}
+          <div className="hidden md:flex items-center gap-2">
             {isAuthenticated ? (
               <>
                 <CartButton />
                 <Link
                   to="/notifications"
-                  className="relative p-2 text-gray-700 hover:text-book-600 transition-colors"
+                  className="relative p-2 text-gray-600 hover:text-book-600 hover:bg-gray-50 rounded-lg transition-colors"
                   title="View notifications"
                 >
                   <NotificationBadge
@@ -243,50 +228,49 @@ const Navbar = () => {
                   />
                 </Link>
 
-                <div className="flex items-center space-x-1 lg:space-x-2">
-                  <Link to="/profile">
-                    <Button
-                      variant="ghost"
-                      className="text-gray-700 hover:text-book-600 p-2 h-10 w-10 rounded-full"
-                      title={profile?.name || user?.email || "Profile"}
-                    >
-                      {profile?.profile_picture_url ? (
-                        <img
-                          src={profile.profile_picture_url}
-                          alt={profile?.name || "Profile"}
-                          className="w-6 h-6 rounded-full object-cover"
-                        />
-                      ) : (
-                        <User className="w-5 h-5" />
-                      )}
-                    </Button>
-                  </Link>
+                <div className="w-px h-6 bg-gray-200 mx-1" />
 
-
+                <Link to="/profile">
                   <Button
                     variant="ghost"
-                    onClick={handleLogout}
-                    className="text-gray-700 hover:text-red-600 px-2 lg:px-3 h-10 min-w-[44px]"
-                    aria-label="Logout"
+                    className="text-gray-600 hover:text-book-600 p-2 h-9 w-9 rounded-full"
+                    title={profile?.name || user?.email || "Profile"}
                   >
-                    <LogOut className="w-4 h-4" />
+                    {profile?.profile_picture_url ? (
+                      <img
+                        src={profile.profile_picture_url}
+                        alt={profile?.name || "Profile"}
+                        className="w-6 h-6 rounded-full object-cover"
+                      />
+                    ) : (
+                      <User className="w-5 h-5" />
+                    )}
                   </Button>
-                </div>
+                </Link>
+
+                <Button
+                  variant="ghost"
+                  onClick={handleLogout}
+                  className="text-gray-600 hover:text-red-600 hover:bg-red-50 p-2 h-9 w-9 rounded-full"
+                  aria-label="Logout"
+                >
+                  <LogOut className="w-4 h-4" />
+                </Button>
               </>
             ) : (
-              <div className="flex items-center space-x-3">
+              <div className="flex items-center gap-2">
                 <Link to="/login">
                   <Button
                     variant="ghost"
-                    className="text-gray-700 hover:text-book-600 px-4 h-10"
+                    className="text-gray-600 hover:text-book-600 font-medium px-4 h-9 rounded-lg"
                   >
                     Login
                   </Button>
                 </Link>
                 <Link to="/register">
-                  <Button className="bg-book-600 hover:bg-book-700 text-white px-4 h-10">
-                    <UserPlus className="w-4 h-4" />
-                    <span className="ml-2">Sign Up</span>
+                  <Button className="bg-book-600 hover:bg-book-700 text-white font-medium px-4 h-9 rounded-lg">
+                    <UserPlus className="w-4 h-4 mr-1.5" />
+                    Sign Up
                   </Button>
                 </Link>
               </div>
@@ -294,17 +278,18 @@ const Navbar = () => {
           </div>
 
           {/* Mobile Menu Button */}
-          <div className="md:hidden">
+          <div className="md:hidden flex items-center gap-2">
+            {isAuthenticated && <CartButton />}
             <Button
               variant="ghost"
               onClick={toggleMenu}
-              className="p-2 min-w-[44px] min-h-[44px] flex items-center justify-center"
+              className="p-2 min-w-[44px] min-h-[44px] rounded-lg hover:bg-gray-100"
               aria-label={isMenuOpen ? "Close menu" : "Open menu"}
             >
               {isMenuOpen ? (
-                <X className="w-6 h-6" />
+                <X className="w-5 h-5" />
               ) : (
-                <Menu className="w-6 h-6" />
+                <Menu className="w-5 h-5" />
               )}
             </Button>
           </div>
@@ -312,11 +297,31 @@ const Navbar = () => {
 
         {/* Mobile Menu */}
         {isMenuOpen && (
-          <div className="md:hidden border-t border-gray-100 py-3 animate-in slide-in-from-top-2 duration-200">
-            <div className="space-y-1">
+          <div className="md:hidden border-t border-gray-100 py-2 animate-in slide-in-from-top-2 duration-200">
+            {/* Sub-brand links on mobile */}
+            <div className="flex items-center gap-2 px-4 py-2 mb-1">
+              <a
+                href="https://genius.rebookedsolutions.co.za/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[10px] font-bold uppercase tracking-wider text-book-600 bg-book-50 border border-book-200 px-2.5 py-1 rounded hover:bg-book-100 transition-colors"
+              >
+                Genius
+              </a>
+              <a
+                href="https://living.rebookedsolutions.co.za/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[10px] font-bold uppercase tracking-wider text-book-600 bg-book-50 border border-book-200 px-2.5 py-1 rounded hover:bg-book-100 transition-colors"
+              >
+                Living
+              </a>
+            </div>
+
+            <div className="space-y-0.5">
               <Link
                 to="/listings"
-                className={`flex items-center space-x-3 px-4 py-3 text-base font-medium rounded-md transition-colors min-h-[44px] ${
+                className={`flex items-center gap-3 px-4 py-3 text-base font-medium rounded-lg transition-colors min-h-[44px] ${
                   isActive("/listings") || isActive("/textbooks")
                     ? "bg-book-50 text-book-600"
                     : "text-gray-700 hover:bg-gray-50 hover:text-book-600"
@@ -327,10 +332,9 @@ const Navbar = () => {
                 <span>Browse Listings</span>
               </Link>
 
-
               <Link
                 to="/shipping"
-                className={`flex items-center space-x-3 px-4 py-3 text-base font-medium rounded-md transition-colors min-h-[44px] ${
+                className={`flex items-center gap-3 px-4 py-3 text-base font-medium rounded-lg transition-colors min-h-[44px] ${
                   isActive("/shipping")
                     ? "bg-book-50 text-book-600"
                     : "text-gray-700 hover:bg-gray-50 hover:text-book-600"
@@ -343,7 +347,7 @@ const Navbar = () => {
 
               <Link
                 to="/tracking"
-                className={`flex items-center space-x-3 px-4 py-3 text-base font-medium rounded-md transition-colors min-h-[44px] ${
+                className={`flex items-center gap-3 px-4 py-3 text-base font-medium rounded-lg transition-colors min-h-[44px] ${
                   isActive("/tracking")
                     ? "bg-book-50 text-book-600"
                     : "text-gray-700 hover:bg-gray-50 hover:text-book-600"
@@ -354,25 +358,13 @@ const Navbar = () => {
                 <span>Track Order</span>
               </Link>
 
-              {/* DISABLED - Locker functionality removed */}
-              {/* <Link
-                to="/lockers"
-                className={`flex items-center space-x-3 px-4 py-3 text-base font-medium rounded-md transition-colors min-h-[44px] ${
-                  isActive("/lockers")
-                    ? "bg-book-50 text-book-600"
-                    : "text-gray-700 hover:bg-gray-50 hover:text-book-600"
-                }`}
-                onClick={() => setIsMenuOpen(false)}
-              >
-                <MapPin className="w-5 h-5" />
-                <span>Find Lockers</span>
-              </Link> */}
-
               {isAuthenticated ? (
                 <>
+                  <div className="h-px bg-gray-100 my-1 mx-4" />
+
                   <Link
                     to="/cart"
-                    className="flex items-center px-4 py-3 text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-book-600 rounded-md min-h-[44px] relative"
+                    className="flex items-center px-4 py-3 text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-book-600 rounded-lg min-h-[44px] relative"
                     onClick={() => setIsMenuOpen(false)}
                   >
                     <ShoppingCart className="w-5 h-5 mr-3" />
@@ -386,7 +378,7 @@ const Navbar = () => {
 
                   <Link
                     to="/notifications"
-                    className="flex items-center px-4 py-3 text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-book-600 rounded-md min-h-[44px]"
+                    className="flex items-center px-4 py-3 text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-book-600 rounded-lg min-h-[44px]"
                     onClick={() => setIsMenuOpen(false)}
                   >
                     <NotificationBadge
@@ -400,7 +392,7 @@ const Navbar = () => {
 
                   <Link
                     to="/profile"
-                    className="flex items-center px-4 py-3 text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-book-600 rounded-md min-h-[44px]"
+                    className="flex items-center px-4 py-3 text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-book-600 rounded-lg min-h-[44px]"
                     onClick={() => setIsMenuOpen(false)}
                   >
                     {profile?.profile_picture_url ? (
@@ -420,24 +412,24 @@ const Navbar = () => {
                       handleLogout();
                       setIsMenuOpen(false);
                     }}
-                    className="flex items-center w-full text-left px-4 py-3 text-base font-medium text-gray-700 hover:bg-red-50 hover:text-red-600 rounded-md min-h-[44px]"
+                    className="flex items-center w-full text-left px-4 py-3 text-base font-medium text-gray-700 hover:bg-red-50 hover:text-red-600 rounded-lg min-h-[44px]"
                   >
                     <LogOut className="w-5 h-5 mr-3" />
                     Logout
                   </button>
                 </>
               ) : (
-                <div className="border-t border-gray-100 pt-3 mt-3 space-y-2">
+                <div className="border-t border-gray-100 pt-2 mt-1 space-y-1 px-4">
                   <Link
                     to="/login"
-                    className="flex items-center px-4 py-3 text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-book-600 rounded-md min-h-[44px]"
+                    className="flex items-center justify-center py-2.5 text-base font-medium text-gray-700 hover:text-book-600 rounded-lg min-h-[44px] border border-gray-200"
                     onClick={() => setIsMenuOpen(false)}
                   >
                     Login
                   </Link>
                   <Link
                     to="/register"
-                    className="flex items-center px-4 py-3 text-base font-medium text-white bg-book-600 rounded-md min-h-[44px]"
+                    className="flex items-center justify-center py-2.5 text-base font-medium text-white bg-book-600 hover:bg-book-700 rounded-lg min-h-[44px]"
                     onClick={() => setIsMenuOpen(false)}
                   >
                     <UserPlus className="w-5 h-5 mr-2" />

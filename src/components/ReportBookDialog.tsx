@@ -100,7 +100,7 @@ const ReportBookDialog = ({
 
           <div>
             <Label>Seller</Label>
-            <p className="text-sm text-gray-600">{sellerName || "Unknown"}</p>
+            <p className="text-sm text-gray-600">{sellerName || "Seller"}</p>
           </div>
 
           <div>

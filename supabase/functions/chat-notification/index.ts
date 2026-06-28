@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
+import { EMAIL_FOOTER } from "../_shared/email-templates.ts";
 
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
@@ -76,15 +77,25 @@ serve(async (req: Request) => {
 
     const listingTitle = listing?.title || "a listing";
 
-    // Only send the email notification if it's the first message in the conversation.
-    const { count, error: countError } = await supabase
-      .from("messages")
-      .select("*", { count: "exact", head: true })
-      .eq("conversation_id", conversation_id);
+    // Decide whether to send an email based on conversation notification flags
+    // (buyer_notified / seller_notified). This ensures only the first buyer message
+    // and the seller's first reply trigger email notifications.
+    const isBuyerMessage = sender_id === conversation.buyer_id;
+    const sellerNotified = !!(conversation as any).seller_notified;
+    const buyerNotified = !!(conversation as any).buyer_notified;
 
-    const isFirstMessage = count === 1 || count === 0;
+    let shouldSendEmail = false;
+    let flagToSet: { [k: string]: boolean } | null = null;
 
-    // We ALWAYS send an in-app notification for the message
+    if (isBuyerMessage && !sellerNotified) {
+      shouldSendEmail = true;
+      flagToSet = { seller_notified: true };
+    } else if (!isBuyerMessage && !buyerNotified) {
+      shouldSendEmail = true;
+      flagToSet = { buyer_notified: true };
+    }
+
+    // Always insert an in-app notification
     await supabase.from("notifications").insert({
       user_id: recipientId,
       title: "New message",
@@ -92,8 +103,7 @@ serve(async (req: Request) => {
       type: "chat",
     });
 
-    if (!isFirstMessage) {
-      console.log(`Skipping email, conversation already has ${count} messages`);
+    if (!shouldSendEmail) {
       return new Response(JSON.stringify({ success: true, method: "notification" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -136,10 +146,7 @@ serve(async (req: Request) => {
             <a href="https://rebookedsolutions.co.za/chats" class="btn">Reply Now</a>
           </div>
           
-          <div class="footer-text">
-            <p><strong>This is an automated message from ReBooked Solutions.</strong></p>
-            <p>For assistance, contact: support@rebookedsolutions.co.za</p>
-          </div>
+          ${EMAIL_FOOTER}
         </div>
       </body>
       </html>
@@ -156,6 +163,16 @@ serve(async (req: Request) => {
 
     if (sendError) {
       console.error("send-email API error:", sendError);
+    }
+
+    // Attempt to mark conversation flags so we don't send duplicate emails later.
+    if (flagToSet) {
+      try {
+        await supabase.from('conversations').update(flagToSet).eq('id', conversation_id);
+      } catch (e) {
+        // Ignore flag update failures (DB may not have fields yet)
+        console.warn('Could not update conversation notification flag', e);
+      }
     }
 
     return new Response(JSON.stringify({ success: true }), {

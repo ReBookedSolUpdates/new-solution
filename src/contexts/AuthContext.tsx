@@ -174,18 +174,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 try { localStorage.setItem(`cached_address_${uid}`, JSON.stringify(addressData)); } catch (_) {}
               }
 
-              // Prefetch banking / subaccount — cache only, no state updates
-              Promise.allSettled([
-                import("@/services/bankingService").then(m => m.BankingService.getSellerRequirements(uid)),
-                import("@/services/paystackSubaccountService").then(m => m.PaystackSubaccountService.getUserSubaccountStatus(uid)),
-              ]).then(([bankRes, subRes]) => {
-                if (bankRes.status === "fulfilled") {
-                  try { localStorage.setItem(`banking_requirements_${uid}`, JSON.stringify(bankRes.value)); } catch (_) {}
-                }
-                if (subRes.status === "fulfilled") {
-                  try { localStorage.setItem(`subaccount_status_${uid}`, JSON.stringify(subRes.value)); } catch (_) {}
-                }
-              }).catch(() => {});
+              // Banking prefetch disabled — no longer needed for checkout flow
             } catch (_) {
             } finally {
               isCheckingProfileRef.current = false;

@@ -8,6 +8,9 @@ import {
   Star,
   ArrowLeft,
   Share2,
+  School,
+  GraduationCap,
+  Clock,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -22,6 +25,10 @@ import Layout from "@/components/Layout";
 import { getProvinceFromLocker } from "@/utils/provinceExtractorUtils";
 import SellerRating from "@/components/reviews/SellerRating";
 import ReviewList from "@/components/reviews/ReviewList";
+import ReviewForm from "@/components/reviews/ReviewForm";
+import { reviewService } from "@/services/reviewService";
+import { useAuth } from "@/contexts/AuthContext";
+import { getOptimizedImageUrl } from "@/utils/imageOptimization";
 
 import { getUserBooks } from "@/services/book/bookQueries";
 
@@ -40,11 +47,16 @@ const SellerProfile = () => {
   const { sellerId } = useParams<{ sellerId: string }>();
   const navigate = useNavigate();
   const { addToCart } = useCart();
+  const { user } = useAuth();
   const [seller, setSeller] = useState<SellerProfile | null>(null);
   const [listings, setListings] = useState<Book[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("listings");
+
+  const [canUserReview, setCanUserReview] = useState(false);
+  const [hasUserReview, setHasUserReview] = useState(false);
+  const [refreshReviewsTrigger, setRefreshReviewsTrigger] = useState(0);
 
   useEffect(() => {
     if (!sellerId) {
@@ -54,7 +66,26 @@ const SellerProfile = () => {
     }
 
     fetchSellerData();
-  }, [sellerId]);
+    checkReviewEligibility();
+  }, [sellerId, user]);
+
+  const checkReviewEligibility = async () => {
+    if (!user || !sellerId) {
+      setCanUserReview(false);
+      setHasUserReview(false);
+      return;
+    }
+    try {
+      const [eligible, existingReview] = await Promise.all([
+        reviewService.canUserReviewSeller(sellerId),
+        reviewService.getUserReviewForSeller(sellerId),
+      ]);
+      setCanUserReview(eligible);
+      setHasUserReview(!!existingReview);
+    } catch (err) {
+      console.warn("Failed to fetch review eligibility", err);
+    }
+  };
 
   const fetchSellerData = async () => {
     try {
@@ -280,7 +311,7 @@ const SellerProfile = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             {/* Tab Navigation */}
-            <TabsList className="grid w-full max-w-xs grid-cols-2 mb-6">
+            <TabsList className="grid w-full grid-cols-2 mb-6">
               <TabsTrigger value="listings" className="flex items-center gap-2">
                 <BookOpen className="h-4 w-4" />
                 Listings {listings.length > 0 && `(${listings.length})`}
@@ -310,7 +341,7 @@ const SellerProfile = () => {
                 </Card>
               ) : (
                 <>
-                  <div className="mb-6">
+                  <div className="mb-6 text-left">
                     <h2 className="text-xl font-semibold text-gray-900 mb-2">
                       Items for Sale
                     </h2>
@@ -319,62 +350,78 @@ const SellerProfile = () => {
                     </p>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    {listings.map((item) => (
-                      <Card
-                        key={item.id}
-                        className="hover:shadow-lg transition-shadow cursor-pointer group"
-                        onClick={() => handleItemClick(item.id, item.itemType)}
-                      >
-                        <CardContent className="p-4">
-                          <img
-                            src={item.frontCover || item.imageUrl || "/placeholder.svg"}
-                            alt={item.title}
-                            className="w-full h-48 object-cover rounded-lg mb-4 group-hover:scale-105 transition-transform duration-200"
-                          />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    {listings.map((item) => {
+                      const optimizedSrc = getOptimizedImageUrl(item.imageUrl || item.frontCover, {
+                        width: 400,
+                        height: 300,
+                        quality: 80,
+                        format: "auto",
+                      });
 
-                          <h3 className="font-semibold text-lg mb-2 line-clamp-2">
-                            {item.title}
-                          </h3>
-
-                          {item.author && (
-                            <p className="text-gray-600 text-sm mb-3">
-                              by {item.author}
-                            </p>
-                          )}
-
-                          <div className="flex flex-wrap gap-2 mb-4">
-                            <Badge variant="secondary" className="text-xs">
-                              {item.condition} {item.itemType === "reader" && "reader"}
-                            </Badge>
-                            <Badge variant="outline" className="text-xs">
-                              {item.category}
-                            </Badge>
-                            {item.grade && (
-                              <Badge variant="outline" className="text-xs">
-                                Grade {item.grade}
-                              </Badge>
-                            )}
-                          </div>
-
-                          <div className="flex items-center justify-between">
-                            <span className="text-lg font-bold text-book-600">
-                              R{item.price}
-                            </span>
-                            <Button
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleAddToCart(item);
+                      return (
+                        <div
+                          key={item.id}
+                          className="bg-white rounded-lg overflow-hidden shadow-md hover:shadow-xl transition-shadow duration-200 book-card-hover flex flex-col relative group cursor-pointer text-left"
+                          onClick={() => handleItemClick(item.id, item.itemType)}
+                        >
+                          <div className="relative h-48 overflow-hidden">
+                            <img
+                              src={optimizedSrc}
+                              alt={item.title}
+                              className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+                              loading="lazy"
+                              onError={(e) => {
+                                e.currentTarget.src =
+                                  "https://images.unsplash.com/photo-1618160702438-9b02ab6515c9?w=400&h=300&fit=crop&auto=format&q=80";
                               }}
-                              className="bg-book-600 hover:bg-book-700"
-                            >
-                              Add to Cart
-                            </Button>
+                            />
+                            <div className="absolute top-2 right-2 bg-white px-2 py-1 rounded-full text-sm font-semibold text-book-800">
+                              R{item.price.toLocaleString()}
+                            </div>
                           </div>
-                        </CardContent>
-                      </Card>
-                    ))}
+                          <div className="p-4 flex-grow flex flex-col">
+                            <h3 className="font-bold text-lg mb-1 text-book-800 line-clamp-1">
+                              {item.title}
+                            </h3>
+                            <p className="text-gray-600 mb-2">{item.author}</p>
+                            <p className="text-gray-500 text-sm mb-3 line-clamp-2 flex-grow">
+                              {item.description}
+                            </p>
+
+                            {/* Tags and badges */}
+                            <div className="flex flex-wrap items-center gap-2 mt-auto">
+                              <span className="bg-book-100 text-book-800 px-2 py-1 rounded text-xs font-medium">
+                                {item.itemType === "uniform" ? "Uniform" : item.itemType === "school_supply" ? "Supply" : item.condition} {item.itemType === "reader" && "reader"}
+                              </span>
+                              {item.schoolName && (
+                                <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-medium flex items-center">
+                                  <School className="h-3 w-3 mr-1" />
+                                  {item.schoolName}
+                                </span>
+                              )}
+                              {item.grade && (
+                                <span className="bg-indigo-100 text-indigo-800 px-2 py-1 rounded text-xs font-medium flex items-center">
+                                  <School className="h-3 w-3 mr-1" />
+                                  {item.grade}
+                                </span>
+                              )}
+                              {item.universityYear && (
+                                <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded text-xs font-medium flex items-center">
+                                  <GraduationCap className="h-3 w-3 mr-1" />
+                                  {item.universityYear}
+                                </span>
+                              )}
+                              {item.itemType !== "uniform" && item.itemType !== "school_supply" && (
+                                <span className="text-gray-500 text-xs ml-auto">
+                                  {item.category}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </>
               )}
@@ -382,7 +429,7 @@ const SellerProfile = () => {
 
             {/* Reviews Tab */}
             <TabsContent value="reviews" className="space-y-6">
-              <div className="mb-6">
+              <div className="mb-6 text-left">
                 <h2 className="text-xl font-semibold text-gray-900 mb-2">
                   Seller Reviews
                 </h2>
@@ -390,7 +437,21 @@ const SellerProfile = () => {
                   What buyers say about {seller.name}
                 </p>
               </div>
-              <ReviewList sellerId={seller.id} />
+
+              {(canUserReview || hasUserReview) && (
+                <div className="mb-8 text-left">
+                  <ReviewForm
+                    sellerId={seller.id}
+                    onReviewSubmitted={() => {
+                      setRefreshReviewsTrigger(prev => prev + 1);
+                      fetchSellerData();
+                      checkReviewEligibility();
+                    }}
+                  />
+                </div>
+              )}
+
+              <ReviewList key={refreshReviewsTrigger} sellerId={seller.id} />
             </TabsContent>
           </Tabs>
         </div>

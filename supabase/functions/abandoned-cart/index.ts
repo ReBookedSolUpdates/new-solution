@@ -1,4 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { EMAIL_FOOTER } from "../../../shared/email-footer.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const BREVO_API_KEY = Deno.env.get("BREVO_API_KEY") ?? "";
@@ -55,11 +56,7 @@ function buildCartEmail(userName: string, items: { title: string; price: number 
         This reminder was sent because you had items in your cart.<br>If you've already completed your purchase, please ignore this email.
       </p>
     </div>
-    <div style="background:#f3fef7;padding:20px 24px;text-align:center;border-top:1px solid #e5e7eb;">
-      <p style="color:#1f4e3d;font-size:12px;margin:0 0 4px;"><strong>ReBooked Solutions</strong></p>
-      <p style="color:#6b7280;font-size:11px;margin:0;">support@rebookedsolutions.co.za · rebookedsolutions.co.za</p>
-      <p style="color:#9ca3af;font-size:11px;margin:8px 0 0;"><em>"Pre-Loved Pages, New Adventures"</em></p>
-    </div>
+    ${EMAIL_FOOTER}
   </div>
 </body>
 </html>`;

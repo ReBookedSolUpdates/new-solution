@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConversations } from "@/hooks/useChat";
 import { Conversation } from "@/services/chatService";
-import { MessageSquare, Archive, Loader2, User } from "lucide-react";
+import { MessageSquare, Archive, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatDistanceToNow } from "date-fns";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -11,15 +11,33 @@ import { Skeleton } from "@/components/ui/skeleton";
 interface ChatListProps {
   onSelectConversation: (conversation: Conversation) => void;
   selectedId?: string;
+  defaultSelectedId?: string;
   onUnreadChange?: (hasUnread: boolean) => void;
   userProfilePicture?: string;
 }
 
 function getDisplayName(profile?: { first_name: string | null; last_name: string | null; email: string | null }): string {
-  if (!profile) return "Unknown";
+  if (!profile) return "";
   const name = [profile.first_name, profile.last_name].filter(Boolean).join(" ");
-  return name || profile.email?.split("@")[0] || "Unknown";
+  return name || profile.email?.split("@")[0] || "";
 }
+
+function getInitials(profile?: { first_name: string | null; last_name: string | null; email: string | null; name?: string | null }): string {
+  if (!profile) return "U";
+  const f = profile.first_name?.[0] || "";
+  const l = profile.last_name?.[0] || "";
+  const initials = (f + l).toUpperCase();
+  if (initials) return initials;
+
+  if (profile.name) {
+    return profile.name.charAt(0).toUpperCase();
+  }
+  if (profile.email) {
+    return profile.email.charAt(0).toUpperCase();
+  }
+  return "U";
+}
+
 
 function ChatListSkeleton() {
   return (
@@ -49,7 +67,7 @@ function ChatListSkeleton() {
   );
 }
 
-const ChatList = ({ onSelectConversation, selectedId, onUnreadChange, userProfilePicture }: ChatListProps) => {
+const ChatList = ({ onSelectConversation, selectedId, defaultSelectedId, onUnreadChange, userProfilePicture }: ChatListProps) => {
   const { user } = useAuth();
   const [showArchived, setShowArchived] = useState(false);
   const { conversations, isLoading } = useConversations(showArchived);
@@ -65,6 +83,18 @@ const ChatList = ({ onSelectConversation, selectedId, onUnreadChange, userProfil
     );
     onUnreadChange?.(hasUnreadMessages);
   }, [conversations, onUnreadChange]);
+
+  useEffect(() => {
+    if (!defaultSelectedId || selectedId) return;
+
+    const matchingConversation = displayConversations.find(
+      (conv) => conv.id === defaultSelectedId
+    );
+
+    if (matchingConversation) {
+      onSelectConversation(matchingConversation);
+    }
+  }, [defaultSelectedId, selectedId, displayConversations, onSelectConversation]);
 
   if (isLoading) {
     return <ChatListSkeleton />;
@@ -106,7 +136,8 @@ const ChatList = ({ onSelectConversation, selectedId, onUnreadChange, userProfil
           displayConversations.map((conv) => {
             const otherParty = user?.id === conv.buyer_id ? conv.seller : conv.buyer;
             const otherName = getDisplayName(otherParty);
-            const listingTitle = conv.listing?.title || "Unknown listing";
+            const otherHasProfile = Boolean(otherParty && (otherParty.first_name || otherParty.last_name || otherParty.email));
+            const listingTitle = conv.listing?.title || "";
             const listingImage = conv.listing?.front_cover || conv.listing?.image_url;
             const lastMsg = conv.last_message;
             const isSelected = selectedId === conv.id;
@@ -125,23 +156,37 @@ const ChatList = ({ onSelectConversation, selectedId, onUnreadChange, userProfil
                 <div className="flex-shrink-0">
                   <Avatar className="h-12 w-12 border-2 border-book-200 shadow-sm">
                     <AvatarImage src={otherParty?.profile_picture_url || ""} className="object-cover" />
-                    <AvatarFallback className="bg-book-100 text-book-700 font-semibold">
-                      <User className="h-5 w-5" />
+                    <AvatarFallback className="bg-book-100 text-book-700 text-xs font-semibold">
+                      {getInitials(otherParty)}
                     </AvatarFallback>
                   </Avatar>
                 </div>
 
                 {/* Content */}
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-semibold text-book-900 truncate">{otherName}</p>
+                  <div className="flex items-center justify-between gap-2">
+                    {otherHasProfile ? (
+                      <p className="text-sm font-semibold text-book-900 truncate">{otherName}</p>
+                    ) : (
+                      <Skeleton className="h-4 w-24" />
+                    )}
+                    {/* Unread indicator badge (WhatsApp style) */}
+                    {conv.unread_count !== undefined && conv.unread_count > 0 && (
+                      <div className="flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full bg-green-500 text-white text-[10px] font-bold flex-shrink-0" title={`${conv.unread_count} unread messages`}>
+                        {conv.unread_count}
+                      </div>
+                    )}
                     {lastMsg && (
-                      <span className="text-xs text-book-500 flex-shrink-0 ml-2">
+                      <span className="text-xs text-book-500 flex-shrink-0">
                         {formatDistanceToNow(new Date(lastMsg.created_at), { addSuffix: true })}
                       </span>
                     )}
                   </div>
-                  <p className="text-xs text-book-600 font-medium truncate">{listingTitle}</p>
+                  {listingTitle ? (
+                    <p className="text-xs text-book-600 font-medium truncate">{listingTitle}</p>
+                  ) : (
+                    <Skeleton className="h-3 w-28" />
+                  )}
                   {lastMsg && (
                     <p className="text-xs text-book-500 truncate mt-0.5">
                       {lastMsg.sender_id === user?.id ? "You: " : ""}

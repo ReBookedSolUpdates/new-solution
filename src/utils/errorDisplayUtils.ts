@@ -41,7 +41,10 @@ export const formatErrorForDisplay = (error: unknown, context?: string): Formatt
     developerMessage = error.message;
     
     // Handle specific error types
-    if (error.message.includes("Failed to encrypt")) {
+    const lowerMessage = error.message.toLowerCase();
+    if (lowerMessage.includes("edge function error") || lowerMessage.includes("edge function") || lowerMessage.includes("functions/v1/")) {
+      userMessage = "We encountered a temporary connection issue. Please try again shortly.";
+    } else if (error.message.includes("Failed to encrypt")) {
       userMessage = "Failed to securely save your address. Please try again.";
     } else if (error.message.includes("Network") || error.message.includes("fetch")) {
       userMessage = "Network connection error. Please check your internet connection.";
@@ -55,7 +58,12 @@ export const formatErrorForDisplay = (error: unknown, context?: string): Formatt
   } else if (typeof error === "string") {
     errorType = "string";
     developerMessage = error;
-    userMessage = error;
+    const lowerMessage = error.toLowerCase();
+    if (lowerMessage.includes("edge function error") || lowerMessage.includes("edge function") || lowerMessage.includes("functions/v1/")) {
+      userMessage = "We encountered a temporary connection issue. Please try again shortly.";
+    } else {
+      userMessage = error;
+    }
   } else if (typeof error === "object") {
     errorType = "object";
     const errorObj = error as any;
@@ -63,13 +71,28 @@ export const formatErrorForDisplay = (error: unknown, context?: string): Formatt
     // Handle common error object patterns
     if (errorObj.message) {
       developerMessage = String(errorObj.message);
-      userMessage = String(errorObj.message);
+      const lowerMessage = developerMessage.toLowerCase();
+      if (lowerMessage.includes("edge function error") || lowerMessage.includes("edge function") || lowerMessage.includes("functions/v1/")) {
+        userMessage = "We encountered a temporary connection issue. Please try again shortly.";
+      } else {
+        userMessage = String(errorObj.message);
+      }
     } else if (errorObj.error) {
       developerMessage = String(errorObj.error);
-      userMessage = String(errorObj.error);
+      const lowerMessage = developerMessage.toLowerCase();
+      if (lowerMessage.includes("edge function error") || lowerMessage.includes("edge function") || lowerMessage.includes("functions/v1/")) {
+        userMessage = "We encountered a temporary connection issue. Please try again shortly.";
+      } else {
+        userMessage = String(errorObj.error);
+      }
     } else if (errorObj.details) {
       developerMessage = typeof errorObj.details === "string" ? errorObj.details : JSON.stringify(errorObj.details);
-      userMessage = "An error occurred while processing your request";
+      const lowerMessage = developerMessage.toLowerCase();
+      if (lowerMessage.includes("edge function error") || lowerMessage.includes("edge function") || lowerMessage.includes("functions/v1/")) {
+        userMessage = "We encountered a temporary connection issue. Please try again shortly.";
+      } else {
+        userMessage = "An error occurred while processing your request";
+      }
     } else {
       // Try to extract meaningful information from the object
       try {
@@ -82,12 +105,22 @@ export const formatErrorForDisplay = (error: unknown, context?: string): Formatt
       } catch {
         developerMessage = `Error object of type ${errorObj.constructor?.name || 'unknown'}`;
       }
-      userMessage = "An error occurred while processing your request";
+      const lowerMessage = developerMessage.toLowerCase();
+      if (lowerMessage.includes("edge function error") || lowerMessage.includes("edge function") || lowerMessage.includes("functions/v1/")) {
+        userMessage = "We encountered a temporary connection issue. Please try again shortly.";
+      } else {
+        userMessage = "An error occurred while processing your request";
+      }
     }
   } else {
     errorType = typeof error;
     developerMessage = String(error);
-    userMessage = "An unexpected error occurred";
+    const lowerMessage = developerMessage.toLowerCase();
+    if (lowerMessage.includes("edge function error") || lowerMessage.includes("edge function") || lowerMessage.includes("functions/v1/")) {
+      userMessage = "We encountered a temporary connection issue. Please try again shortly.";
+    } else {
+      userMessage = "An unexpected error occurred";
+    }
   }
 
   return {

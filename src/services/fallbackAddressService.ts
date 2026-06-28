@@ -185,12 +185,18 @@ class FallbackAddressService {
       const { data, error } = await query;
 
       if (error) {
-        return { success: false, error: error.message };
+        // Table may not exist (404 / 42P01) — fail silently with empty list.
+        const code = (error as any).code;
+        if (code === '42P01' || (error.message || '').toLowerCase().includes('not exist')) {
+          return { success: true, addresses: [] };
+        }
+        return { success: true, addresses: [] };
       }
 
       return { success: true, addresses: data || [] };
     } catch (error) {
-      return { success: false, error: 'Failed to fetch addresses' };
+      // Silently degrade — table missing should not pollute console.
+      return { success: true, addresses: [] };
     }
   }
 

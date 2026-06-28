@@ -14,6 +14,25 @@ const Footer = () => {
 
   return (
     <footer className="bg-white border-t border-gray-200">
+      {/* Payment Logos Banner Above Footer */}
+      <div className="border-b border-gray-150 bg-gray-50/30 py-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-4">
+            <img src="/lovable-uploads/Visa_Brandmark_Blue_RGB_2021.png" alt="Visa" className="h-6 object-contain" />
+            <img src="/lovable-uploads/mastercard_logo.png" alt="Mastercard" className="h-6 object-contain" />
+            <img src="/lovable-uploads/amex.png" alt="American Express" className="h-6 object-contain" />
+            <img src="/lovable-uploads/Apple_Pay_Logo_new.png" alt="Apple Pay" className="h-6 object-contain" />
+            <img src="/lovable-uploads/Google Pay.png" alt="Google Pay" className="h-6 object-contain" />
+            <img src="/lovable-uploads/pay_shap.png" alt="PayShap" className="h-6 object-contain" />
+            <img src="/lovable-uploads/Scan to pay_logo.png" alt="Scan to Pay" className="h-6 object-contain" />
+            <img src="/lovable-uploads/Bob_Pay_Instant_EFT_new.png" alt="Instant EFT" className="h-6 object-contain" />
+            <img src="/lovable-uploads/nedbank_direct_eft_logo.svg" alt="Nedbank" className="h-6 object-contain" />
+            <img src="/lovable-uploads/absa_pay.png" alt="ABSA Pay" className="h-6 object-contain" />
+            <img src="/lovable-uploads/Capitec pay logo.png" alt="Capitec Pay" className="h-6 object-contain" />
+          </div>
+        </div>
+      </div>
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 md:grid-cols-5 gap-8">
           <div className="space-y-4">
@@ -23,8 +42,8 @@ const Footer = () => {
               onClick={handleLinkClick}
             >
               <Book className="h-6 w-6 text-book-600" />
-              <span className="ml-2 text-xl font-bold text-book-800">
-                ReBooked Solutions
+              <span className="ml-2 text-xl font-bold text-black">
+                ReBooked <span className="text-book-600">Solutions</span>
               </span>
             </Link>
             <p className="text-gray-600 text-sm leading-relaxed">
@@ -97,6 +116,15 @@ const Footer = () => {
                   onClick={handleLinkClick}
                 >
                   My Profile
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to="/refer-and-earn"
+                  className="text-gray-600 hover:text-book-600 text-sm"
+                  onClick={handleLinkClick}
+                >
+                  Refer & Earn
                 </Link>
               </li>
               <li>
