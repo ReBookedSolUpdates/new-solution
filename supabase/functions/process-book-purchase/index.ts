@@ -173,81 +173,39 @@ serve(async (req) => {
       }, { status: 400 });
     }
 
-    // Mark item as sold (with optimistic locking)
-    const { error: itemUpdateError } = await supabase
-      .from(itemTable)
-      .update({
-        sold: true,
-        updated_at: new Date().toISOString()
-      })
-      .eq("id", book_id)
-      .eq("sold", false); // Ensure it's still available
-
-    if (itemUpdateError) {
-      return jsonResponse({
-        success: false,
-        error: "ITEM_UPDATE_FAILED",
-        details: {
-          error_message: itemUpdateError.message,
-          item_id: book_id,
-          message: "Item may have been sold by another buyer"
-        },
-      }, { status: 409 });
-    }
-
-    // Create order
-    const commitDeadline = new Date(Date.now() + 48 * 60 * 60 * 1000); // 48 hours
+    // Resolve item type for the RPC function
+    const resolvedItemType = itemTable === 'books' ? 'book' : itemTable === 'uniforms' ? 'uniform' : 'school_supply';
     const finalPaymentRef = payment_reference || `single_book_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-    const { data: order, error: orderError } = await supabase
-      .from("orders")
-      .insert({
-        buyer_id,
-        buyer_email: buyer_email || buyer.email,
-        seller_id,
-        items: [{
-          id: book_id,
-          title: itemTitle,
-          reference: itemReference,
-          price: amount,
-          condition: item.condition,
-          seller_id,
-          category: item.category || itemTable
-        }],
-        amount: Math.round(amount * 100), // Convert to cents
-        total_amount: amount,
-        status: "pending_commit",
-        payment_status: "paid",
-        payment_reference: finalPaymentRef,
-        shipping_address: shipping_address || {},
-        commit_deadline: commitDeadline.toISOString(),
-        paid_at: new Date().toISOString(),
-        created_at: new Date().toISOString(),
-        metadata: {
-          created_from: "single_book_purchase",
-          item_count: 1,
-          book_id
-        }
-      })
-      .select()
-      .single();
+    // Call atomic SQL RPC function to process book purchase
+    const { data: dbResult, error: dbError } = await supabase.rpc("process_book_purchase_atomic", {
+      p_book_id: book_id,
+      p_buyer_id: buyer_id,
+      p_seller_id: seller_id,
+      p_amount: amount,
+      p_payment_reference: finalPaymentRef,
+      p_buyer_email: buyer_email || buyer.email,
+      p_shipping_address: shipping_address || {},
+      p_item_type: resolvedItemType,
+    });
 
-    if (orderError) {
-      // Rollback item sale if order creation fails
-      await supabase
-        .from(itemTable)
-        .update({ sold: false, updated_at: new Date().toISOString() })
-        .eq("id", book_id);
-
+    if (dbError || !dbResult || !dbResult.success) {
+      console.error("[process-book-purchase] Database error running purchase RPC:", dbError || dbResult?.error);
       return jsonResponse({
         success: false,
-        error: "ORDER_CREATION_FAILED",
+        error: dbResult?.error ? "PURCHASE_FAILED" : "DATABASE_ERROR",
         details: {
-          error_message: orderError.message,
-          rollback_performed: true
+          error_message: dbResult?.error || "Failed to process book purchase atomically",
+          database_error: dbError?.message
         },
-      }, { status: 500 });
+      }, { status: dbResult?.error ? 409 : 500 });
     }
+
+    const commitDeadline = new Date(Date.now() + 48 * 60 * 60 * 1000); // 48 hours
+    const order = {
+      id: dbResult.order_id,
+      status: "pending_commit",
+    };
 
     // Create notifications
     const notificationPromises = [

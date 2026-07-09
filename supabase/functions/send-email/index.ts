@@ -1,4 +1,37 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import {
+  buildAbandonedCartEmail,
+  buildBuyerDeclineEmail,
+  buildSellerDeclineEmail,
+  buildBuyerDeliveryEmail,
+  buildSellerDeliveryEmail,
+  buildBuyerPaymentEmail,
+  buildSellerPaymentEmail,
+  buildBuyerCancelEmail,
+  buildSellerCancelEmail,
+  buildChatNotificationEmail,
+  buildSellerCreditEmail,
+  buildExpiredBuyerCancelEmail,
+  buildExpiredSellerCancelEmail,
+  buildSellerConfirmReminderEmail,
+  buildBuyerDeliveryReminderEmail,
+  buildMeetupCommitBuyerEmail,
+  buildCourierCommitBuyerEmail,
+  buildCourierCommitSellerEmail,
+  buildPayoutRequestedEmail,
+  buildPayoutProcessedEmail,
+  buildDisputeOpenedEmail,
+  buildDisputeResolvedEmail,
+  buildProfileChangedSecurityEmail,
+  buildSellerBackWishlistEmail,
+  buildDeliveryConfirmedBuyerEmail,
+  buildDenialEmail,
+  buildPaymentOnTheWayBankTransferEmail,
+  buildDeliveryComplaintAcknowledgmentBuyerEmail,
+  buildDeliveryComplaintNotificationSellerEmail,
+  buildContactAcknowledgmentEmail,
+  buildSellerAwayNotificationEmail
+} from "../_shared/email-templates.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -14,12 +47,14 @@ interface EmailRequest {
   from?: string;
   replyTo?: string;
   test?: boolean;
+  templateId?: string;
+  templateData?: Record<string, any>;
 }
 
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
 
 const RATE_LIMIT = {
-  maxRequests: 10,
+  maxRequests: 30, // Increased for bulk/cascades
   windowMs: 60 * 1000,
 };
 
@@ -41,9 +76,80 @@ function checkRateLimit(clientIP: string, to: string) {
   return { allowed: true };
 }
 
-serve(async (req) => {
+function getTemplateHtml(templateId: string, data: any): string {
+  switch (templateId) {
+    case "abandoned-cart":
+      return buildAbandonedCartEmail(data.userName, data.items, data.totalValue);
+    case "buyer-decline":
+      return buildBuyerDeclineEmail(data.buyerName, data.orderId, data.amount, data.reason, data.refundSuccess);
+    case "seller-decline":
+      return buildSellerDeclineEmail(data.sellerName, data.orderId, data.reason);
+    case "buyer-delivery":
+      return buildBuyerDeliveryEmail(data.recipientName, data.itemTitle, data.orderId, data.supabaseUrl);
+    case "seller-delivery":
+      return buildSellerDeliveryEmail(data.sellerName, data.itemTitle, data.payout);
+    case "buyer-payment":
+      return buildBuyerPaymentEmail(
+        data.buyerName, data.bookTitle, data.itemImageUrl, data.sellerName, data.orderId, 
+        data.paymentReference, data.paidAmount, data.commitDeadlineText,
+        data.itemPrice, data.deliveryFee, data.buyerProtectionFee, data.walletDeduction, data.cardPaymentAmount
+      );
+    case "seller-payment":
+      return buildSellerPaymentEmail(data.sellerName, data.bookTitle, data.itemImageUrl, data.buyerName, data.orderId);
+    case "buyer-cancel":
+      return buildBuyerCancelEmail(data.buyerName, data.actorText, data.cancelReason, data.refundAmount);
+    case "seller-cancel":
+      return buildSellerCancelEmail(data.sellerName, data.actorText, data.cancelReason);
+    case "chat-notification":
+      return buildChatNotificationEmail(data.senderName, data.listingTitle, data.listingPrice, data.content);
+    case "seller-credit":
+      return buildSellerCreditEmail(data.sellerName, data.bookTitle, data.bookPrice, data.creditAmount, data.orderId, data.newBalance);
+    case "expired-buyer-cancel":
+      return buildExpiredBuyerCancelEmail(data.buyerName, data.itemTitle, data.totalRefunded);
+    case "expired-seller-cancel":
+      return buildExpiredSellerCancelEmail(data.sellerName, data.itemTitle, data.lostEarnings);
+    case "seller-confirm-reminder":
+      return buildSellerConfirmReminderEmail(data.sellerName, data.itemTitle, data.lostEarnings, data.hoursLeft);
+    case "buyer-delivery-reminder":
+      return buildBuyerDeliveryReminderEmail(data.buyerName, data.itemTitle, data.hoursLeft);
+    case "meetup-commit-buyer":
+      return buildMeetupCommitBuyerEmail(data.itemTitle, data.commitDeadlineText);
+    case "courier-commit-buyer":
+      return buildCourierCommitBuyerEmail(data.buyerName, data.sellerName, data.orderId, data.itemTitles, data.deliveryType, data.deliveryMethodText, data.trackingNumber);
+    case "courier-commit-seller":
+      return buildCourierCommitSellerEmail(data.sellerName, data.buyerName, data.orderId, data.itemTitles, data.pickupType, data.pickupMethodText, data.trackingNumber);
+    case "payout-requested":
+      return buildPayoutRequestedEmail(data.sellerName || data.userName, data.amount, data.bankDetails || "");
+    case "payout-processed":
+      return buildPayoutProcessedEmail(data.sellerName || data.userName, data.amount, data.reference);
+    case "dispute-opened":
+      return buildDisputeOpenedEmail(data.buyerName, data.sellerName, data.orderId, data.reason);
+    case "dispute-resolved":
+      return buildDisputeResolvedEmail(data.userName, data.orderId, data.resolution);
+    case "profile-changed":
+      return buildProfileChangedSecurityEmail(data.userName, data.changes);
+    case "seller-back":
+      return buildSellerBackWishlistEmail(data.buyerName, data.sellerName, data.bookTitle, data.listingUrl);
+    case "delivery-confirmed-buyer":
+      return buildDeliveryConfirmedBuyerEmail(data.buyerName, data.bookTitle, data.orderId);
+    case "denial":
+      return buildDenialEmail(data.sellerName, data.bookTitle, data.orderId, data.denialReason, data.sellerEarnings, data.orderDate, data.deliveryDate);
+    case "payment-on-the-way-bank-transfer":
+      return buildPaymentOnTheWayBankTransferEmail(data.sellerName, data.bookTitle, data.orderId);
+    case "delivery-complaint-acknowledgment-buyer":
+      return buildDeliveryComplaintAcknowledgmentBuyerEmail(data.buyerName, data.orderId, data.feedback);
+    case "delivery-complaint-notification-seller":
+      return buildDeliveryComplaintNotificationSellerEmail(data.sellerName, data.orderId, data.bookTitle, data.feedback);
+    case "contact-acknowledgment":
+      return buildContactAcknowledgmentEmail(data.buyerName, data.subject, data.message);
+    case "seller-away-notification":
+      return buildSellerAwayNotificationEmail(data.buyerName, data.sellerName, data.bookTitle);
+    default:
+      throw new Error(`Template not found: ${templateId}`);
+  }
+}
 
-  /* -------------------- CORS -------------------- */
+serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 200, headers: corsHeaders });
   }
@@ -59,7 +165,6 @@ serve(async (req) => {
     );
   }
 
-  /* -------------------- CONTENT-TYPE GUARD -------------------- */
   const contentType = req.headers.get("content-type") || "";
   if (!contentType.includes("application/json")) {
     return new Response(
@@ -72,16 +177,13 @@ serve(async (req) => {
     );
   }
 
-  /* -------------------- SAFE JSON PARSE -------------------- */
   let emailRequest: EmailRequest;
 
   try {
     const rawBody = await req.text();
-
     if (!rawBody || rawBody.trim() === "") {
       throw new Error("Empty request body");
     }
-
     emailRequest = JSON.parse(rawBody);
   } catch (err) {
     return new Response(
@@ -94,35 +196,45 @@ serve(async (req) => {
     );
   }
 
-  /* -------------------- BASIC VALIDATION -------------------- */
-  if (!emailRequest.to || !emailRequest.subject) {
+  // If a templateId is provided, resolve the html
+  if (emailRequest.templateId) {
+    try {
+      emailRequest.html = getTemplateHtml(emailRequest.templateId, emailRequest.templateData || {});
+    } catch (templateError) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "TEMPLATE_ERROR",
+          message: templateError.message,
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+  }
+
+  if (!emailRequest.to || !emailRequest.subject || (!emailRequest.html && !emailRequest.text)) {
     return new Response(
       JSON.stringify({
         success: false,
         error: "INVALID_PAYLOAD",
-        message: "Missing required email data",
+        message: "Missing required email details or html template rendering failed",
       }),
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
 
-
-  /* -------------------- TEST MODE -------------------- */
   if (emailRequest.test === true) {
     return new Response(
       JSON.stringify({
         success: true,
-        message: "Email service reachable and JSON parsing works",
+        message: "Email service reachable and template rendered successfully",
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
 
-  /* -------------------- RATE LIMIT -------------------- */
   const clientIP = req.headers.get("x-forwarded-for") || "unknown";
-  const toEmail = Array.isArray(emailRequest.to)
-    ? emailRequest.to[0]
-    : emailRequest.to;
+  const toEmail = Array.isArray(emailRequest.to) ? emailRequest.to[0] : emailRequest.to;
 
   const rateCheck = checkRateLimit(clientIP, toEmail);
   if (!rateCheck.allowed) {
@@ -137,15 +249,12 @@ serve(async (req) => {
         headers: {
           ...corsHeaders,
           "Content-Type": "application/json",
-          "Retry-After": String(
-            Math.ceil((rateCheck.resetTime! - Date.now()) / 1000),
-          ),
+          "Retry-After": String(Math.ceil((rateCheck.resetTime! - Date.now()) / 1000)),
         },
       },
     );
   }
 
-  /* -------------------- BREVO API -------------------- */
   const brevoApiKey = Deno.env.get("BREVO_API_KEY");
   const defaultFrom = Deno.env.get("DEFAULT_FROM_EMAIL") || "info@rebookedsolutions.co.za";
 
@@ -160,11 +269,9 @@ serve(async (req) => {
     );
   }
 
-  // Format recipients for Brevo API
   const toArray = Array.isArray(emailRequest.to) ? emailRequest.to : [emailRequest.to];
-  const recipients = toArray.map(email => ({ email }));
+  const recipients = toArray.map((email) => ({ email }));
 
-  // Build the request body for Brevo's transactional email API
   const brevoPayload: Record<string, unknown> = {
     sender: { email: emailRequest.from || defaultFrom },
     to: recipients,
@@ -182,7 +289,6 @@ serve(async (req) => {
   }
 
   try {
-    
     const response = await fetch("https://api.brevo.com/v3/smtp/email", {
       method: "POST",
       headers: {

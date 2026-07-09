@@ -108,32 +108,17 @@ export class PayoutService {
           : "there";
 
         const { EmailService } = await import("@/services/emailService");
-        const { createEmailTemplate } = await import("@/email-templates/styles");
-        const emailService = new EmailService();
-        const htmlContent = createEmailTemplate(
+        await emailService.sendTemplateEmail(
+          user.email!,
+          "payout-requested",
           {
-            title: "Cash Out Processing",
-            headerType: "default",
-            headerText: "💸 Cash Out Request",
-            headerSubtext: "Your cash out is being processed"
+            userName,
+            amount: data.amount,
           },
-          `
-          <p>Hi ${userName},</p>
-          <p>Your request to cash out <strong>R${data.amount}</strong> from your ReBooked wallet has been received and is currently being processed.</p>
-          <div class="info-box-success">
-            <p><strong>Requested Amount:</strong> R${data.amount}</p>
-            <p><strong>Status:</strong> Processing</p>
-          </div>
-          <p>Payouts are typically processed to your registered South African bank account within 1–3 business days, provided there are no active holds or disputes on your account.</p>
-          <p>We will notify you as soon as the funds have been paid out.</p>
-          `
+          {
+            subject: `Cash out request processing - R${data.amount}`
+          }
         );
-
-        await emailService.sendEmail({
-          to: user.email!,
-          subject: `Cash out request processing - R${data.amount}`,
-          html: htmlContent,
-        });
       } catch (emailErr) {
         console.warn("Failed to send cash out email:", emailErr);
       }

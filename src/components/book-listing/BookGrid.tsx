@@ -213,17 +213,35 @@ const BookGrid = ({
                           "https://images.unsplash.com/photo-1618160702438-9b02ab6515c9?w=400&h=300&fit=crop&auto=format&q=80";
                       }}
                     />
-                    <div className="absolute top-2 right-2 bg-white px-2 py-1 rounded-full text-sm font-semibold text-book-800">
-                      R{book.price.toLocaleString()}
+                    <div className="absolute top-2 right-2 bg-white px-2.5 py-1 rounded-full text-sm font-semibold text-book-800 flex items-center gap-1.5 shadow-md">
+                      {book.originalPrice && book.originalPrice > book.price && (
+                        <span className="text-xs line-through text-gray-400">
+                          R{book.originalPrice.toLocaleString()}
+                        </span>
+                      )}
+                      <span className={book.originalPrice && book.originalPrice > book.price ? "text-red-600 font-bold" : ""}>
+                        R{book.price.toLocaleString()}
+                      </span>
                     </div>
                     {typeof (book as any).availableQuantity === 'number' && (book as any).availableQuantity > 1 && (
                       <div className="absolute bottom-2 right-2 bg-white/90 px-2 py-1 rounded-full text-xs font-medium text-green-700">
                         {(book as any).availableQuantity} available
                       </div>
                     )}
+                    {book.originalPrice && book.originalPrice > book.price && (
+                      <div className="absolute top-2 left-2 bg-red-600 text-white px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider shadow-md z-10">
+                        {book.originalPrice - book.price >= 1 ? (
+                          `SAVE R${Math.round(book.originalPrice - book.price)}`
+                        ) : (
+                          `${Math.round((1 - book.price / book.originalPrice) * 100)}% OFF`
+                        )}
+                      </div>
+                    )}
                     <button
                       onClick={(e) => handleShareBook(book, e)}
-                      className="absolute top-2 left-2 bg-white/90 hover:bg-white p-2 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                      className={`absolute top-2 bg-white/90 hover:bg-white p-2 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-all duration-200 z-10 ${
+                        book.originalPrice && book.originalPrice > book.price ? "left-24" : "left-2"
+                      }`}
                       title="Share this book"
                     >
                       <Share2 className="h-4 w-4 text-book-600" />
@@ -327,17 +345,35 @@ const BookGrid = ({
                           "https://images.unsplash.com/photo-1618160702438-9b02ab6515c9?w=400&h=300&fit=crop&auto=format&q=80";
                       }}
                     />
-                    <div className="absolute top-2 right-2 bg-white px-2 py-1 rounded-full text-sm font-semibold text-book-800">
-                      R{book.price.toLocaleString()}
+                    <div className="absolute top-2 right-2 bg-white px-2.5 py-1 rounded-full text-sm font-semibold text-book-800 flex items-center gap-1.5 shadow-md">
+                      {book.originalPrice && book.originalPrice > book.price && (
+                        <span className="text-xs line-through text-gray-400">
+                          R{book.originalPrice.toLocaleString()}
+                        </span>
+                      )}
+                      <span className={book.originalPrice && book.originalPrice > book.price ? "text-red-600 font-bold" : ""}>
+                        R{book.price.toLocaleString()}
+                      </span>
                     </div>
                     {typeof (book as any).availableQuantity === 'number' && (book as any).availableQuantity > 1 && (
                       <div className="absolute bottom-2 right-2 bg-white/90 px-2 py-1 rounded-full text-xs font-medium text-green-700">
                         {(book as any).availableQuantity} available
                       </div>
                     )}
+                    {book.originalPrice && book.originalPrice > book.price && (
+                      <div className="absolute top-2 left-2 bg-red-600 text-white px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider shadow-md z-10">
+                        {book.originalPrice - book.price >= 1 ? (
+                          `SAVE R${Math.round(book.originalPrice - book.price)}`
+                        ) : (
+                          `${Math.round((1 - book.price / book.originalPrice) * 100)}% OFF`
+                        )}
+                      </div>
+                    )}
                     <button
                       onClick={(e) => handleShareBook(book, e)}
-                      className="absolute top-2 left-2 bg-white/90 hover:bg-white p-2 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                      className={`absolute top-2 bg-white/90 hover:bg-white p-2 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-all duration-200 z-10 ${
+                        book.originalPrice && book.originalPrice > book.price ? "left-24" : "left-2"
+                      }`}
                       title="Share this book"
                     >
                       <Share2 className="h-4 w-4 text-book-600" />

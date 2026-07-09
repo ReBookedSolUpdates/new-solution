@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 import { parseRequestBody } from "../_shared/safe-body-parser.ts";
-import { createEmailTemplate } from "../_shared/email-templates.ts";
+import { buildBuyerCancelEmail, buildSellerCancelEmail } from "../_shared/email-templates.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -308,6 +308,42 @@ serve(async (req) => {
       }
     }
 
+    // STEP 2.7: Restore inventory
+    const itemId = order.book_id || order.item_id;
+    const itemType = order.item_type || 'book';
+    
+    let tableSource = 'books';
+    if (itemType === 'uniform') tableSource = 'uniforms';
+    if (itemType === 'school_supply') tableSource = 'school_supplies';
+    
+    if (itemId) {
+      console.log(`[cancel-order-with-refund] Restoring inventory for item: ${itemId} in table: ${tableSource}`);
+      
+      const { data: itemData } = await supabase
+        .from(tableSource)
+        .select('available_quantity, sold_quantity')
+        .eq('id', itemId)
+        .maybeSingle();
+        
+      if (itemData) {
+        const { error: restoreError } = await supabase
+          .from(tableSource)
+          .update({
+            available_quantity: (itemData.available_quantity || 0) + 1,
+            sold_quantity: Math.max(0, (itemData.sold_quantity || 0) - 1),
+            sold: false,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', itemId);
+          
+        if (restoreError) {
+          console.error(`[cancel-order-with-refund] Failed to restore inventory:`, restoreError);
+        } else {
+          console.log(`[cancel-order-with-refund] Inventory successfully restored.`);
+        }
+      }
+    }
+
     // STEP 3: Update order status
     const { error: updateError } = await supabase
       .from('orders')
@@ -350,35 +386,8 @@ serve(async (req) => {
     const actorText = actor === "buyer" ? "buyer" : actor === "seller" ? "seller" : "platform team";
     const cancelReason = reason || "Order cancelled by user";
 
-    const buyerEmailHtml = createEmailTemplate(
-      {
-        title: "Order Cancelled and Refunded",
-        headerText: "Order Cancelled",
-        headerType: "warning",
-        headerSubtext: `Hello ${order.buyer_full_name || "there"},`,
-      },
-      `
-      <p>Your order has been cancelled by the <strong>${actorText}</strong>.</p>
-      <p><strong>Reason:</strong> ${cancelReason}</p>
-      <div class="info-box-success">
-        <p style="margin: 0;"><strong>Refund confirmed:</strong> ${refundAmount ? `R${Number(refundAmount).toFixed(2)}` : "Your full payment"} has been refunded.</p>
-      </div>
-      `
-    );
-
-    const sellerEmailHtml = createEmailTemplate(
-      {
-        title: "Order Cancelled",
-        headerText: "Order Cancelled",
-        headerType: "warning",
-        headerSubtext: `Hello ${order.seller_full_name || "there"},`,
-      },
-      `
-      <p>This order has been cancelled by the <strong>${actorText}</strong>.</p>
-      <p><strong>Reason:</strong> ${cancelReason}</p>
-      <p>The buyer refund has been processed.</p>
-      `
-    );
+    const buyerEmailHtml = buildBuyerCancelEmail(order.buyer_full_name || "there", actorText, cancelReason, refundAmount || 0);
+    const sellerEmailHtml = buildSellerCancelEmail(order.seller_full_name || "there", actorText, cancelReason);
 
     try {
       if (order.buyer_email) {

@@ -209,47 +209,27 @@ export class EnhancedCommitService {
    * Send commit confirmation email to seller
    */
   private static async sendSellerCommitEmail(orderData: CommitEmailData): Promise<void> {
-    const sellerEmailHtml = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <div style="background-color: #27ae60; color: white; padding: 20px; text-align: center;">
-          <h1 style="margin: 0;">📚 Sale Committed!</h1>
-        </div>
-        <div style="padding: 30px; background-color: #f8f9fa;">
-          <p>Hello ${orderData.sellerName},</p>
-          <p><strong>Great news!</strong> You've successfully committed to sell your book.</p>
-          
-          <div style="background-color: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <h3 style="color: #27ae60; margin-top: 0;">Order Details</h3>
-            <p><strong>Book:</strong> ${orderData.bookTitle}</p>
-            <p><strong>Price:</strong> R${orderData.bookPrice}</p>
-            <p><strong>Order ID:</strong> ${orderData.orderId}</p>
-          </div>
-          
-          <p><strong>Next Steps:</strong></p>
-          <ul>
-            <li>A courier will contact you within 24 hours</li>
-            <li>Prepare your book for pickup</li>
-            <li>You'll receive payment after delivery</li>
-          </ul>
-          
-          <p>Thank you for using ReBooked Solutions!</p>
-        </div>
-      </div>
-    `;
+    const emailData = createOrderConfirmedSellerEmail({
+      sellerName: orderData.sellerName,
+      buyerName: orderData.buyerName,
+      orderId: orderData.orderId,
+      bookTitles: [orderData.bookTitle],
+      pickupType: "door" // fallback assumption
+    });
     
     try {
       await emailService.sendEmail({
         to: orderData.sellerEmail,
-        subject: "📚 Sale Committed - Pickup Scheduled",
-        html: sellerEmailHtml,
-        text: `Sale Committed! Book: ${orderData.bookTitle}, Price: R${orderData.bookPrice}`
+        subject: emailData.subject,
+        html: emailData.html,
+        text: emailData.text
       });
     } catch (error) {
       // Queue for manual processing
       await this.queueEmailForManualProcessing({
         to: orderData.sellerEmail,
-        subject: "📚 Sale Committed - Pickup Scheduled", 
-        html: sellerEmailHtml,
+        subject: emailData.subject, 
+        html: emailData.html,
         type: "seller_commit"
       });
     }
@@ -259,48 +239,28 @@ export class EnhancedCommitService {
    * Send order confirmation email to buyer
    */
   private static async sendBuyerCommitEmail(orderData: CommitEmailData): Promise<void> {
-    const buyerEmailHtml = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <div style="background-color: #3498db; color: white; padding: 20px; text-align: center;">
-          <h1 style="margin: 0;">🎉 Order Confirmed!</h1>
-        </div>
-        <div style="padding: 30px; background-color: #f8f9fa;">
-          <p>Hello ${orderData.buyerName},</p>
-          <p><strong>Excellent!</strong> Your book order has been confirmed by the seller.</p>
-          
-          <div style="background-color: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <h3 style="color: #3498db; margin-top: 0;">Order Details</h3>
-            <p><strong>Book:</strong> ${orderData.bookTitle}</p>
-            <p><strong>Price:</strong> R${orderData.bookPrice}</p>
-            <p><strong>Order ID:</strong> ${orderData.orderId}</p>
-            <p><strong>Seller:</strong> ${orderData.sellerName}</p>
-          </div>
-          
-          <p><strong>What happens next:</strong></p>
-          <ul>
-            <li>The seller will ship your book within 24 hours</li>
-            <li>You'll receive tracking information via SMS/email</li>
-            <li>Delivery typically takes 1-3 business days</li>
-          </ul>
-          
-          <p>Thank you for your purchase!</p>
-        </div>
-      </div>
-    `;
-    
     try {
-      await emailService.sendEmail({
-        to: orderData.buyerEmail,
-        subject: "🎉 Order Confirmed - Book on the Way!",
-        html: buyerEmailHtml,
-        text: `Order Confirmed! Book: ${orderData.bookTitle}, Price: R${orderData.bookPrice}`
-      });
+      await emailService.sendTemplateEmail(
+        orderData.buyerEmail,
+        "courier-commit-buyer",
+        {
+          buyerName: orderData.buyerName,
+          sellerName: orderData.sellerName,
+          orderId: orderData.orderId,
+          itemTitles: orderData.bookTitle,
+          deliveryType: "door",
+          deliveryMethodText: "Courier"
+        },
+        {
+          subject: `Order Commitment Confirmed – Order ID: ${orderData.orderId}`
+        }
+      );
     } catch (error) {
       // Queue for manual processing
       await this.queueEmailForManualProcessing({
         to: orderData.buyerEmail,
-        subject: "🎉 Order Confirmed - Book on the Way!",
-        html: buyerEmailHtml,
+        subject: `Order Commitment Confirmed – Order ID: ${orderData.orderId}`,
+        html: `<p>Commitment confirmed for order ${orderData.orderId}.</p>`,
         type: "buyer_commit"
       });
     }

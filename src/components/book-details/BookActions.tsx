@@ -43,9 +43,29 @@ const BookActions = ({
         <div className="space-y-4">
           {/* Price Section */}
           <div className="text-center p-4 bg-book-50 rounded-lg border">
-            <div className="text-3xl font-bold text-book-600 mb-2">
-              R{book.price?.toLocaleString()}
-            </div>
+            {book.originalPrice && book.originalPrice > book.price ? (
+              <div className="space-y-1">
+                <div className="flex items-center justify-center gap-2">
+                  <span className="text-sm line-through text-gray-400">
+                    R{book.originalPrice.toLocaleString()}
+                  </span>
+                  <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded font-bold uppercase tracking-wider">
+                    {book.originalPrice - book.price >= 1 ? (
+                      `SAVE R${Math.round(book.originalPrice - book.price)}`
+                    ) : (
+                      `${Math.round((1 - book.price / book.originalPrice) * 100)}% OFF`
+                    )}
+                  </span>
+                </div>
+                <div className="text-3xl font-bold text-red-600">
+                  R{book.price?.toLocaleString()}
+                </div>
+              </div>
+            ) : (
+              <div className="text-3xl font-bold text-book-600 mb-2">
+                R{book.price?.toLocaleString()}
+              </div>
+            )}
             <p className="text-sm text-gray-600">Final Price</p>
           </div>
 

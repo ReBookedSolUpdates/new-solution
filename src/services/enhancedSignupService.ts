@@ -1,5 +1,4 @@
 import { supabase } from "@/integrations/supabase/client";
-import { EMAIL_FOOTER } from "@/email-templates/styles";
 import { emailService } from "./emailService";
 
 export interface SignupResult {

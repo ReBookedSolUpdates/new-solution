@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
-import { EMAIL_FOOTER } from "../_shared/email-templates.ts";
+import { buildChatNotificationEmail } from "../_shared/email-templates.ts";
 
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
@@ -109,48 +109,12 @@ serve(async (req: Request) => {
       });
     }
 
-    // Standardized Email Template Styles
-    const emailHtml = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <title>New Message - ReBooked Marketplace</title>
-        <style>
-          body { font-family: Arial, sans-serif; background: #f3fef7; padding: 20px; color: #1f4e3d; margin: 0; }
-          .container { max-width: 500px; margin: auto; background: #ffffff; padding: 30px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
-          .btn { display: inline-block; padding: 12px 20px; background: #3ab26f; color: #ffffff; text-decoration: none; border-radius: 5px; margin-top: 20px; font-weight: bold; }
-          .header { background: #3ab26f; color: white; padding: 20px; text-align: center; border-radius: 10px 10px 0 0; margin: -30px -30px 20px -30px; }
-          .info-box-success { background: #f0fdf4; border: 1px solid #10b981; padding: 15px; border-radius: 5px; margin: 15px 0; }
-          .footer-text { background: #f3fef7; color: #1f4e3d; padding: 20px; text-align: center; font-size: 12px; line-height: 1.5; margin: 30px -30px -30px -30px; border-radius: 0 0 10px 10px; border-top: 1px solid #e5e7eb; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <h1 style="margin:0;font-size:22px;">💬 New Message Received</h1>
-            <p style="margin:5px 0 0;font-size:14px;">You have a new message from ${senderName}</p>
-          </div>
-          
-          <div class="info-box-success">
-            <p style="margin: 0; font-size: 12px; color: #166534; text-transform: uppercase;">Regarding Listing</p>
-            <p style="margin: 4px 0 0 0; font-size: 16px; color: #064e3b; font-weight: 600;">${listingTitle}</p>
-            ${listing?.price ? `<p style="margin: 2px 0 0 0; font-size: 14px; color: #059669; font-weight: bold;">R${listing.price}</p>` : ""}
-          </div>
-          
-          <div style="background-color: #f8fafc; border-radius: 12px; padding: 20px; border-left: 4px solid #10b981; margin-bottom: 24px;">
-            <p style="margin: 0; font-style: italic; color: #334155; font-size: 15px;">"${content || "(Media attachment)"}"</p>
-          </div>
-          
-          <div style="text-align: center;">
-            <a href="https://rebookedsolutions.co.za/chats" class="btn">Reply Now</a>
-          </div>
-          
-          ${EMAIL_FOOTER}
-        </div>
-      </body>
-      </html>
-    `;
+    const emailHtml = buildChatNotificationEmail(
+      senderName,
+      listingTitle,
+      listing?.price || null,
+      content
+    );
 
     // Rather than hardcoding Brevo, use the internal 'send-email' edge function which is the central registry.
     const { error: sendError } = await supabase.functions.invoke("send-email", {

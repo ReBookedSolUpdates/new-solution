@@ -27,7 +27,6 @@ import { useBookTracking } from "@/hooks/useBookTracking";
 import debugLogger from "@/utils/debugLogger";
 import { supabase } from "@/integrations/supabase/client";
 import { emailService } from "@/services/emailService";
-import { sendSellerAwayNotificationEmail } from "@/email-templates";
 
 const BookDetails = () => {
   const params = useParams<{ id?: string; '*'?: string }>();

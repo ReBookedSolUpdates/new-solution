@@ -1,7 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { emailService } from "@/services/emailService";
 import { NotificationService } from "@/services/notificationService";
-import { createEmailTemplate } from "@/email-templates/styles";
 import debugLogger from "@/utils/debugLogger";
 
 interface PurchaseEmailData {
@@ -111,89 +110,46 @@ export class EnhancedPurchaseEmailService {
   }
   
   private static async sendSellerPurchaseNotification(purchaseData: PurchaseEmailData): Promise<void> {
-    const sellerEmailHtml = createEmailTemplate(
+    await emailService.sendTemplateEmail(
+      purchaseData.sellerEmail,
+      "seller-payment",
       {
-        title: "New Book Sale - Action Required",
-        headerType: "warning",
-        headerText: "🚨 New Book Sale - Action Required!",
-        headerSubtext: "You have 48 hours to confirm this order"
+        sellerName: purchaseData.sellerName,
+        bookTitle: purchaseData.bookTitle,
+        itemImageUrl: "",
+        buyerName: purchaseData.buyerName,
+        orderId: purchaseData.orderId
       },
-      `
-      <p>Hello ${purchaseData.sellerName},</p>
-      <p><strong>Great news!</strong> Someone just purchased your book <strong>"${purchaseData.bookTitle}"</strong> and is waiting for your confirmation.</p>
-      
-      <div class="info-box-warning">
-        <h3 style="margin-top: 0; color: #92400e;">⏰ ACTION REQUIRED WITHIN 48 HOURS</h3>
-        <p style="margin: 0;"><strong>You must confirm this sale to proceed with the order.</strong></p>
-      </div>
-      
-      <div class="info-box">
-        <h3 style="margin-top: 0;">📋 Sale Details</h3>
-        <p><strong>Book:</strong> ${purchaseData.bookTitle}</p>
-        <p><strong>Price:</strong> R${purchaseData.bookPrice}</p>
-        <p><strong>Buyer:</strong> ${purchaseData.buyerName}</p>
-        <p><strong>Order ID:</strong> ${purchaseData.orderId}</p>
-        <p><strong>Order Date:</strong> ${purchaseData.orderDate}</p>
-      </div>
-      
-      <div class="info-box-error">
-        <p><strong>⚠️ Important:</strong> If you don't confirm within 48 hours, the order will be <strong>automatically cancelled</strong> and the buyer will receive a <strong>full refund</strong>.</p>
-      </div>
-      
-      <p style="text-align: center; margin: 30px 0;">
-        <a href="https://rebookedsolutions.co.za/profile?tab=orders" class="btn">Go to Orders & Confirm Sale</a>
-      </p>
-      `
+      {
+        subject: "🚨 NEW SALE - Confirm Your Book Sale (48hr deadline)"
+      }
     );
-    
-    await emailService.sendEmail({
-      to: purchaseData.sellerEmail,
-      subject: "🚨 NEW SALE - Confirm Your Book Sale (48hr deadline)",
-      html: sellerEmailHtml,
-      text: `NEW SALE - Action Required! Book: ${purchaseData.bookTitle}, Price: R${purchaseData.bookPrice}. You have 48 hours to confirm this sale. Login to ReBooked Solutions to confirm.`
-    });
   }
 
   private static async sendBuyerPurchaseReceipt(purchaseData: PurchaseEmailData): Promise<void> {
-    const buyerEmailHtml = createEmailTemplate(
+    const deadline = new Date(Date.now() + 48 * 60 * 60 * 1000).toLocaleString();
+    await emailService.sendTemplateEmail(
+      purchaseData.buyerEmail,
+      "buyer-payment",
       {
-        title: "Purchase Confirmed",
-        headerText: "📚 Purchase Confirmed!",
-        headerSubtext: "Your payment has been processed successfully"
+        buyerName: purchaseData.buyerName,
+        bookTitle: purchaseData.bookTitle,
+        itemImageUrl: "",
+        sellerName: purchaseData.sellerName,
+        orderId: purchaseData.orderId,
+        paymentReference: purchaseData.orderId,
+        paidAmount: purchaseData.orderTotal,
+        commitDeadlineText: deadline,
+        itemPrice: purchaseData.bookPrice,
+        deliveryFee: purchaseData.orderTotal - purchaseData.bookPrice,
+        buyerProtectionFee: 0,
+        walletDeduction: 0,
+        cardPaymentAmount: purchaseData.orderTotal
       },
-      `
-      <p>Hello ${purchaseData.buyerName},</p>
-      <p><strong>Thank you for your purchase!</strong> Your payment has been processed successfully.</p>
-      
-      <div class="info-box">
-        <h3 style="margin-top: 0;">📋 Order Summary</h3>
-        <p><strong>Book:</strong> ${purchaseData.bookTitle}</p>
-        <p><strong>Price:</strong> R${purchaseData.bookPrice}</p>
-        <p><strong>Seller:</strong> ${purchaseData.sellerName}</p>
-        <p><strong>Order ID:</strong> ${purchaseData.orderId}</p>
-        <p><strong>Order Date:</strong> ${purchaseData.orderDate}</p>
-        <p><strong>Total Paid:</strong> R${purchaseData.orderTotal}</p>
-      </div>
-      
-      <div class="info-box-warning">
-        <h3 style="margin-top: 0; color: #92400e;">⏳ Waiting for Seller Confirmation</h3>
-        <p style="margin: 0;">The seller has 48 hours to confirm your order. Once confirmed, your book will be shipped immediately.</p>
-      </div>
-      
-      <p><strong>If the seller doesn't confirm:</strong> You'll receive a full automatic refund within 48 hours.</p>
-      
-      <p style="text-align: center; margin: 30px 0;">
-        <a href="https://rebookedsolutions.co.za/profile?tab=orders" class="btn">Track Your Order</a>
-      </p>
-      `
+      {
+        subject: "📚 Purchase Confirmed - Waiting for Seller Response"
+      }
     );
-    
-    await emailService.sendEmail({
-      to: purchaseData.buyerEmail,
-      subject: "📚 Purchase Confirmed - Waiting for Seller Response",
-      html: buyerEmailHtml,
-      text: `Purchase Confirmed! Book: ${purchaseData.bookTitle}, Total: R${purchaseData.orderTotal}. Waiting for seller confirmation within 48 hours.`
-    });
   }
 
   private static async createSellerNotification(purchaseData: PurchaseEmailData): Promise<void> {

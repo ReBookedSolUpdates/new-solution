@@ -64,6 +64,7 @@ import SellerProfile from "./pages/SellerProfile";
 import GettingStarted from "./pages/GettingStarted";
 import CategoryInfoPage from "./pages/CategoryInfoPage";
 import ReBookedBusiness from "./pages/ReBookedBusiness";
+import BusinessProfile from "./pages/BusinessProfile";
 import TextbooksInfo from "./pages/TextbooksInfo";
 import UniformsInfo from "./pages/UniformsInfo";
 import SchoolSuppliesInfo from "./pages/SchoolSuppliesInfo";
@@ -325,6 +326,7 @@ function AppRoutes() {
         <Route path="/school-supplies-info" element={<SchoolSuppliesInfo />} />
         <Route path="/category/:slug" element={<CategoryInfoPage />} />
         <Route path="/rebooked-business" element={<ReBookedBusiness />} />
+        <Route path="/business-profile" element={<BusinessProfile />} />
 
         <Route path="/report" element={<Report />} />
 

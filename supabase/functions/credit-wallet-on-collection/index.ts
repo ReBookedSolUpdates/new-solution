@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { EMAIL_FOOTER } from "../../../shared/email-footer.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { buildSellerCreditEmail } from "../_shared/email-templates.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -9,152 +10,6 @@ const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
-
-const EMAIL_STYLES = `<style>
-  body {
-    font-family: Arial, sans-serif;
-    background-color: #f3fef7;
-    padding: 20px;
-    color: #1f4e3d;
-    margin: 0;
-  }
-  .container {
-    max-width: 500px;
-    margin: auto;
-    background-color: #ffffff;
-    padding: 30px;
-    border-radius: 10px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-  }
-  .btn {
-    display: inline-block;
-    padding: 12px 20px;
-    background-color: #3ab26f;
-    color: white;
-    text-decoration: none;
-    border-radius: 5px;
-    margin-top: 20px;
-    font-weight: bold;
-  }
-  .link {
-    color: #3ab26f;
-  }
-  .header {
-    background: #3ab26f;
-    color: white;
-    padding: 20px;
-    text-align: center;
-    border-radius: 10px 10px 0 0;
-    margin: -30px -30px 20px -30px;
-  }
-  .info-box {
-    background: #f3fef7;
-    border: 1px solid #3ab26f;
-    padding: 15px;
-    border-radius: 5px;
-    margin: 15px 0;
-  }
-  .info-box-success {
-    background: #f0fdf4;
-    border: 1px solid #10b981;
-    padding: 15px;
-    border-radius: 5px;
-    margin: 15px 0;
-  }
-  .footer {
-    background: #f3fef7;
-    color: #1f4e3d;
-    padding: 20px;
-    text-align: center;
-    font-size: 12px;
-    line-height: 1.5;
-    margin: 30px -30px -30px -30px;
-    border-radius: 0 0 10px 10px;
-    border-top: 1px solid #e5e7eb;
-  }
-  h1, h2, h3 { margin: 0 0 10px 0; color: #1f4e3d; }
-  ul { margin: 10px 0; padding-left: 20px; }
-  li { margin: 5px 0; }
-  p { margin: 10px 0; line-height: 1.6; }
-</style>`;
-
-function generateSellerCreditEmailHTML(data: {
-  sellerName: string;
-  bookTitle: string;
-  bookPrice: number;
-  creditAmount: number;
-  orderId: string;
-  newBalance: number;
-}): string {
-  return `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>Payment Received - Credit Added to Your Account</title>
-  ${EMAIL_STYLES}
-</head>
-<body>
-  <div class="container">
-    <div class="header">
-      <h1>Payment Received!</h1>
-      <p>Your item has been delivered and credit has been added</p>
-    </div>
-
-    <p>Hello ${data.sellerName},</p>
-
-    <p><strong>Great news!</strong> Your item <strong>"${data.bookTitle}"</strong> has been successfully delivered and received by the buyer. Your payment is now available in your wallet!</p>
-
-    <div class="info-box-success">
-      <h3 style="margin-top: 0; color: #10b981;">✅ Payment Confirmed</h3>
-      <p style="margin: 0;"><strong>Credit has been added to your account!</strong></p>
-    </div>
-
-    <div class="info-box">
-      <h3 style="margin-top: 0;">📋 Transaction Details</h3>
-      <p><strong>Item Title:</strong> ${data.bookTitle}</p>
-      <p><strong>Item Price:</strong> R${data.bookPrice.toFixed(2)}</p>
-      <p><strong>Commission Rate:</strong> 10% (You keep 90%)</p>
-      <p style="border-top: 1px solid #ddd; padding-top: 10px; margin-top: 10px;"><strong>Credit Added:</strong> <span style="font-size: 1.2em; color: #10b981;">R${data.creditAmount.toFixed(2)}</span></p>
-      <p><strong>Order ID:</strong> ${data.orderId}</p>
-    </div>
-
-    <div class="info-box-success">
-      <h3 style="margin-top: 0; color: #10b981;">💳 Your New Wallet Balance</h3>
-      <p style="margin: 0; font-size: 1.1em; color: #10b981;"><strong>R${data.newBalance.toFixed(2)}</strong></p>
-    </div>
-
-    <h3>💡 What You Can Do Next:</h3>
-    <ul>
-      <li><strong>List More Items:</strong> Add more items to your inventory and earn from sales</li>
-      <li><strong>Request Payout:</strong> Once you have accumulated funds, you can request a withdrawal to your bank account</li>
-      <li><strong>View Transactions:</strong> Check your wallet history anytime in your profile</li>
-      <li><strong>Track Orders:</strong> Monitor all your sales and deliveries</li>
-    </ul>
-
-    <h3>📊 How Payouts Work:</h3>
-    <p>All earnings are credited to your virtual wallet. You can choose to:</p>
-    <ol>
-      <li><strong>Use Wallet Balance:</strong> Apply your wallet funds to purchase other items on ReBooked Solutions</li>
-      <li><strong>Request Payout:</strong> Withdraw your available balance directly to your bank account at any time from your profile tab</li>
-    </ol>
-
-    <h3>🚀 Ready to Make More Sales?</h3>
-    <p style="text-align: center; margin: 30px 0;">
-      <a href="https://rebookedsolutions.co.za/profile?tab=overview" class="btn">
-        View Your Wallet &amp; Profile
-      </a>
-    </p>
-
-    <p style="color: #1f4e3d;"><strong>Questions?</strong> Contact us at <a href="mailto:support@rebookedsolutions.co.za" class="link">support@rebookedsolutions.co.za</a></p>
-
-    <p>Thank you for selling on ReBooked Solutions!</p>
-    <p>Best regards,<br><strong>The ReBooked Solutions Team</strong></p>
-
-    ${EMAIL_FOOTER}
-  </div>
-</body>
-</html>`;
-}
 
 // UUID validation helper
 function isValidUUID(uuid: string): boolean {
@@ -401,14 +256,30 @@ serve(async (req) => {
 
       // Send email notification
       try {
-        const emailHtml = generateSellerCreditEmailHTML({
+        // Determine commission rate for email based on seller's subscription tier
+        let commissionRate = 10; // default for individual and Business Free
+        try {
+          const { data: sellerProfile } = await supabase
+            .from("profiles")
+            .select("is_business, subscription_tier")
+            .eq("id", seller_id)
+            .maybeSingle();
+          if (sellerProfile?.is_business && sellerProfile?.subscription_tier === "tier1") {
+            commissionRate = 6.5;
+          }
+        } catch (_) {
+          // fall back to 10% default
+        }
+
+        const emailHtml = buildSellerCreditEmail(
           sellerName,
-          bookTitle: itemTitle,
-          bookPrice: bookPrice,
-          creditAmount: creditAmount,
-          orderId: order_id,
-          newBalance: newBalance,
-        });
+          itemTitle,
+          bookPrice,
+          creditAmount,
+          order_id,
+          newBalance,
+          commissionRate
+        );
 
         // Create a service role client for function invocation
         const serviceClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
@@ -440,7 +311,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: true,
-        message: "Wallet credited successfully with 90% of item price",
+        message: "Wallet credited successfully based on seller commission tier",
         order_id,
         seller_id,
         payment_method: "wallet_credit",

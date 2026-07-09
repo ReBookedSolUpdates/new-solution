@@ -1,16 +1,13 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { getShippingConfig } from "../_shared/shipping-config.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { createEmailTemplate } from "../_shared/email-templates.ts";
+import { buildBuyerDeliveryEmail, buildSellerDeliveryEmail } from "../_shared/email-templates.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-const IS_PRODUCTION = Deno.env.get("VITE_PRODUCTION") === "true";
-const TCG_BASE_URL = IS_PRODUCTION 
-  ? (Deno.env.get("TCG_BASE_URL") || "https://api.portal.thecourierguy.co.za")
-  : (Deno.env.get("SANDBOX_TCG_BASE_URL") || "https://api.portal.thecourierguy.co.za");
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -103,6 +100,10 @@ serve(async (req) => {
         } else if (newStatus === 'collected_from_sender') {
           mappedStatus = 'in_transit';
           mappedDeliveryStatus = 'in_transit';
+        } else if (newStatus === 'collection-failed-attempt') {
+          mappedDeliveryStatus = 'pickup_failed';
+        } else if (newStatus === 'delivery-failed-attempt') {
+          mappedDeliveryStatus = 'delivery-failed-attempt';
         }
 
         // 2. Update status if changed
@@ -128,26 +129,7 @@ serve(async (req) => {
             const payout = (itemPrice * 0.9).toFixed(2);
             
             // Premium HTML for delivery confirmation (Buyer)
-            const deliveryHtml = createEmailTemplate(
-              {
-                title: "Item Delivered - Confirm Receipt",
-                headerText: "Item Delivered!",
-                headerType: "default",
-                headerSubtext: `Hello ${recipientName}!`
-              },
-              `
-              <p>Our records show that your order containing <strong>${itemTitle}</strong> has been delivered.</p>
-              
-              <div class="info-box-warning" style="text-align: center; border-color: #0ea5e9; background-color: #f0f9ff;">
-                <h3 style="margin: 0 0 12px 0; color: #0369a1; font-size: 18px;">Final Step: Confirm Receipt</h3>
-                <p style="margin: 0 0 20px 0; color: #0369a1; font-size: 14px;">Please verify that you have received the item(s) so we can release the payment to the seller.</p>
-                <a href="${SUPABASE_URL.replace('.supabase.co', '')}.rebookedsolutions.co.za/orders/${order.id}" 
-                   style="background-color: #0ea5e9; color: white; padding: 12px 32px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;">
-                  Confirm Receipt
-                </a>
-              </div>
-              `
-            );
+            const deliveryHtml = buildBuyerDeliveryEmail(recipientName, itemTitle, order.id, SUPABASE_URL);
 
             await fetch(EMAIL_FUNCTION_URL, {
               method: "POST",
@@ -164,21 +146,7 @@ serve(async (req) => {
 
             // Premium HTML for delivery confirmation (Seller)
             if (order.seller_email) {
-              const sellerDeliveryHtml = createEmailTemplate(
-                {
-                  title: "Item Delivered - Payout Pending Confirmation",
-                  headerText: "Item Delivered!",
-                  headerType: "default",
-                  headerSubtext: `Hello ${sellerName}!`
-                },
-                `
-                <p>Good news! Your item <strong>${itemTitle}</strong> has been successfully delivered to the buyer.</p>
-                <div class="info-box" style="text-align: center; border-color: #3ab26f; background-color: #f3fef7; padding: 15px; border-radius: 8px; margin: 20px 0;">
-                  <h3 style="margin: 0 0 12px 0; color: #1f4e3d; font-size: 16px;">What happens next?</h3>
-                  <p style="margin: 0 0 10px 0; color: #1f4e3d; font-size: 14px;">The buyer has 48 hours to confirm receipt of the item. Once confirmed (or after 48 hours of automatic confirmation), your payout of <strong>R${payout}</strong> (90% of listing price) will be released to your wallet.</p>
-                </div>
-                `
-              );
+              const sellerDeliveryHtml = buildSellerDeliveryEmail(sellerName, itemTitle, payout);
 
               await fetch(EMAIL_FUNCTION_URL, {
                 method: "POST",

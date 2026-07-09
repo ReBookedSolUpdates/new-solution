@@ -1,11 +1,11 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { getShippingConfig } from "../_shared/shipping-config.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-const TCG_API_URL = Deno.env.get("TCG_BASE_URL");
 
 interface AddressInput {
   type?: string;
@@ -51,7 +51,7 @@ async function fetchRatesFromTCG(
     console.log("Fetching rates from The Courier Guy...");
     console.log("Payload sent to TCG:", JSON.stringify(body));
 
-    const response = await fetch(`${TCG_API_URL}/rates`, {
+    const response = await fetch(`${apiUrl}/rates`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -164,18 +164,18 @@ serve(async (req) => {
       }
     }
 
-    const TCG_API_KEY = Deno.env.get("TCG_API_KEY");
+    const { apiUrl, apiKey, providerName } = getShippingConfig();
 
-    if (!TCG_API_URL) {
+    if (!apiUrl) {
       return new Response(
-        JSON.stringify({ success: false, error: "TCG_BASE_URL is not configured" }),
+        JSON.stringify({ success: false, error: "TCG_BASE_URL/ShipLogic is not configured" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    if (!TCG_API_KEY || TCG_API_KEY.length < 5) {
+    if (!apiKey || apiKey.length < 5) {
       return new Response(
-        JSON.stringify({ success: false, error: "TCG_API_KEY is not configured" }),
+        JSON.stringify({ success: false, error: "TCG_API_KEY/ShipLogic is not configured" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }

@@ -94,7 +94,11 @@ const OrderActionsPanel: React.FC<OrderActionsPanelProps> = ({
 
   const canCancelOrder = !nonCancellableStatuses.includes(deliveryStatusLower) && !isCancelledOrCompleted;
 
-  const showMissedPickupActions = userRole === "seller" && order.delivery_status === "pickup_failed";
+  const showMissedPickupActions = userRole === "seller" && 
+    (order.delivery_status === "pickup_failed" || order.delivery_status === "collection-failed-attempt");
+
+  const showMissedDeliveryActions = userRole === "buyer" && 
+    (order.delivery_status === "delivery-failed-attempt");
 
   const isPickup =
     order.delivery_option === "pickup" ||
@@ -596,12 +600,29 @@ const OrderActionsPanel: React.FC<OrderActionsPanelProps> = ({
           </div>
         )}
 
+        {/* Missed Delivery Actions (Buyer) */}
+        {showMissedDeliveryActions && (
+          <div className="space-y-3">
+            <Alert>
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                The courier attempted delivery but you were unavailable. Please reschedule the delivery below.
+              </AlertDescription>
+            </Alert>
+
+            <Button onClick={handleGetRescheduleQuote} disabled={isLoading} className="w-full flex items-center justify-center">
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Reschedule Delivery
+            </Button>
+          </div>
+        )}
+
         {/* Reschedule Dialog */}
         <Dialog open={showRescheduleDialog} onOpenChange={setShowRescheduleDialog}>
           <DialogContent className="w-[90vw] max-w-[90vw] sm:max-w-md mx-auto my-auto">
             <DialogHeader>
-              <DialogTitle>Reschedule Pickup</DialogTitle>
-              <DialogDescription>Choose a new pickup time. A reschedule fee will apply.</DialogDescription>
+              <DialogTitle>{showMissedDeliveryActions ? "Reschedule Delivery" : "Reschedule Pickup"}</DialogTitle>
+              <DialogDescription>Choose a new {showMissedDeliveryActions ? "delivery" : "pickup"} time. A reschedule fee will apply.</DialogDescription>
             </DialogHeader>
 
             {rescheduleQuote && (
@@ -615,7 +636,7 @@ const OrderActionsPanel: React.FC<OrderActionsPanelProps> = ({
                 </Alert>
 
                 <div>
-                  <label className="text-sm font-medium">Select New Pickup Time</label>
+                  <label className="text-sm font-medium">Select New {showMissedDeliveryActions ? "Delivery" : "Pickup"} Time</label>
                   <Select value={selectedRescheduleTime} onValueChange={setSelectedRescheduleTime}>
                     <SelectTrigger>
                       <SelectValue placeholder="Choose a time..." />

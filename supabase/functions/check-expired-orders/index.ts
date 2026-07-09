@@ -1,6 +1,11 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { EMAIL_FOOTER } from "../../../shared/email-footer.ts";
+import {
+  buildExpiredBuyerCancelEmail,
+  buildExpiredSellerCancelEmail,
+  buildSellerConfirmReminderEmail,
+  buildBuyerDeliveryReminderEmail
+} from "../_shared/email-templates.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -90,26 +95,7 @@ serve(async (req) => {
 
         // STEP 5: Email buyer — refund on the way
         if (order.buyer_email) {
-          const buyerHtml = `
-<!doctype html><html><body style="margin:0;padding:0;background:#f0fdf4;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;">
-  <div style="max-width:600px;margin:32px auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 6px 24px rgba(34,197,94,0.12)">
-    <div style="background:linear-gradient(135deg,#16a34a,#22c55e);padding:28px 32px;color:#fff;">
-      <h1 style="margin:0;font-size:22px;font-weight:800;">Order Cancelled — Refund On The Way</h1>
-      <p style="margin:6px 0 0;opacity:.92;font-size:14px;">Hello ${order.buyer_full_name || "there"},</p>
-    </div>
-    <div style="padding:28px 32px;color:#1f2937;font-size:15px;line-height:1.6;">
-      <p>Unfortunately the seller did not commit to your order for <strong>${itemTitle}</strong> within the 48-hour window.</p>
-      <p>We've cancelled the order on your behalf and your full refund of <strong>R${totalRefunded}</strong> is being processed and should reflect in your account within 3–5 business days.</p>
-      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:16px;margin:18px 0;color:#166534;font-weight:600;text-align:center;">
-        ✓ Refund of R${totalRefunded} confirmed
-      </div>
-      <p style="font-size:13px;color:#6b7280;">We're sorry for the inconvenience. You can browse other listings on ReBooked Solutions any time.</p>
-    </div>
-    <div style="text-align:center;padding:18px;border-top:1px solid #e5e7eb;font-size:12px;color:#6b7280;">
-      <strong style="color:#16a34a;">ReBooked Solutions</strong><br/>support@rebookedsolutions.co.za
-    </div>
-  </div>
- </body></html>`;
+          const buyerHtml = buildExpiredBuyerCancelEmail(order.buyer_full_name || "there", itemTitle, totalRefunded);
           await fetch(`${supabaseUrl}/functions/v1/send-email`, {
             method: "POST",
             headers: { "Authorization": `Bearer ${supabaseServiceKey}`, "Content-Type": "application/json" },
@@ -123,32 +109,7 @@ serve(async (req) => {
 
         // STEP 6: Email seller — missed commit, lost earnings
         if (order.seller_email) {
-          const sellerHtml = `
-<!doctype html><html><body style="margin:0;padding:0;background:#fff7ed;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;">
-  <div style="max-width:600px;margin:32px auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 6px 24px rgba(245,158,11,0.18)">
-    <div style="background:linear-gradient(135deg,#dc2626,#f97316);padding:28px 32px;color:#fff;">
-      <h1 style="margin:0;font-size:22px;font-weight:800;">Missed Commitment Window</h1>
-      <p style="margin:6px 0 0;opacity:.92;font-size:14px;">Hello ${order.seller_full_name || "there"},</p>
-    </div>
-    <div style="padding:28px 32px;color:#1f2937;font-size:15px;line-height:1.6;">
-      <p>You did not commit to the sale of <strong>${itemTitle}</strong> within the 48-hour window. The order has been auto-cancelled and the buyer has been refunded.</p>
-
-      <div style="background:#fef2f2;border:2px solid #fecaca;border-radius:12px;padding:18px;margin:18px 0;text-align:center;">
-        <p style="margin:0 0 6px;font-size:13px;color:#991b1b;text-transform:uppercase;letter-spacing:.5px;font-weight:700;">Earnings you missed out on</p>
-        <p style="margin:0;font-size:32px;font-weight:900;color:#dc2626;">R${lostEarnings}</p>
-        <p style="margin:6px 0 0;font-size:12px;color:#7f1d1d;">(90% of the item price — your seller payout after platform fee)</p>
-      </div>
-
-      <p>Your listing has been re-activated automatically so it can sell again.</p>
-      <p style="font-size:14px;color:#6b7280;background:#f9fafb;border-left:4px solid #f97316;padding:12px 14px;border-radius:6px;">
-        <strong>Tip:</strong> Repeated missed commits may affect your seller standing. Commit to orders within 48 hours to keep earning.
-      </p>
-    </div>
-    <div style="text-align:center;padding:18px;border-top:1px solid #e5e7eb;font-size:12px;color:#6b7280;">
-      <strong style="color:#16a34a;">ReBooked Solutions</strong><br/>support@rebookedsolutions.co.za
-    </div>
-  </div>
-</body></html>`;
+          const sellerHtml = buildExpiredSellerCancelEmail(order.seller_full_name || "there", itemTitle, lostEarnings);
           await fetch(`${supabaseUrl}/functions/v1/send-email`, {
             method: "POST",
             headers: { "Authorization": `Bearer ${supabaseServiceKey}`, "Content-Type": "application/json" },
@@ -428,23 +389,7 @@ serve(async (req) => {
               const lostEarnings = (itemPrice * 0.9).toFixed(2);
 
               if (order.seller_email) {
-                const reminderHtml = `
-<!doctype html><html><body style="margin:0;padding:0;background:#f3fef7;font-family:Arial,sans-serif;color:#1f4e3d;">
-  <div style="max-width:500px;margin:20px auto;background:#ffffff;padding:30px;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,0.05);">
-    <div style="background:linear-gradient(135deg,#e17055,#c0392b);padding:24px;border-radius:8px 8px 0 0;text-align:center;color:white;margin:-30px -30px 24px;">
-      <h1 style="margin:0;font-size:22px;">Reminder: Confirm Your Sale</h1>
-      <p style="margin:6px 0 0;opacity:0.9;">Time is running out!</p>
-    </div>
-    <p>Hello <strong>${order.seller_full_name || "Seller"}</strong>,</p>
-    <p>This is a reminder that you have an active order for <strong>${itemTitle}</strong> awaiting your confirmation.</p>
-    <div style="background:#fff3cd;border:1px solid #fbbf24;border-radius:8px;padding:14px;margin:16px 0;text-align:center;">
-      <p style="margin:0;font-weight:bold;color:#b45309;font-size:15px;">⏳ You have approximately ${hoursLeft} hour(s) left to confirm this order!</p>
-      <p style="margin:4px 0 0;font-size:13px;color:#7f1d1d;">If you do not confirm, the order will be cancelled automatically, the buyer refunded, and you will lose <strong>R${lostEarnings}</strong> in potential payout.</p>
-    </div>
-    <a href="https://rebookedsolutions.co.za/profile?tab=activity" style="display:inline-block;padding:12px 20px;background:#3ab26f;color:#ffffff;text-decoration:none;border-radius:5px;margin-top:16px;font-weight:bold;text-align:center;width:calc(100% - 40px);">View & Confirm Sale →</a>
-    ${EMAIL_FOOTER}
-  </div>
-</body></html>`;
+                const reminderHtml = buildSellerConfirmReminderEmail(order.seller_full_name || "Seller", itemTitle, lostEarnings, hoursLeft);
 
                 await fetch(`${supabaseUrl}/functions/v1/send-email`, {
                   method: "POST",
@@ -518,23 +463,7 @@ serve(async (req) => {
               const itemTitle = items[0]?.title || items[0]?.name || items[0]?.book_title || "your purchased item";
 
               if (order.buyer_email) {
-                const reminderHtml = `
-<!doctype html><html><body style="margin:0;padding:0;background:#f3fef7;font-family:Arial,sans-serif;color:#1f4e3d;">
-  <div style="max-width:500px;margin:20px auto;background:#ffffff;padding:30px;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,0.05);">
-    <div style="background:linear-gradient(135deg,#3ab26f,#2d8f58);padding:24px;border-radius:8px 8px 0 0;text-align:center;color:white;margin:-30px -30px 24px;">
-      <h1 style="margin:0;font-size:22px;">Have you received your order?</h1>
-      <p style="margin:6px 0 0;opacity:0.9;">Please confirm receipt</p>
-    </div>
-    <p>Hello <strong>${order.buyer_full_name || "Buyer"}</strong>,</p>
-    <p>Our records show your order for <strong>${itemTitle}</strong> has been marked as delivered.</p>
-    <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:14px;margin:16px 0;">
-      <p style="margin:0;font-weight:bold;color:#1e40af;font-size:15px;">⏳ Action required within ${hoursLeft} hour(s)!</p>
-      <p style="margin:4px 0 0;font-size:13px;color:#1e3a8a;">Please click below to confirm whether you have received the order. If we do not receive feedback within ${hoursLeft} hour(s), the order will be automatically marked as completed and the seller paid.</p>
-    </div>
-    <a href="https://rebookedsolutions.co.za/profile?tab=activity" style="display:inline-block;padding:12px 20px;background:#3ab26f;color:#ffffff;text-decoration:none;border-radius:5px;margin-top:16px;font-weight:bold;text-align:center;width:calc(100% - 40px);">Confirm Order Receipt →</a>
-    ${EMAIL_FOOTER}
-  </div>
-</body></html>`;
+                const reminderHtml = buildBuyerDeliveryReminderEmail(order.buyer_full_name || "Buyer", itemTitle, hoursLeft);
 
                 await fetch(`${supabaseUrl}/functions/v1/send-email`, {
                   method: "POST",

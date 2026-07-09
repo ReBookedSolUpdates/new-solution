@@ -1,6 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
 import debugLogger from "@/utils/debugLogger";
-import { sendContactAcknowledgmentEmail } from "@/email-templates/templates/contact-acknowledgment";
 
 const WEBHOOK_URL = "https://hook.relay.app/api/v1/playbook/cmj5lqoya3rfa0om18j7jhhxn/trigger/EcrGxmUckpkITHTHtZB9mQ";
 
@@ -75,8 +74,18 @@ export const submitContactMessage = async (
     }).catch(err => debugLogger.error("contactService", "Webhook send failed:", err));
 
     // Send acknowledgment email to the user (non-blocking)
-    sendContactAcknowledgmentEmail(messageData.name, messageData.email, messageData.subject)
-      .catch(err => debugLogger.error("contactService", "Acknowledgment email failed:", err));
+    supabase.functions.invoke("send-email", {
+      body: {
+        to: messageData.email,
+        subject: "We've received your message — ReBooked Solutions",
+        templateId: "contact-acknowledgment",
+        templateData: {
+          buyerName: messageData.name,
+          subject: messageData.subject,
+          message: messageData.message
+        }
+      }
+    }).catch(err => debugLogger.error("contactService", "Acknowledgment email failed:", err));
 
     return { id };
   } catch (error) {

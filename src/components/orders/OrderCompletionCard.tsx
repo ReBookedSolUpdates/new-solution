@@ -99,20 +99,18 @@ const OrderCompletionCard: React.FC<OrderCompletionCardProps> = ({
 
       // Send feedback request email using the email service
       const { emailService } = await import("@/services/emailService");
-      const { createDeliveryConfirmationRequestEmail } = await import("@/email-templates");
-
-      const emailTemplate = createDeliveryConfirmationRequestEmail({
-        buyerName: buyerFullName,
-        bookTitle,
-        orderId,
-      });
-
-      await emailService.sendEmail({
-        to: userData.email,
-        subject: emailTemplate.subject,
-        html: emailTemplate.html,
-        text: emailTemplate.text,
-      });
+      await emailService.sendTemplateEmail(
+        userData.email,
+        "delivery-confirmation-request",
+        {
+          buyerName: buyerFullName,
+          bookTitle,
+          orderId,
+        },
+        {
+          subject: "Confirm your delivery — ReBooked Solutions"
+        }
+      );
     } catch (err) {
       // Silently fail - this is a non-critical notification email
     }
@@ -246,9 +244,6 @@ const OrderCompletionCard: React.FC<OrderCompletionCardProps> = ({
       (async () => {
         try {
           const { emailService } = await import("@/services/emailService");
-          const { createWalletCreditNotificationEmail } = await import(
-            "@/email-templates"
-          );
 
           // Resolve buyer and seller emails if not present on order
           let buyerEmail: string | null = order.buyer_email || null;
@@ -287,18 +282,18 @@ const OrderCompletionCard: React.FC<OrderCompletionCardProps> = ({
             // Buyer: Thank you and next steps
             if (buyerEmail) {
               try {
-                const { createDeliveryConfirmedBuyerEmail } = await import("@/email-templates");
-                const deliveryConfirmedTemplate = createDeliveryConfirmedBuyerEmail({
-                  buyerName: buyerEmail,
-                  bookTitle,
-                  orderId,
-                });
-                await emailService.sendEmail({
-                  to: buyerEmail,
-                  subject: deliveryConfirmedTemplate.subject,
-                  html: deliveryConfirmedTemplate.html,
-                  text: deliveryConfirmedTemplate.text
-                });
+                await emailService.sendTemplateEmail(
+                  buyerEmail,
+                  "delivery-confirmed-buyer",
+                  {
+                    buyerName: buyerEmail,
+                    bookTitle,
+                    orderId,
+                  },
+                  {
+                    subject: "Thank you — Order Received"
+                  }
+                );
               } catch (emailErr) {
               }
             }
@@ -319,59 +314,59 @@ const OrderCompletionCard: React.FC<OrderCompletionCardProps> = ({
                 if (hasBankingDetails) {
                   // Seller has banking details - send "Payment on the way" email
                   try {
-                    const { createPaymentOnTheWayBankTransferEmail } = await import("@/email-templates");
-                    const paymentTemplate = createPaymentOnTheWayBankTransferEmail({
-                      sellerName: sellerFullName,
-                      bookTitle,
-                      orderId,
-                    });
-                    await emailService.sendEmail({
-                      to: sellerEmail,
-                      subject: paymentTemplate.subject,
-                      html: paymentTemplate.html,
-                      text: paymentTemplate.text,
-                    });
+                    await emailService.sendTemplateEmail(
+                      sellerEmail,
+                      "payment-on-the-way-bank-transfer",
+                      {
+                        sellerName: sellerFullName,
+                        bookTitle,
+                        orderId,
+                      },
+                      {
+                        subject: "Payment on the way — ReBooked Solutions"
+                      }
+                    );
                   } catch (bankingEmailErr) {
                     throw bankingEmailErr;
                   }
                 } else {
                   // Seller does NOT have banking details - send wallet credit notification email
                   const creditAmount = totalAmount * 0.9; // 90% of total amount
-                  const walletTemplate = createWalletCreditNotificationEmail({
-                    sellerName: sellerFullName,
-                    bookTitle,
-                    bookPrice: totalAmount,
-                    creditAmount,
-                    orderId,
-                    newBalance: creditAmount, // Note: This is simplified, in production you'd fetch actual balance
-                  });
-
-                  await emailService.sendEmail({
-                    to: sellerEmail,
-                    subject: walletTemplate.subject,
-                    html: walletTemplate.html,
-                    text: walletTemplate.text,
-                  });
+                  await emailService.sendTemplateEmail(
+                    sellerEmail,
+                    "seller-credit",
+                    {
+                      sellerName: sellerFullName,
+                      bookTitle,
+                      bookPrice: totalAmount,
+                      creditAmount,
+                      orderId,
+                      newBalance: creditAmount,
+                    },
+                    {
+                      subject: "💰 Payment Received - Credit Added"
+                    }
+                  );
                 }
               } catch (bankingCheckErr) {
                 // If there's an error checking banking details, default to wallet credit email
                 try {
                   const creditAmount = totalAmount * 0.9;
-                  const walletTemplate = createWalletCreditNotificationEmail({
-                    sellerName: sellerFullName,
-                    bookTitle,
-                    bookPrice: totalAmount,
-                    creditAmount,
-                    orderId,
-                    newBalance: creditAmount,
-                  });
-
-                  await emailService.sendEmail({
-                    to: sellerEmail,
-                    subject: walletTemplate.subject,
-                    html: walletTemplate.html,
-                    text: walletTemplate.text,
-                  });
+                  await emailService.sendTemplateEmail(
+                    sellerEmail,
+                    "seller-credit",
+                    {
+                      sellerName: sellerFullName,
+                      bookTitle,
+                      bookPrice: totalAmount,
+                      creditAmount,
+                      orderId,
+                      newBalance: creditAmount,
+                    },
+                    {
+                      subject: "💰 Payment Received - Credit Added"
+                    }
+                  );
                 } catch (emailErr) {
                 }
               }
@@ -380,19 +375,19 @@ const OrderCompletionCard: React.FC<OrderCompletionCardProps> = ({
             // Buyer: Acknowledge report
             if (buyerEmail) {
               try {
-                const { createDeliveryComplaintAcknowledgmentBuyerEmail } = await import("@/email-templates");
-                const complaintAckTemplate = createDeliveryComplaintAcknowledgmentBuyerEmail({
-                  buyerName: buyerEmail,
-                  orderId,
-                  bookTitle,
-                  feedback,
-                });
-                await emailService.sendEmail({
-                  to: buyerEmail,
-                  subject: complaintAckTemplate.subject,
-                  html: complaintAckTemplate.html,
-                  text: complaintAckTemplate.text
-                });
+                await emailService.sendTemplateEmail(
+                  buyerEmail,
+                  "delivery-complaint-acknowledgment-buyer",
+                  {
+                    buyerName: buyerEmail,
+                    orderId,
+                    bookTitle,
+                    feedback,
+                  },
+                  {
+                    subject: "We've received your report — ReBooked Solutions"
+                  }
+                );
               } catch (emailErr) {
               }
             }
@@ -400,20 +395,20 @@ const OrderCompletionCard: React.FC<OrderCompletionCardProps> = ({
             // Seller: Notify issue finalising order
             if (sellerEmail) {
               try {
-                const { createDeliveryComplaintNotificationSellerEmail } = await import("@/email-templates");
-                const complaintNotifTemplate = createDeliveryComplaintNotificationSellerEmail({
-                  sellerName: sellerFullName,
-                  orderId,
-                  bookTitle,
-                  buyerName: buyerFullName,
-                  feedback,
-                });
-                await emailService.sendEmail({
-                  to: sellerEmail,
-                  subject: complaintNotifTemplate.subject,
-                  html: complaintNotifTemplate.html,
-                  text: complaintNotifTemplate.text
-                });
+                await emailService.sendTemplateEmail(
+                  sellerEmail,
+                  "delivery-complaint-notification-seller",
+                  {
+                    sellerName: sellerFullName,
+                    orderId,
+                    bookTitle,
+                    buyerName: buyerFullName,
+                    feedback,
+                  },
+                  {
+                    subject: "Issue finalising order — ReBooked Solutions"
+                  }
+                );
               } catch (emailErr) {
               }
             }

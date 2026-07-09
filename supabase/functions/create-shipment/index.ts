@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { getShippingConfig } from "../_shared/shipping-config.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
@@ -6,10 +7,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-const IS_PRODUCTION = Deno.env.get("VITE_PRODUCTION") === "true";
-const TCG_API_URL = IS_PRODUCTION 
-  ? Deno.env.get("TCG_BASE_URL") 
-  : (Deno.env.get("SANDBOX_TCG_BASE_URL") || Deno.env.get("TCG_BASE_URL"));
 
 interface CreateShipmentRequest {
   order_id: string;
@@ -110,14 +107,14 @@ serve(async (req) => {
 
     if (!apiUrl) {
       return new Response(
-        JSON.stringify({ success: false, error: `${IS_PRODUCTION ? "TCG_BASE_URL" : "SANDBOX_TCG_BASE_URL"} is not configured` }),
+        JSON.stringify({ success: false, error: `Shipping URL is not configured` }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     if (!apiKey) {
       return new Response(
-        JSON.stringify({ success: false, error: `${IS_PRODUCTION ? "TCG_API_KEY" : "SANDBOX_TCG_API_KEY"} is not configured` }),
+        JSON.stringify({ success: false, error: `Shipping API Key is not configured` }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }

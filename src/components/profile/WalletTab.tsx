@@ -126,7 +126,7 @@ const WalletTab: React.FC = () => {
         <Button
           onClick={() => setShowPayoutForm(true)}
           className="bg-gradient-to-r from-book-600 to-book-700 hover:from-book-700 hover:to-book-800"
-          disabled={balance.available_balance === 0}
+          disabled={balance.available_balance <= 0}
         >
           <TrendingDown className="h-4 w-4 mr-2" />
           Request Payout
@@ -142,22 +142,24 @@ const WalletTab: React.FC = () => {
         </Button>
       </div>
 
-      {/* Payout Form Modal */}
-      {showPayoutForm && (
-        <PayoutRequestForm
-          availableBalance={balance?.available_balance || 0}
-          onSubmitted={handlePayoutSubmitted}
-          onCancel={() => setShowPayoutForm(false)}
-        />
-      )}
-
       {/* Transaction History */}
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0">
           <CardTitle className="flex items-center gap-2 text-book-900">
             <Clock className="h-5 w-5 text-book-600" />
             Transaction History
           </CardTitle>
+          {transactions.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={exportTransactionsToCsv}
+              className="text-xs flex items-center gap-1.5 border-book-200 text-book-650 hover:bg-book-50"
+            >
+              <Download className="h-3.5 w-3.5" />
+              Export CSV
+            </Button>
+          )}
         </CardHeader>
         <CardContent>
           {transactions.length === 0 ? (
@@ -193,14 +195,30 @@ const WalletTab: React.FC = () => {
                       </div>
                     </div>
                   </div>
-                  <div className="ml-4 text-right flex-shrink-0">
-                    <div className={`font-bold ${WalletService.getTransactionTypeColor(tx.type)}`}>
-                      {tx.type === "credit" ? "+" : "-"}
-                      {WalletService.formatZAR(tx.amount)}
+                  <div className="ml-4 text-right flex items-center gap-4 flex-shrink-0">
+                    <div>
+                      <div className={`font-bold ${WalletService.getTransactionTypeColor(tx.type)}`}>
+                        {tx.type === "credit" ? "+" : "-"}
+                        {WalletService.formatZAR(tx.amount)}
+                      </div>
+                      <Badge variant="outline" className="text-xs mt-1">
+                        {tx.status}
+                      </Badge>
                     </div>
-                    <Badge variant="outline" className="text-xs mt-1">
-                      {tx.status}
-                    </Badge>
+                    <Button
+                      size="icon"
+                      variant="outline"
+                      onClick={() => downloadTransactionReceipt(tx)}
+                      disabled={downloadingId === tx.id}
+                      className="h-8 w-8 rounded-lg border-book-100 hover:bg-book-100/50 hover:text-book-700"
+                      title="Download Transaction Receipt"
+                    >
+                      {downloadingId === tx.id ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin text-book-600" />
+                      ) : (
+                        <FileText className="h-3.5 w-3.5 text-book-600" />
+                      )}
+                    </Button>
                   </div>
                 </div>
               ))}

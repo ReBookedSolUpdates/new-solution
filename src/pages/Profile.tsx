@@ -35,8 +35,9 @@ import {
   Loader2,
   ChevronDown,
   MessageSquare,
-  Heart,
   History,
+  Building2,
+  Heart,
 } from "lucide-react";
 import ChatList from "@/components/chat/ChatList";
 import ChatView from "@/components/chat/ChatView";
@@ -63,7 +64,6 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { getBooks } from "@/services/book/bookQueries";
 import { getWishlistIds } from "@/services/wishlistService";
-import { createEmailTemplate } from "@/email-templates/styles";
 import { cn } from "@/lib/utils";
 
 // ─── ActivityCommits: must live OUTSIDE Profile to avoid remount glitching ───
@@ -252,6 +252,9 @@ const Profile = () => {
   const { profile, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+
+  // No automatic redirect. Instead, show a button in the profile header so they can go to their business profile.
+
   const isMobile = useIsMobile();
   const [activeTab, setActiveTab] = useState(() => {
     const params = new URLSearchParams(window.location.search);
@@ -276,6 +279,58 @@ const Profile = () => {
   );
   const [isUploadingProfilePicture, setIsUploadingProfilePicture] = useState(false);
   const [hasUnreadMessages, setHasUnreadMessages] = useState(false);
+
+  // Fetch unread messages state globally on mount/user change
+  useEffect(() => {
+    if (!user) return;
+    const checkUnreadMessages = async () => {
+      try {
+        const { data: convs } = await supabase
+          .from("conversations")
+          .select("id")
+          .or(`buyer_id.eq.${user.id},seller_id.eq.${user.id}`)
+          .eq("status", "active");
+
+        if (convs && convs.length > 0) {
+          const convIds = convs.map((c) => c.id);
+          const { count } = await supabase
+            .from("messages")
+            .select("id", { count: "exact", head: true })
+            .in("conversation_id", convIds)
+            .neq("sender_id", user.id)
+            .is("read_at", null);
+
+          setHasUnreadMessages((count || 0) > 0);
+        } else {
+          setHasUnreadMessages(false);
+        }
+      } catch (err) {
+        console.error("Error checking unread messages:", err);
+      }
+    };
+
+    checkUnreadMessages();
+
+    // Set up realtime channel to watch for new messages for this user
+    const channel = supabase
+      .channel("global-profile-unread")
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "messages",
+        },
+        () => {
+          checkUnreadMessages();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
   const { pendingCommits } = useCommit();
   const [showEmailChangeDialog, setShowEmailChangeDialog] = useState(false);
   const [newEmail, setNewEmail] = useState("");
@@ -658,6 +713,15 @@ const Profile = () => {
                   </div>
 
                   <div className="flex flex-col items-stretch gap-3 sm:flex-row md:flex-col md:items-end">
+                    {profile?.isBusiness && (
+                      <Button
+                        onClick={() => navigate("/business-profile")}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white h-11 px-6 font-semibold shadow-sm md:min-w-[190px] rounded-xl flex items-center justify-center gap-2"
+                      >
+                        <Building2 className="w-4 h-4" />
+                        Go to Business Profile
+                      </Button>
+                    )}
                     <Button
                       onClick={() => navigate("/create-listing")}
                       className="bg-book-600 hover:bg-book-700 h-11 px-6 font-semibold shadow-sm md:min-w-[190px]"

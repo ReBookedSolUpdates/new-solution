@@ -2,7 +2,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { emailService } from "@/services/emailService";
 import { addNotification } from "@/services/notificationService";
 import { RefundService } from "@/services/refundService";
-import { createEmailTemplate } from "@/email-templates/styles";
 import debugLogger from "@/utils/debugLogger";
 
 export interface Order {
@@ -316,30 +315,16 @@ export class OrderCancellationService {
         throw new Error("Reschedule fee payment not verified");
       }
 
-      // Rebook with courier
-      const rebookResult = await this.rebookCourierPickup(
-        order.courier_service,
-        order.courier_booking_id,
-        newPickupTime,
-      );
+      // Rebook with courier via edge function
+      const { data: resData, error: invokeError } = await supabase.functions.invoke('reschedule-shipment', {
+        body: {
+          order_id: orderId,
+          new_date: newPickupTime,
+        },
+      });
 
-      if (!rebookResult.success) {
-        throw new Error("Failed to rebook with courier service");
-      }
-
-      // Update order
-      const { error: updateError } = await supabase
-        .from("orders")
-        .update({
-          delivery_status: "rescheduled_by_seller",
-          pickup_scheduled_at: newPickupTime,
-          rescheduled_at: new Date().toISOString(),
-          courier_booking_id: rebookResult.new_booking_id,
-        })
-        .eq("id", orderId);
-
-      if (updateError) {
-        throw new Error("Failed to update order");
+      if (invokeError || !resData?.success) {
+        throw new Error(invokeError?.message || resData?.error || "Failed to reschedule with courier service");
       }
 
       // Notify both parties

@@ -9,7 +9,6 @@ import { useNavigate } from "react-router-dom";
 import { ActivityService } from "@/services/activityService";
 import BankingEncryptionService from "@/services/bankingEncryptionService";
 import { NotificationService } from "@/services/notificationService";
-import { createEmailTemplate } from "@/email-templates/styles";
 import { EmailService } from "@/services/emailService";
 
 const SOUTH_AFRICAN_BANKS = [

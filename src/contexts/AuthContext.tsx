@@ -26,12 +26,19 @@ export interface UserProfile {
   name: string;
   email: string;
   isAdmin: boolean;
+  isBusiness?: boolean;
+  businessName?: string;
+  instagramHandle?: string;
+  showAddressToPublic?: boolean;
+  showPhoneToPublic?: boolean;
   status: string;
   profile_picture_url?: string;
   bio?: string;
   created_at?: string;
   preferred_delivery_locker_data?: any;
   phone_number?: string;
+  isFallback?: boolean;
+  subscriptionTier?: "free" | "tier1";
 }
 
 // ─── Single consolidated auth state ────────────────────────────────────────────
@@ -111,6 +118,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     profile_picture_url: user.user_metadata?.avatar_url,
     bio: undefined,
     created_at: user.created_at,
+    isFallback: true,
   });
 
   // ─── handleAuthStateChange ─────────────────────────────────────────────────

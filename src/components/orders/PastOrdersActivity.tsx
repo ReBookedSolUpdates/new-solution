@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, Download, BookOpen, ChevronDown, ChevronUp, Package } from "lucide-react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
+import { buildPremiumReceiptHtml } from "@/utils/receiptHtmlBuilder";
 import { toast } from "sonner";
 
 interface PastOrder {
@@ -27,6 +28,8 @@ interface PastOrder {
   created_at: string | null;
   updated_at: string | null;
   receipt_html?: string | null;
+  receipt_pdf_base64?: string | null;
+  wallet_deducted_amount?: number | null;
   buyer_full_name?: string | null;
   seller_full_name?: string | null;
   buyer_email?: string | null;
@@ -82,7 +85,7 @@ const PastOrdersActivity: React.FC = () => {
            refund_status, refunded_at, cancelled_at, cancellation_reason, decline_reason, declined_at,
            created_at, updated_at, receipt_html, buyer_full_name, seller_full_name, buyer_email, seller_email,
            tracking_number, selected_courier_name, selected_service_name, payment_reference,
-           committed_at, selected_shipping_cost, delivery_type,
+           committed_at, selected_shipping_cost, delivery_type, receipt_pdf_base64, wallet_deducted_amount,
            items, book_id, item_id, item_type`
         )
         .or(`buyer_id.eq.${user.id},seller_id.eq.${user.id}`)
@@ -144,198 +147,47 @@ const PastOrdersActivity: React.FC = () => {
     return titles.length > 1 ? `${titles[0]} + ${titles.length - 1} more` : titles[0];
   };
 
-  const buildReceiptHtml = (order: PastOrder) => {
-    const items = Array.isArray(order.items) ? order.items : [];
-    const itemRows = items.length > 0
-      ? items.map((i: any) => `
-          <tr>
-            <td style="padding:6px 0;">${i.title || i.name || i.book_title || "Item"}</td>
-            <td style="padding:6px 0;text-align:right;">${formatCurrency(Number(i.price ?? i.amount ?? 0))}</td>
-          </tr>`).join("")
-      : `<tr><td style="padding:6px 0;">${itemsSummary(order)}</td><td style="padding:6px 0;text-align:right;">${formatCurrency(order.total_amount || 0)}</td></tr>`;
-
-    const isSeller = getUserRole(order) === "seller";
-    const subtotal = items.reduce((sum: number, i: any) => sum + Number(i.price ?? i.amount ?? 0), 0);
-    const bookPrice = subtotal > 0 ? subtotal : Math.max(0, Number(order.total_amount ?? 0) - Number(order.selected_shipping_cost ?? 0) - 20);
-    const commission = bookPrice * 0.1;
-    const payout = bookPrice * 0.9;
-    const created = order.created_at ? new Date(order.created_at).toLocaleDateString() : "";
-
-    return `
-      <div style="font-family: Arial, sans-serif; padding: 40px; color: #1f4e3d; background:#ffffff; width: 800px;">
-        <!-- Header -->
-        <div style="background: linear-gradient(135deg, #2d8f58, #3ab26f); padding: 28px 36px; border-radius: 12px 12px 0 0; text-align: left; color: white; margin-bottom: 18px;">
-          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 16px;">
-            <div>
-              <h1 style="margin: 0; font-size: 26px; font-weight: 800; letter-spacing: 0.2px;">ReBooked Solutions</h1>
-              <p style="margin: 6px 0 0; font-size: 14px; opacity: 0.92;">${isSeller ? "Sales & Payout Summary" : "Order receipt"}</p>
-            </div>
-            <div style="text-align: right;">
-              <div style="font-size: 11px; opacity: 0.9; letter-spacing: 0.5px; text-transform: uppercase;">Status</div>
-              <div style="margin-top: 4px; display: inline-block; background: rgba(255,255,255,0.16); border: 1px solid rgba(255,255,255,0.25); padding: 6px 10px; border-radius: 999px; font-weight: 800; font-size: 12px; text-transform: capitalize;">${order.status}</div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Meta -->
-        <div style="border: 1px solid #e5e7eb; border-radius: 12px; padding: 14px 16px; margin-bottom: 16px;">
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px 18px; font-size: 12px;">
-            <div style="display: flex; justify-content: space-between; gap: 10px;">
-              <span style="color: #6b7280; font-weight: 700;">Order</span>
-              <span style="font-family: monospace; font-weight: 800; color: #111827;">${order.order_id || order.id.slice(-8)}</span>
-            </div>
-            <div style="display: flex; justify-content: space-between; gap: 10px;">
-              <span style="color: #6b7280; font-weight: 700;">Date</span>
-              <span style="color: #111827;">${created}</span>
-            </div>
-            ${order.payment_reference ? `<div style="display: flex; justify-content: space-between; gap: 10px;">
-              <span style="color: #6b7280; font-weight: 700;">Payment Ref</span>
-              <span style="font-family: monospace; color: #111827;">${order.payment_reference}</span>
-            </div>` : ""}
-            ${order.tracking_number ? `<div style="display: flex; justify-content: space-between; gap: 10px;">
-              <span style="color: #6b7280; font-weight: 700;">Tracking</span>
-              <span style="color: #111827; font-weight: 700;">${order.tracking_number}</span>
-            </div>` : ""}
-          </div>
-        </div>
-
-        <!-- Items -->
-        <div style="border: 1px solid #d1fae5; background: #f0fdf4; border-radius: 12px; padding: 16px; margin-bottom: 14px;">
-          <div style="font-size: 11px; color: #166534; font-weight: 800; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 10px;">Items</div>
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px 18px; font-size: 12px;">
-            ${items.map((i: any) => `
-              <div style="display: flex; justify-content: space-between; gap: 10px;">
-                <span style="color: #0f172a; font-weight: 700;">${i.title || i.name || i.book_title || "Item"}</span>
-                <span style="color: #16a34a; font-weight: 700; text-align: right;">${formatCurrency(Number(i.price ?? i.amount ?? 0))}</span>
-              </div>
-            `).join("")}
-          </div>
-        </div>
-
-        <!-- Buyer & Seller -->
-        <div style="border: 1px solid #e5e7eb; background: #ffffff; border-radius: 12px; padding: 16px; margin-bottom: 14px;">
-          <div style="font-size: 11px; color: #374151; font-weight: 800; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 10px;">Buyer & Seller</div>
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px 18px; font-size: 12px;">
-            <div style="display: flex; justify-content: space-between; gap: 10px;">
-              <span style="color: #6b7280; font-weight: 700;">Buyer</span>
-              <span style="color: #111827; font-weight: 700; text-align: right;">${order.buyer_full_name || order.buyer_email || "Buyer"}</span>
-            </div>
-            <div style="display: flex; justify-content: space-between; gap: 10px;">
-              <span style="color: #6b7280; font-weight: 700;">Seller</span>
-              <span style="color: #111827; font-weight: 700; text-align: right;">${order.seller_full_name || order.seller_email || "Seller"}</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Delivery -->
-        ${order.selected_courier_name || order.tracking_number ? `
-        <div style="border: 1px solid #e5e7eb; background: #ffffff; border-radius: 12px; padding: 16px; margin-bottom: 14px;">
-          <div style="font-size: 11px; color: #374151; font-weight: 800; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 10px;">Delivery</div>
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px 18px; font-size: 12px;">
-            ${order.selected_courier_name ? `<div style="display: flex; justify-content: space-between; gap: 10px;">
-              <span style="color: #6b7280; font-weight: 700;">Courier</span>
-              <span style="color: #111827; font-weight: 700; text-align: right;">${order.selected_courier_name}</span>
-            </div>` : ""}
-            ${order.selected_service_name ? `<div style="display: flex; justify-content: space-between; gap: 10px;">
-              <span style="color: #6b7280; font-weight: 700;">Service</span>
-              <span style="color: #111827; font-weight: 700; text-align: right;">${order.selected_service_name}</span>
-            </div>` : ""}
-            ${order.tracking_number ? `<div style="display: flex; justify-content: space-between; gap: 10px; grid-column: 1 / -1;">
-              <span style="color: #6b7280; font-weight: 700;">Tracking Number</span>
-              <span style="color: #111827; font-weight: 700; text-align: right; font-family: monospace; font-size: 11px;">${order.tracking_number}</span>
-            </div>` : ""}
-          </div>
-        </div>
-        ` : ""}
-
-        <!-- Pricing -->
-        <div style="border: 1px solid #bbf7d0; background: #f0fdf4; border-radius: 12px; padding: 16px; margin-bottom: 16px;">
-          <div style="font-size: 11px; color: #166534; font-weight: 800; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 10px;">Pricing</div>
-          <div style="font-size: 12px;">
-            <table style="width: 100%; border-collapse: collapse;">
-              ${isSeller ? `
-              <tr>
-                <td style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #dcfce7;">
-                  <span style="color: #166534; font-weight: 700;">Book Price</span>
-                  <span style="color: #0f172a; font-weight: 800;">${formatCurrency(bookPrice)}</span>
-                </td>
-              </tr>
-              <tr>
-                <td style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #dcfce7;">
-                  <span style="color: #b91c1c; font-weight: 700;">Commission Fee (10%)</span>
-                  <span style="color: #b91c1c; font-weight: 800;">-${formatCurrency(commission)}</span>
-                </td>
-              </tr>
-              <tr>
-                <td style="display: flex; justify-content: space-between; padding: 6px 0;">
-                  <span style="color: #0f172a; font-weight: 900; font-size: 14px;">Estimated Payout (90%)</span>
-                  <span style="color: #16a34a; font-weight: 900; font-size: 16px;">${formatCurrency(payout)}</span>
-                </td>
-              </tr>
-              ` : `
-              <tr>
-                <td style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #dcfce7;">
-                  <span style="color: #166534; font-weight: 700;">Subtotal</span>
-                  <span style="color: #0f172a; font-weight: 800;">${formatCurrency(bookPrice)}</span>
-                </td>
-              </tr>
-              <tr>
-                <td style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #dcfce7;">
-                  <span style="color: #166534; font-weight: 700;">Platform Fee</span>
-                  <span style="color: #0f172a; font-weight: 800;">R20.00</span>
-                </td>
-              </tr>
-              ${order.selected_shipping_cost ? `
-              <tr>
-                <td style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #dcfce7;">
-                  <span style="color: #166534; font-weight: 700;">Shipping</span>
-                  <span style="color: #0f172a; font-weight: 800;">${formatCurrency(order.selected_shipping_cost)}</span>
-                </td>
-              </tr>
-              ` : ""}
-              <tr>
-                <td style="display: flex; justify-content: space-between; padding: 6px 0;">
-                  <span style="color: #0f172a; font-weight: 900; font-size: 14px;">Total Paid</span>
-                  <span style="color: #16a34a; font-weight: 900; font-size: 16px;">${formatCurrency(order.total_amount || 0)}</span>
-                </td>
-              </tr>
-              `}
-            </table>
-          </div>
-        </div>
-
-        ${order.refund_status === "refunded" || order.status === "refunded" ? `<div style="margin-bottom:14px; padding:12px; background:#faf5ff; border:1px solid #e9d5ff; border-radius:8px; color:#6b21a8; font-size: 12px; font-weight: 600;">Refund processed${order.refunded_at ? ` on ${new Date(order.refunded_at).toLocaleString()}` : ""}.</div>` : ""}
-        ${order.cancellation_reason ? `<div style="margin-bottom:14px; padding:12px; background:#fef2f2; border:1px solid #fecaca; border-radius:8px; color:#991b1b; font-size: 12px; font-weight: 600;">Cancelled: ${order.cancellation_reason}</div>` : ""}
-        ${order.decline_reason ? `<div style="margin-bottom:14px; padding:12px; background:#fffbeb; border:1px solid #fde68a; border-radius:8px; color:#92400e; font-size: 12px; font-weight: 600;">Declined: ${order.decline_reason}</div>` : ""}
-
-        <!-- Footer -->
-        <div style="text-align: center; padding-top: 14px; border-top: 1px solid #e5e7eb; font-size: 11px; color: #6b7280;">
-          <div style="font-weight: 900; color: #16a34a; margin-bottom: 4px;">ReBooked Solutions</div>
-          <div>support@rebookedsolutions.co.za</div>
-          <div style="margin-top: 6px;">© ${new Date().getFullYear()} All rights reserved</div>
-        </div>
-      </div>`;
-  };
-
   const downloadReceipt = async (order: PastOrder) => {
     setDownloadingId(order.id);
     try {
-      const html = order.receipt_html || buildReceiptHtml(order);
+      // If order has the receipt PDF pre-saved in base64, download it instantly
+      if (order.receipt_pdf_base64) {
+        console.log("[PastOrders] Downloading pre-saved PDF receipt...");
+        const link = document.createElement("a");
+        link.href = `data:application/pdf;base64,${order.receipt_pdf_base64}`;
+        link.download = `receipt-${order.order_id || order.id}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        toast.success("Receipt downloaded");
+        return;
+      }
+
+      console.log("[PastOrders] Generating receipt PDF dynamically...");
+      const isSeller = getUserRole(order) === "seller";
+      const html = buildPremiumReceiptHtml(order as any, isSeller);
+      
       const temp = document.createElement("div");
       temp.style.position = "fixed";
       temp.style.left = "-9999px";
       temp.style.top = "0";
-      temp.style.width = "800px";
+      temp.style.width = "480px";
       temp.innerHTML = html;
       document.body.appendChild(temp);
 
       const canvas = await html2canvas(temp, { backgroundColor: "#ffffff", scale: 2, useCORS: true });
       const imgData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      const imgWidth = pageWidth - 20;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      pdf.addImage(imgData, "PNG", 10, 10, imgWidth, imgHeight);
+      
+      const pdfWidth = 480;
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "pt",
+        format: [pdfWidth, pdfHeight]
+      });
+      
+      pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
       pdf.save(`receipt-${order.order_id || order.id}.pdf`);
       document.body.removeChild(temp);
       toast.success("Receipt downloaded");

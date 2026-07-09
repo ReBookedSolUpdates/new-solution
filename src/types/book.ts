@@ -9,6 +9,7 @@ export interface Book {
   author: string;
   description: string;
   price: number;
+  originalPrice?: number;
   category: string;
   condition: "New" | "Good" | "Better" | "Average" | "Below Average";
   imageUrl: string;
@@ -60,6 +61,7 @@ export interface BookFormData {
   author: string;
   description: string;
   price: number;
+  originalPrice?: number;
   category: string;
   condition: "New" | "Good" | "Better" | "Average" | "Below Average";
   imageUrl: string;

@@ -1,5 +1,4 @@
 import { User } from "@supabase/supabase-js";
-import { EMAIL_FOOTER } from "@/email-templates/styles";
 import { supabase } from "@/integrations/supabase/client";
 import {
   logError,
@@ -18,11 +17,17 @@ export interface Profile {
   name: string;
   email: string;
   isAdmin: boolean;
+  isBusiness?: boolean;
+  businessName?: string;
+  instagramHandle?: string;
+  showAddressToPublic?: boolean;
+  showPhoneToPublic?: boolean;
   status: string;
   profile_picture_url?: string;
   bio?: string;
   created_at?: string;
   preferred_delivery_locker_data?: any;
+  subscriptionTier?: "free" | "tier1";
 }
 
 export const loginUser = async (email: string, password: string) => {
@@ -125,67 +130,7 @@ export const registerUser = async (
   return data;
 };
 
-// Helper functions for welcome email
-const generateWelcomeEmailHTML = (name: string, email: string): string => `
-  <!DOCTYPE html>
-  <html>
-  <head>
-    <meta charset="utf-8">
-    <title>Welcome to ReBooked Solutions</title>
-    <style>
-      body { font-family: Arial, sans-serif; background-color: #f3fef7; padding: 20px; color: #1f4e3d; }
-      .container { max-width: 500px; margin: auto; background-color: #ffffff; padding: 30px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05); }
-      .welcome-box { background: #d1fae5; border: 1px solid #10b981; padding: 15px; border-radius: 5px; margin: 20px 0; }
-      .btn { display: inline-block; padding: 12px 20px; background-color: #3ab26f; color: white; text-decoration: none; border-radius: 5px; margin-top: 20px; font-weight: bold; }
-    </style>
-  </head>
-  <body>
-    <div class="container">
-      <h1>🎉 Welcome to ReBooked Solutions!</h1>
 
-      <div class="welcome-box">
-        <strong>✅ Your account has been created successfully!</strong>
-      </div>
-
-      <p>Hi ${name}!</p>
-
-      <p>Welcome to South Africa's premier textbook marketplace! Your account is now active and you can:</p>
-
-      <ul>
-        <li>📚 Browse thousands of affordable textbooks</li>
-        <li>💰 Sell your textbooks to other students</li>
-        <li>🚚 Enjoy convenient doorstep delivery</li>
-        <li>🎓 Connect with students at your university</li>
-      </ul>
-
-      <a href="${window.location.origin}/books" class="btn">Start Browsing Books</a>
-
-      ${EMAIL_FOOTER}
-    </div>
-  </body>
-  </html>
-`;
-
-const generateWelcomeEmailText = (name: string, email: string): string => `
-  Welcome to ReBooked Solutions!
-
-  Hi ${name}!
-
-  Your account has been created successfully! Welcome to South Africa's premier textbook marketplace.
-
-  You can now:
-  - Browse thousands of affordable textbooks
-  - Sell your textbooks to other students
-  - Enjoy convenient doorstep delivery
-  - Connect with students at your university
-
-  Visit ${window.location.origin}/books to start browsing!
-
-  Account: ${email}
-  Support: support@rebookedsolutions.co.za
-
-  "Books · Uniforms · Everything In Between"
-`;
 
 export const logoutUser = async (userId?: string) => {
   debugLogger.info("authOperations", "logoutUser called", { userId });
@@ -228,7 +173,7 @@ export const fetchUserProfileQuick = async (
     const { data: profile, error: profileError } = (await withTimeout(
       supabase
         .from("profiles")
-        .select("id, first_name, last_name, name, full_name, email, status, profile_picture_url, bio, is_admin, created_at, preferred_delivery_locker_data")
+        .select("id, first_name, last_name, name, full_name, email, status, profile_picture_url, bio, is_admin, is_business, business_name, instagram_handle, show_address_to_public, show_phone_to_public, created_at, preferred_delivery_locker_data, subscription_tier")
         .eq("id", user.id)
         .single(),
       12000, // Increased to 12 seconds
@@ -260,11 +205,17 @@ export const fetchUserProfileQuick = async (
       name: buildDisplayName({ ...profile, email: profile.email || user.email }),
       email: profile.email || user.email || "",
       isAdmin,
+      isBusiness: profile.is_business || false,
+      businessName: profile.business_name || "",
+      instagramHandle: profile.instagram_handle || "",
+      showAddressToPublic: !!profile.show_address_to_public,
+      showPhoneToPublic: !!profile.show_phone_to_public,
       status: profile.status || "active",
       profile_picture_url: profile.profile_picture_url,
       bio: profile.bio,
       created_at: profile.created_at,
       preferred_delivery_locker_data: profile.preferred_delivery_locker_data,
+      subscriptionTier: profile.subscription_tier || "free",
     };
 
     return profileData;
@@ -287,7 +238,7 @@ export const fetchUserProfile = async (user: User): Promise<Profile | null> => {
           supabase
             .from("profiles")
             .select(
-              "id, first_name, last_name, name, full_name, email, status, profile_picture_url, bio, is_admin, created_at, preferred_delivery_locker_data",
+              "id, first_name, last_name, name, full_name, email, status, profile_picture_url, bio, is_admin, is_business, business_name, instagram_handle, show_address_to_public, show_phone_to_public, created_at, preferred_delivery_locker_data, subscription_tier",
             )
             .eq("id", user.id)
             .single(),
@@ -350,11 +301,17 @@ export const fetchUserProfile = async (user: User): Promise<Profile | null> => {
       name: displayName,
       email: profile.email || user.email || "",
       isAdmin,
+      isBusiness: profile.is_business || false,
+      businessName: profile.business_name || "",
+      instagramHandle: profile.instagram_handle || "",
+      showAddressToPublic: !!profile.show_address_to_public,
+      showPhoneToPublic: !!profile.show_phone_to_public,
       status: profile.status || "active",
       profile_picture_url: profile.profile_picture_url,
       bio: profile.bio,
       created_at: profile.created_at,
       preferred_delivery_locker_data: profile.preferred_delivery_locker_data,
+      subscriptionTier: profile.subscription_tier || "free",
     };
   } catch (error) {
     logError("Error in fetchUserProfile", error);

@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import { EMAIL_FOOTER } from "@/email-templates/styles";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
@@ -52,29 +51,6 @@ const OrderCommitButton: React.FC<OrderCommitButtonProps> = ({
     setIsDialogOpen(false);
 
     try {
-      // Fetch order details for email sending
-      const { data: orderData, error: orderError } = await supabase
-        .from("orders")
-        .select(`
-          id,
-          buyer_id,
-          seller_id,
-          buyer_email,
-          seller_email,
-          buyer_full_name,
-          seller_full_name,
-          items,
-          delivery_type,
-          pickup_type,
-          total_amount
-        `)
-        .eq("id", orderId)
-        .single();
-
-      if (orderError || !orderData) {
-        throw new Error("Failed to fetch order details");
-      }
-
       // 🔧 USE ENHANCED COMMIT SERVICE WITH EMAIL FALLBACKS
       const result = await EnhancedCommitService.commitWithEmailFallback(orderId, sellerId);
 
@@ -82,150 +58,11 @@ const OrderCommitButton: React.FC<OrderCommitButtonProps> = ({
         throw new Error(result.message);
       }
 
-      // Send confirmation emails to buyer and seller
-      let emailsSent = false;
-      try {
-        const deliveryMethodText = orderData.delivery_type === 'locker' ? 'to your selected locker' : 'to your address';
-        const pickupMethodText = orderData.pickup_type === 'locker' ? 'from your selected locker' : 'from your address';
-
-        const items = Array.isArray(orderData.items) ? orderData.items : [];
-        const bookTitles = items.map((item: any) => item.title || "Book").join(", ");
-
-        // Email to buyer
-        const buyerEmailHtml = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>Order Confirmed - Pickup Scheduled</title>
-  <style>
-    body { font-family: Arial, sans-serif; background-color: #f3fef7; padding: 20px; color: #1f4e3d; margin: 0; }
-    .container { max-width: 500px; margin: auto; background-color: #ffffff; padding: 30px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05); }
-    .header { background: #3ab26f; color: white; padding: 20px; text-align: center; border-radius: 10px 10px 0 0; margin: -30px -30px 20px -30px; }
-    .footer { background: #f3fef7; color: #1f4e3d; padding: 20px; text-align: center; font-size: 12px; line-height: 1.5; margin: 30px -30px -30px -30px; border-radius: 0 0 10px 10px; border-top: 1px solid #e5e7eb; }
-    .info-box { background: #f3fef7; border: 1px solid #3ab26f; padding: 15px; border-radius: 5px; margin: 15px 0; }
-    .link { color: #3ab26f; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="header">
-      <h1>🎉 Order Confirmed!</h1>
-    </div>
-    <h2>Great news, ${orderData.buyer_full_name || "Buyer"}!</h2>
-    <p><strong>${orderData.seller_full_name || "Seller"}</strong> has confirmed your order and is preparing your book(s) for delivery ${deliveryMethodText}.</p>
-    <div class="info-box">
-      <h3>📚 Order Details</h3>
-      <p><strong>Order ID:</strong> ${orderId}</p>
-      <p><strong>Book(s):</strong> ${bookTitles}</p>
-      <p><strong>Seller:</strong> ${orderData.seller_full_name || "Seller"}</p>
-      <p><strong>Delivery Method:</strong> ${orderData.delivery_type === 'locker' ? 'Locker Delivery' : 'Door-to-Door'}</p>
-      <p><strong>Estimated Delivery:</strong> 2-3 business days</p>
-    </div>
-    <p>Happy reading! 📖</p>
-    ${EMAIL_FOOTER}
-  </div>
-</body>
-</html>`;
-
-        // Email to seller
-        const sellerEmailHtml = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>Order Commitment Confirmed - Prepare for Pickup</title>
-  <style>
-    body { font-family: Arial, sans-serif; background-color: #f3fef7; padding: 20px; color: #1f4e3d; margin: 0; }
-    .container { max-width: 500px; margin: auto; background-color: #ffffff; padding: 30px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05); }
-    .header { background: #3ab26f; color: white; padding: 20px; text-align: center; border-radius: 10px 10px 0 0; margin: -30px -30px 20px -30px; }
-    .footer { background: #f3fef7; color: #1f4e3d; padding: 20px; text-align: center; font-size: 12px; line-height: 1.5; margin: 30px -30px -30px -30px; border-radius: 0 0 10px 10px; border-top: 1px solid #e5e7eb; }
-    .info-box { background: #f3fef7; border: 1px solid #3ab26f; padding: 15px; border-radius: 5px; margin: 15px 0; }
-    .link { color: #3ab26f; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="header">
-      <h1>Order Commitment Confirmed!</h1>
-    </div>
-    <h2>Thank you, ${orderData.seller_full_name || "Seller"}!</h2>
-    <p>You've successfully committed to sell your book(s). The buyer has been notified and pickup has been scheduled ${pickupMethodText}.</p>
-    <div class="info-box">
-      <h3>📋 Order Details</h3>
-      <p><strong>Order ID:</strong> ${orderId}</p>
-      <p><strong>Book(s):</strong> ${bookTitles}</p>
-      <p><strong>Buyer:</strong> ${orderData.buyer_full_name || "Buyer"}</p>
-      <p><strong>Pickup Method:</strong> ${orderData.pickup_type === 'locker' ? 'Locker Pickup' : 'Door-to-Door'}</p>
-    </div>
-    <p>${orderData.pickup_type === 'locker' ? 'Please drop off your package at the selected locker location.' : 'A courier will contact you within 24 hours to arrange pickup.'}</p>
-    <p>Thank you for selling with ReBooked Solutions! 📚</p>
-    ${EMAIL_FOOTER}
-  </div>
-</body>
-</html>`;
-
-        // Send both emails
-        const emailPromises = [];
-
-        if (orderData.buyer_email) {
-          emailPromises.push(
-            supabase.functions.invoke("send-email", {
-              body: {
-                to: orderData.buyer_email,
-                subject: "Order Confirmed - Pickup Scheduled",
-                html: buyerEmailHtml,
-              },
-            })
-          );
-        }
-
-        if (orderData.seller_email) {
-          emailPromises.push(
-            supabase.functions.invoke("send-email", {
-              body: {
-                to: orderData.seller_email,
-                subject: "Order Commitment Confirmed - Prepare for Pickup",
-                html: sellerEmailHtml,
-              },
-            })
-          );
-        }
-
-        const emailResults = await Promise.all(emailPromises);
-        const allEmailsSuccessful = emailResults.every(result => !result.error && result.data?.success);
-        emailsSent = allEmailsSuccessful;
-      } catch (emailError) {
-      }
-
-      // Show success message with details about what worked
-      let successMessage = "✅ Sale committed successfully!";
-      if (result.edgeFunctionSuccess && emailsSent) {
-        successMessage = "✅ Sale committed and all emails sent successfully!";
-      } else if (emailsSent) {
-        successMessage = "✅ Sale committed! Confirmation emails sent.";
-      } else {
-        successMessage = "✅ Sale committed! Emails are being processed.";
-      }
-
-      // Show enhanced success messages with email status
-      toast.success(successMessage, {
+      // Show success message
+      toast.success("✅ Sale committed successfully!", {
         description: "🚚 Delivery/shipping processes have been triggered automatically!",
         duration: 5000,
       });
-
-      // Show additional info about email delivery
-      if (emailsSent) {
-        toast.info("📧 Confirmation emails sent to buyer and seller", {
-          description: "Both parties have been notified of the sale commitment.",
-          duration: 7000,
-        });
-      } else {
-        toast.info("📧 Emails are being processed", {
-          description: "Notifications will be sent shortly.",
-          duration: 7000,
-        });
-      }
 
       toast.info(
         "🔄 Delivery automation started - this may take a few minutes to complete.",

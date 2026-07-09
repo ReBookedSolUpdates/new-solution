@@ -77,6 +77,7 @@ const Step3Payment: React.FC<Step3PaymentProps> = ({
   const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null);
   const [walletBalance, setWalletBalance] = useState<number>(0);
   const [useWallet, setUseWallet] = useState<boolean>(false);
+  const [customWalletAmount, setCustomWalletAmount] = useState<string>("");
   const isMobile = useIsMobile();
 
   // Calculate subtotal including delivery and fees
@@ -99,7 +100,16 @@ const Step3Payment: React.FC<Step3PaymentProps> = ({
 
   const totalWithCoupon = calculateTotalWithCoupon();
 
-  const walletDiscount = useWallet ? Math.min(walletBalance, totalWithCoupon) : 0;
+  // Get max allowed wallet deduction: cannot exceed walletBalance, and cannot exceed totalWithCoupon
+  const maxAllowedWalletDeduction = Math.min(walletBalance, totalWithCoupon);
+
+  // If customWalletAmount is empty, use max allowed, otherwise parse it
+  const parsedCustomAmount = customWalletAmount === "" ? maxAllowedWalletDeduction : parseFloat(customWalletAmount);
+  const validCustomAmount = isNaN(parsedCustomAmount) || parsedCustomAmount < 0
+    ? 0
+    : Math.min(parsedCustomAmount, maxAllowedWalletDeduction);
+
+  const walletDiscount = useWallet ? validCustomAmount : 0;
   const finalTotal = Math.max(0, totalWithCoupon - walletDiscount);
 
   const handleCouponApply = (coupon: AppliedCoupon) => {
@@ -271,6 +281,7 @@ const Step3Payment: React.FC<Step3PaymentProps> = ({
         seller_preferred_pickup_method: sellerProfile?.preferred_pickup_method || (orderSummary.seller_locker_data ? "locker" : "pickup"),
         order_type: orderSummary.delivery_method === "pickup" ? "pickup" : "delivery",
         use_wallet: useWallet,
+        max_wallet_deduction: useWallet ? Math.round(walletDiscount * 100) : null,
       };
 
       const { data: { session } } = await supabase.auth.getSession();
@@ -352,7 +363,8 @@ const Step3Payment: React.FC<Step3PaymentProps> = ({
       }
 
       const paymentRequest = {
-        order_id: createdOrder.id,
+        order_id: createdOrder.type === 'intent' ? null : createdOrder.id,
+        order_intent_id: createdOrder.type === 'intent' ? createdOrder.id : null,
         amount: amountToCharge,
         email: buyerProfile?.email || authUser.email,
         mobile_number: buyerProfile?.phone_number || "",
@@ -506,7 +518,12 @@ Time: ${new Date().toISOString()}
                   id="use-wallet-checkbox"
                   checked={useWallet}
                   disabled={processing}
-                  onChange={(e) => setUseWallet(e.target.checked)}
+                  onChange={(e) => {
+                    setUseWallet(e.target.checked);
+                    if (!e.target.checked) {
+                      setCustomWalletAmount("");
+                    }
+                  }}
                   className="w-4 h-4 text-book-600 border-gray-300 rounded focus:ring-book-500 cursor-pointer"
                 />
                 <label
@@ -522,6 +539,41 @@ Time: ${new Date().toISOString()}
               </p>
             )}
           </div>
+
+          {useWallet && walletBalance > 0 && (
+            <div className="p-4 bg-white rounded-xl border border-gray-200 space-y-2 mt-2">
+              <label htmlFor="custom-wallet-amount" className="text-xs font-semibold text-gray-700 block">
+                How much of your wallet balance would you like to use?
+              </label>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-gray-500">R</span>
+                <input
+                  type="number"
+                  id="custom-wallet-amount"
+                  value={customWalletAmount}
+                  placeholder={maxAllowedWalletDeduction.toFixed(2)}
+                  min="0"
+                  max={maxAllowedWalletDeduction.toFixed(2)}
+                  step="0.01"
+                  disabled={processing}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    // Prevent entering more than maxAllowedWalletDeduction
+                    if (val === "" || (!isNaN(parseFloat(val)) && parseFloat(val) <= maxAllowedWalletDeduction)) {
+                      setCustomWalletAmount(val);
+                    } else if (!isNaN(parseFloat(val)) && parseFloat(val) > maxAllowedWalletDeduction) {
+                      setCustomWalletAmount(maxAllowedWalletDeduction.toFixed(2));
+                    }
+                  }}
+                  className="w-full text-sm border-gray-300 rounded-lg focus:ring-book-500 focus:border-book-500 p-2 border"
+                />
+              </div>
+              <p className="text-[10px] text-gray-500">
+                Max you can use for this order: {WalletService.formatZAR(maxAllowedWalletDeduction)} (Leave blank to use maximum possible)
+              </p>
+            </div>
+          )}
+
           {useWallet && walletDiscount > 0 && (
             <p className="text-xs text-green-600 font-semibold">
               ✓ R{walletDiscount.toFixed(2)} will be deducted from your wallet at checkout.

@@ -176,8 +176,18 @@ export const getBooks = async (filters?: BookFilters): Promise<Book[]> => {
       });
     });
 
-    // Randomize results with daily consistency (same seed each day)
-    // This ensures the order is randomized but consistent throughout the day
+    // Separate "new" listings (created in the last 24 hours) from older ones.
+    // New listings are always pinned to the top of page 1, sorted newest-first,
+    // so a freshly published listing appears at position 1 immediately.
+    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000); // 24 hours ago
+
+    const newListings = results
+      .filter(b => b.createdAt && new Date(b.createdAt) >= cutoff)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+    const olderListings = results.filter(b => !b.createdAt || new Date(b.createdAt) < cutoff);
+
+    // Randomize older listings with daily consistency (same seed each day)
     const today = new Date().toISOString().split('T')[0]; // Format: YYYY-MM-DD
     const seed = today.split('-').reduce((acc, part) => acc + parseInt(part, 10), 0);
 
@@ -187,12 +197,13 @@ export const getBooks = async (filters?: BookFilters): Promise<Book[]> => {
       return x - Math.floor(x);
     };
 
-    for (let i = results.length - 1; i > 0; i--) {
+    for (let i = olderListings.length - 1; i > 0; i--) {
       const j = Math.floor(seededRandom(i) * (i + 1));
-      [results[i], results[j]] = [results[j], results[i]];
+      [olderListings[i], olderListings[j]] = [olderListings[j], olderListings[i]];
     }
 
-    return results;
+    // New listings first, then the daily-shuffled older ones
+    return [...newListings, ...olderListings];
   } catch (error) {
     logDetailedError("Error in getBooks", error);
     return getFallbackBooks();

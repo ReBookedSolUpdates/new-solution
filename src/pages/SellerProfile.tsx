@@ -11,6 +11,9 @@ import {
   School,
   GraduationCap,
   Clock,
+  Phone,
+  Instagram,
+  Mail,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -94,14 +97,25 @@ const SellerProfile = () => {
       // Fetch seller profile
       const { data: sellerData, error: sellerError } = await supabase
         .from("profiles")
-        .select("id, first_name, last_name, email, bio, profile_picture_url, created_at, preferred_delivery_locker_data")
+        .select("id, first_name, last_name, email, bio, profile_picture_url, created_at, preferred_delivery_locker_data, is_business, phone_number, instagram_handle, show_address_to_public, show_phone_to_public, subscription_tier")
         .eq("id", sellerId)
         .maybeSingle();
 
       const displayName = [sellerData?.first_name, sellerData?.last_name].filter(Boolean).join(" ") || (sellerData as any)?.name || (sellerData as any)?.full_name || sellerData?.email?.split("@")[0] || "";
       
       if (sellerData) {
-        setSeller({ ...(sellerData as any), name: displayName, province: undefined, hasName: Boolean(displayName) });
+        setSeller({ 
+          ...(sellerData as any), 
+          name: displayName, 
+          province: undefined, 
+          hasName: Boolean(displayName),
+          isBusiness: sellerData.is_business || false,
+          phoneNumber: sellerData.phone_number,
+          instagramHandle: sellerData.instagram_handle,
+          showAddressToPublic: !!sellerData.show_address_to_public,
+          showPhoneToPublic: !!sellerData.show_phone_to_public,
+          subscriptionTier: sellerData.subscription_tier || "free"
+        });
       } else {
         setSeller({ id: sellerId!, name: displayName, email: "", created_at: new Date().toISOString(), province: undefined, hasName: false });
       }
@@ -265,10 +279,43 @@ const SellerProfile = () => {
                         <Calendar className="h-4 w-4 flex-shrink-0" />
                         <span className="break-words">Member since {memberSince}</span>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <MapPin className="h-4 w-4 flex-shrink-0" />
-                        <span className="break-words">{seller.province || "Province not set"}</span>
-                      </div>
+                      {/* Address display: Always show for normal sellers. For businesses, show only if Tier 1 and showAddressToPublic is true */}
+                      {(!seller.isBusiness || (seller.subscriptionTier === 'tier1' && seller.showAddressToPublic)) && (
+                        <div className="flex items-center gap-2">
+                          <MapPin className="h-4 w-4 flex-shrink-0" />
+                          <span className="break-words">{seller.province || "Province not set"}</span>
+                        </div>
+                      )}
+                      {/* Premium Tier 1 Contacts */}
+                      {seller.isBusiness && seller.subscriptionTier === 'tier1' && (
+                        <>
+                          {seller.showPhoneToPublic && seller.phoneNumber && (
+                            <div className="flex items-center gap-2">
+                              <Phone className="h-4 w-4 flex-shrink-0 text-gray-400" />
+                              <span className="break-words font-medium text-gray-800">{seller.phoneNumber}</span>
+                            </div>
+                          )}
+                          {seller.instagramHandle && (
+                            <div className="flex items-center gap-2">
+                              <Instagram className="h-4 w-4 flex-shrink-0 text-pink-600" />
+                              <a
+                                href={`https://instagram.com/${seller.instagramHandle}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="font-semibold text-pink-650 hover:underline break-all"
+                              >
+                                @{seller.instagramHandle}
+                              </a>
+                            </div>
+                          )}
+                          {seller.email && (
+                            <div className="flex items-center gap-2">
+                              <Mail className="h-4 w-4 flex-shrink-0 text-gray-400" />
+                              <span className="break-words text-gray-800">{seller.email}</span>
+                            </div>
+                          )}
+                        </>
+                      )}
                     </div>
                     {seller.bio && (
                       <p className="text-gray-700 mt-2 max-w-none whitespace-pre-line break-words">

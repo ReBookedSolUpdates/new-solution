@@ -28,6 +28,7 @@ interface CreateOrderRequest {
   seller_preferred_pickup_method?: 'locker' | 'pickup';
   order_type?: 'delivery' | 'pickup';
   use_wallet?: boolean;
+  max_wallet_deduction?: number;
 }
 
 serve(async (req) => {
@@ -345,6 +346,8 @@ serve(async (req) => {
       }],
       p_order_type: isPickupOrder ? "pickup" : "delivery",
       p_use_wallet: requestData.use_wallet || false,
+      p_platform_fee: buyerProtectionFee,
+      p_max_wallet_deduction: requestData.max_wallet_deduction || null,
     });
 
     if (dbError || !dbResult || !dbResult.success) {
@@ -355,30 +358,17 @@ serve(async (req) => {
       );
     }
 
-    await supabase
-      .from('orders')
-      .update({
-        platform_fee: buyerProtectionFee,
-        selected_shipping_cost: shippingFeeCents,
-        order_type: isPickupOrder ? 'pickup' : 'delivery',
-        pickup_status: isPickupOrder ? 'pending_pickup' : null,
-        delivery_status: isPickupOrder ? null : undefined,
-        selected_courier_slug: isPickupOrder ? null : requestData.selected_courier_slug,
-        selected_service_code: isPickupOrder ? null : requestData.selected_service_code,
-        selected_courier_name: isPickupOrder ? null : requestData.selected_courier_name,
-        selected_service_name: isPickupOrder ? null : requestData.selected_service_name,
-      })
-      .eq('id', dbResult.id);
-
-    console.log("Order created successfully (pending payment).");
+    console.log(`Order ${dbResult.type === 'intent' ? 'intent' : 'record'} created successfully.`);
 
     return new Response(
       JSON.stringify({
         success: true,
-        message: dbResult.payment_status === 'paid' ? "Order fully paid via wallet" : "Order created successfully - awaiting payment",
+        message: dbResult.payment_status === 'paid' ? "Order fully paid via wallet" : "Order intent created successfully - awaiting payment",
         order: {
-          id: dbResult.id,
+          id: dbResult.type === 'intent' ? dbResult.intent_id : dbResult.id,
           order_id: dbResult.order_id,
+          type: dbResult.type,
+          intent_id: dbResult.intent_id,
           status: dbResult.status,
           payment_status: dbResult.payment_status,
           total_amount: totalAmount,

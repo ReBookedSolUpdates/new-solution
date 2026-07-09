@@ -166,8 +166,27 @@ const FeaturedBookCard = ({ book, className = "" }: { book: Book; className?: st
           </Badge>
         </div>
 
-        <div className="absolute top-3 right-3 rounded-full bg-white/85 px-3 py-1 text-sm font-semibold text-book-800 shadow-sm">
-          R{book.price.toLocaleString()}
+        {book.originalPrice && book.originalPrice > book.price && (
+          <div className="absolute top-12 left-3">
+            <Badge className="bg-red-600 hover:bg-red-700 text-white text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded-full shadow-md">
+              {book.originalPrice - book.price >= 1 ? (
+                `SAVE R${Math.round(book.originalPrice - book.price)}`
+              ) : (
+                `${Math.round((1 - book.price / book.originalPrice) * 100)}% OFF`
+              )}
+            </Badge>
+          </div>
+        )}
+
+        <div className="absolute top-3 right-3 rounded-full bg-white/85 px-3 py-1 text-sm font-semibold text-book-800 shadow-sm flex items-center gap-1.5">
+          {book.originalPrice && book.originalPrice > book.price && (
+            <span className="text-xs line-through text-gray-400">
+              R{book.originalPrice.toLocaleString()}
+            </span>
+          )}
+          <span className={book.originalPrice && book.originalPrice > book.price ? "text-red-600 font-bold" : ""}>
+            R{book.price.toLocaleString()}
+          </span>
         </div>
 
       </div>

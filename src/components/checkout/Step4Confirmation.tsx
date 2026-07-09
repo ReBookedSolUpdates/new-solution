@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { OrderConfirmation } from "@/types/checkout";
 import { supabase } from "@/integrations/supabase/client";
+import { emailService } from "@/services/emailService";
 import { toast } from "sonner";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
@@ -110,6 +111,83 @@ const Step4Confirmation: React.FC<Step4ConfirmationProps> = ({
   }, [orderData.buyer_id]);
 
   useEffect(() => {
+    if (!orderRow || !buyerProfile || !receiptRef.current) return;
+    
+    const autoProcessReceipt = async () => {
+      if (orderRow.receipt_pdf_base64) {
+        console.log("[Step4] Receipt already generated and saved. Skipping auto-process.");
+        return;
+      }
+      
+      try {
+        console.log("[Step4] Auto-generating receipt PDF...");
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        
+        const base64 = await generateReceiptPdfBase64();
+        if (!base64) return;
+        
+        const { error: dbErr } = await supabase
+          .from("orders")
+          .update({ receipt_pdf_base64: base64 } as any)
+          .eq("id", orderData.id);
+          
+        if (dbErr) {
+          console.error("[Step4] Failed to save receipt PDF to DB:", dbErr);
+        } else {
+          console.log("[Step4] Receipt PDF saved to DB successfully!");
+          setOrderRow(prev => prev ? { ...prev, receipt_pdf_base64: base64 } : null);
+        }
+        
+        const buyerEmail = buyerProfile.email || orderData.buyer_email;
+        if (buyerEmail) {
+          const emailSubject = `📚 Purchase Confirmed – Receipt attached for order ${orderData.order_id}`;
+          const emailHtml = `
+            <div style="font-family: Arial, sans-serif; background: #f3fef7; padding: 20px; color: #1f4e3d;">
+              <div style="max-width: 500px; margin: auto; background: #ffffff; padding: 30px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+                <div style="background: linear-gradient(135deg, #3ab26f, #2d8f58); padding: 24px; border-radius: 8px 8px 0 0; text-align: center; color: white; margin: -30px -30px 24px;">
+                  <h1 style="margin: 0; font-size: 22px;">Order Confirmed!</h1>
+                  <p style="margin: 6px 0 0; opacity: 0.9;">Your payment receipt is attached</p>
+                </div>
+                <p>Hello <strong>${buyerName}</strong>,</p>
+                <p>Thank you for buying securely with <strong>ReBooked Solutions</strong>. Your payment has been confirmed successfully.</p>
+                <p>We have attached your official PDF receipt to this email for your records.</p>
+                
+                <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px; margin: 16px 0;">
+                  <p style="margin: 0; font-size: 13px; color: #1e40af;"><strong>⏳ What happens next?</strong><br/>
+                    The seller has 48 hours to confirm your order. If they confirm, your item will be prepared for shipment. If they do not respond, you will get a full automatic refund.
+                  </p>
+                </div>
+                <p style="text-align: center; margin-top: 24px;">
+                  <a href="https://rebookedsolutions.co.za/profile?tab=activity" style="display: inline-block; padding: 12px 20px; background: #3ab26f; color: #ffffff; text-decoration: none; border-radius: 5px; font-weight: bold;">View Your Orders</a>
+                </p>
+              </div>
+            </div>
+          `;
+          
+          await emailService.sendEmail({
+            to: buyerEmail,
+            subject: emailSubject,
+            html: emailHtml,
+            attachments: [
+              {
+                filename: `receipt-${orderData.order_id}.pdf`,
+                content: base64,
+                contentType: "application/pdf",
+                encoding: "base64"
+              }
+            ]
+          });
+          console.log("[Step4] Receipt email with PDF attachment sent successfully!");
+        }
+      } catch (err) {
+        console.error("[Step4] Auto processing receipt error:", err);
+      }
+    };
+    
+    autoProcessReceipt();
+  }, [orderRow?.id, buyerProfile?.email]);
+
+  useEffect(() => {
     let cancelled = false;
     const fetchDelivery = async () => {
       try {
@@ -117,7 +195,7 @@ const Step4Confirmation: React.FC<Step4ConfirmationProps> = ({
 
         const { data } = await supabase
           .from("orders")
-          .select("id, order_id, item_type, items, amount, total_amount, selected_shipping_cost, platform_fee, order_type, pickup_status, meetup_location, meetup_time, selected_courier_name, selected_service_name, delivery_type, delivery_locker_data, tracking_number, commit_deadline, payment_reference, paystack_reference")
+          .select("id, order_id, item_type, items, amount, total_amount, selected_shipping_cost, platform_fee, order_type, pickup_status, meetup_location, meetup_time, selected_courier_name, selected_service_name, delivery_type, delivery_locker_data, tracking_number, commit_deadline, payment_reference, paystack_reference, wallet_deducted_amount, receipt_pdf_base64")
           .eq("id", orderData.id)
           .maybeSingle();
 
@@ -183,7 +261,7 @@ const Step4Confirmation: React.FC<Step4ConfirmationProps> = ({
   const deliverySubtitle = isPickupOrder
     ? "Coordinate meetup details in chat"
     : (deliveryMeta?.selected_service_name || deliveryMeta?.selected_courier_name)
-      ? [deliveryMeta.selected_courier_name, deliveryMeta.selected_service_name].filter(Boolean).join(" � ")
+      ? [deliveryMeta.selected_courier_name, deliveryMeta.selected_service_name].filter(Boolean).join(" � ")
       : null;
 
   const book = orderData.book as any;
@@ -206,6 +284,7 @@ const Step4Confirmation: React.FC<Step4ConfirmationProps> = ({
       : Number(orderData.platform_fee ?? 20);
   const discountApplied = Number(couponMeta?.discount_applied || orderData.coupon_discount || 0);
   const computedTotal = Math.max(0, itemPrice + deliveryFee + buyerProtectionFee - discountApplied);
+  const walletDeducted = orderRow?.wallet_deducted_amount ? Number(orderRow.wallet_deducted_amount) / 100 : 0;
   const totalPaid =
     typeof orderRow?.total_amount === "number" && orderRow.total_amount > 0 && orderRow.total_amount >= Math.max(deliveryFee, itemPrice)
       ? Number(orderRow.total_amount)
@@ -238,26 +317,18 @@ const Step4Confirmation: React.FC<Step4ConfirmationProps> = ({
       });
 
       const imgData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+      
+      // Calculate dimensions in points (pt) to fit exactly on a single page
+      const pdfWidth = 480;
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
 
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
-      const imgWidth = pageWidth - 20;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "pt",
+        format: [pdfWidth, pdfHeight],
+      });
 
-      // Handle multi-page if receipt is long
-      let heightLeft = imgHeight;
-      let position = 10;
-
-      pdf.addImage(imgData, "PNG", 10, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight - 20;
-
-      while (heightLeft > 0) {
-        position = heightLeft - imgHeight;
-        pdf.addPage();
-        pdf.addImage(imgData, "PNG", 10, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight - 20;
-      }
+      pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
 
       const dataUri = pdf.output("datauristring");
       const base64 = String(dataUri).split("base64,")[1] || null;
@@ -310,295 +381,170 @@ const Step4Confirmation: React.FC<Step4ConfirmationProps> = ({
   // Receipt emailing is handled server-side in the payment webhook to avoid duplicates.
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6 px-3 sm:px-0">
-      {/* ── Success Header ── */}
-      <div className="text-center mb-8">
-        <div className="w-20 h-20 bg-gradient-to-br from-green-100 to-green-200 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
-          <CheckCircle className="w-10 h-10 text-green-600" />
+    <div className="max-w-md mx-auto space-y-6 px-3 sm:px-0 py-6">
+      {/* Success Header */}
+      <div className="text-center mb-6">
+        <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm">
+          <CheckCircle className="w-8 h-8 text-green-600" />
         </div>
-        <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">Payment Successful</h1>
-        <p className="text-base sm:text-lg text-gray-600">
-          Thank you for your purchase. Your order has been confirmed and the seller has been notified.
+        <h1 className="text-2xl font-bold text-gray-900 mb-1">Payment Successful</h1>
+        <p className="text-sm text-gray-600">
+          Your order has been confirmed and the seller has been notified.
         </p>
       </div>
 
-      {/* ── Order Details Card (visible on screen) ── */}
-      <Card className="border-l-4 border-l-green-500 shadow-sm">
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-xl">
-            <Package className="w-5 h-5 text-green-600" />
-            Order Confirmation
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-5">
-          {/* Meta grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {[
-              { label: "Order ID", value: orderData.order_id, mono: true },
-              { label: "Ref", value: orderData.payment_reference, mono: true },
-              { label: "Date", value: new Date(orderData.created_at).toLocaleDateString() },
-              { label: "Status", value: "✅ PAID" },
-            ].map((item) => (
-              <div key={item.label} className="bg-gray-50 rounded-lg p-3">
-                <p className="text-xs font-semibold text-gray-500 uppercase">{item.label}</p>
-                <p className={`text-sm font-bold mt-1 truncate ${item.mono ? "font-mono text-xs" : ""}`}>
-                  {item.value}
-                </p>
-              </div>
-            ))}
+      {/* Visible/Downloadable Receipt Card */}
+      <div
+        ref={receiptRef}
+        className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden"
+        style={{
+          width: "100%",
+          maxWidth: "480px",
+          fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+          color: "#1a1a1a",
+        }}
+      >
+        {/* Header */}
+        <div style={{ display: "flex", alignItems: "center", gap: "12px", padding: "24px 24px 20px 24px", borderBottom: "1px solid #eaeaea" }}>
+          <img src="/favicon.webp" alt="logo" style={{ width: "36px", height: "36px", borderRadius: "50%" }} />
+          <div style={{ textAlign: "left" }}>
+            <h1 style={{ margin: 0, fontSize: "15px", fontWeight: 600, color: "#1a1a1a" }}>ReBooked Solutions</h1>
+            <p style={{ margin: "2px 0 0 0", fontSize: "12px", color: "#888" }}>
+              Order Ref: <span style={{ fontFamily: "'SFMono-Regular', Consolas, monospace", fontSize: "12px" }}>{orderData.order_id}</span>
+            </p>
           </div>
-
-          <Separator />
-
-          {/* Item Details */}
-          <div>
-            <SectionHeader title="Item Details" icon={<Package className="w-4 h-4" />} />
-            <div className="bg-blue-50 rounded-lg p-4 border border-blue-100">
-              <p className="font-bold text-base text-gray-900 mb-2">{receiptItemTitle}</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6">
-                <Row label="Item Type" value={String(receiptItemType).split("_").join(" ")} />
-                <Row label="Condition" value={receiptCondition} />
-                <Row label="Quantity" value={receiptQuantity} />
-                <Row label="Author" value={orderData.book_author} />
-                <Row label="Category" value={book?.category} />
-                <Row label="ISBN" value={book?.isbn} />
-                <Row label="Publisher" value={book?.publisher} />
-                <Row label="Language" value={book?.language} />
-                <Row label="Curriculum" value={book?.curriculum} />
-                <Row label="Grade / Year" value={book?.grade || book?.universityYear} />
-                <Row label="School Name" value={book?.school_name} />
-                <Row label="Gender" value={book?.gender} />
-                <Row label="Size" value={book?.size} />
-                <Row label="Color" value={book?.color} />
-                <Row label="Subject" value={book?.subject} />
-                <Row label="Item Type" value={book?.itemType || book?.item_type} />
-                <Row label="Province" value={book?.province} />
-                <Row label="Item ID" value={orderData.book_id} />
-              </div>
-              {orderData.book_description && (
-                <p className="text-xs text-gray-600 mt-3 border-t border-blue-200 pt-3 leading-relaxed">
-                  <span className="font-bold text-gray-500 uppercase block mb-1">Description:</span>
-                  {orderData.book_description}
-                </p>
-              )}
-              <div className="mt-3 pt-3 border-t border-blue-200 flex justify-between">
-                <span className="text-sm font-semibold text-gray-700 uppercase">Item Amount</span>
-                <span className="text-base font-bold text-green-600">R{Number(itemPrice).toFixed(2)}</span>
-              </div>
-            </div>
+          <div style={{ marginLeft: "auto", fontSize: "11px", fontWeight: 600, color: "#1f4e3d", background: "#e8f5ee", padding: "4px 10px", borderRadius: "12px" }}>
+            PAID
           </div>
-
-          {/* Seller Info */}
-          <div>
-            <SectionHeader title="Seller Information" icon={<User className="w-4 h-4" />} />
-            <div className="bg-green-50 rounded-lg p-4 border border-green-100">
-              {orderData.seller_name && (
-                <p className="font-semibold text-gray-900 mb-2">{orderData.seller_name}</p>
-              )}
-              <p className="text-xs text-gray-500">Seller ID: <span className="font-mono">{orderData.seller_id}</span></p>
-              <p className="text-sm text-gray-600 mt-2">
-                The seller has been notified and will prepare your item for shipment.
-              </p>
-            </div>
-          </div>
-
-          {/* Buyer Info */}
-          <div>
-            <SectionHeader title="Buyer Information" icon={<User className="w-4 h-4" />} />
-            <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
-              <div className="space-y-0">
-                <Row label="Name" value={buyerName || undefined} />
-                <Row label="Email" value={buyerProfile?.email || undefined} />
-                <Row label="Phone" value={buyerProfile?.phone_number || undefined} />
-              </div>
-            </div>
-          </div>
-
-          {/* Delivery Info */}
-          <div>
-            <SectionHeader title="Delivery" icon={<Truck className="w-4 h-4" />} />
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
-                <div className="flex justify-between items-start gap-3">
-                  <div className="min-w-0">
-                    <p className="font-semibold text-gray-900">{deliveryDisplayName}</p>
-                    {deliverySubtitle && (
-                      <p className="text-xs text-gray-500 mt-1 truncate">{deliverySubtitle}</p>
-                    )}
-                    {!deliverySubtitle && (
-                      <p className="text-xs text-gray-500 mt-1">
-                        You’ll receive tracking info once shipped
-                      </p>
-                    )}
-                  </div>
-                  <span className="text-base font-bold text-gray-800 whitespace-nowrap">
-                    R{Number(deliveryFee).toFixed(2)}
-                  </span>
-                </div>
-              </div>
-
-              <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
-                <div className="flex items-start gap-3">
-                  <div className="p-2 bg-white rounded-lg border border-gray-200">
-                    <MapPin className="w-4 h-4 text-book-600" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="font-semibold text-gray-900">Delivery address</p>
-
-                    {/* Locker delivery */}
-                    {deliveryMeta?.delivery_locker_data && (
-                      <div className="mt-1 text-sm text-gray-700">
-                        <p className="font-medium text-gray-900 truncate">
-                          {(deliveryMeta.delivery_locker_data as any)?.name || "Locker"}
-                        </p>
-                        <p className="text-xs text-gray-600 line-clamp-2">
-                          {(deliveryMeta.delivery_locker_data as any)?.full_address ||
-                            (deliveryMeta.delivery_locker_data as any)?.address ||
-                            (deliveryMeta.delivery_locker_data as any)?.street ||
-                            ""}
-                        </p>
-                      </div>
-                    )}
-
-                    {/* Door delivery */}
-                    {!deliveryMeta?.delivery_locker_data && deliveryAddress && (
-                      <div className="mt-1 text-sm text-gray-700">
-                        <p className="text-sm text-gray-900 font-medium truncate">
-                          {deliveryAddress.street || deliveryAddress.streetAddress || ""}
-                        </p>
-                        <p className="text-xs text-gray-600">
-                          {[deliveryAddress.suburb, deliveryAddress.city].filter(Boolean).join(", ")}
-                        </p>
-                        <p className="text-xs text-gray-600">
-                          {[deliveryAddress.province, deliveryAddress.postal_code || deliveryAddress.postalCode].filter(Boolean).join(" • ")}
-                        </p>
-                      </div>
-                    )}
-
-                    {/* Fallback */}
-                    {!deliveryMeta?.delivery_locker_data && !deliveryAddress && (
-                      <p className="mt-1 text-xs text-gray-500">
-                        We’ll show your delivery address here once it’s available.
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="mt-3 bg-gray-50 rounded-lg p-4 border border-gray-100">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6">
-                {!isPickupOrder && <Row label="Courier" value={deliveryMeta?.selected_courier_name || null} />}
-                {!isPickupOrder && <Row label="Service" value={deliveryMeta?.selected_service_name || null} />}
-                <Row
-                  label="Delivery Type"
-                  value={
-                    orderRow?.delivery_type
-                      ? String(orderRow.delivery_type).toLowerCase() === "locker"
-                        ? "Locker-to-Locker"
-                        : "Door-to-Door"
-                      : deliveryDisplayName
-                  }
-                />
-                {!isPickupOrder && <Row label="Tracking Number" value={trackingNumber || "Pending"} />}
-                <Row label="Commit Deadline" value={formatDateTime(commitDeadline)} />
-                <Row label="Payment Reference" value={paymentRef || "Pending"} />
-              </div>
-            </div>
-          </div>
-
-          <Separator />
-
-          {/* Price Breakdown */}
-          <div>
-            <SectionHeader title="Price Breakdown" icon={<CreditCard className="w-4 h-4" />} />
-            <div className="bg-gray-50 rounded-lg p-4 border border-gray-100 space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-gray-600">Item Price</span>
-                <span>R{Number(itemPrice).toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Delivery Fee</span>
-                <span>R{Number(deliveryFee).toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Buyer's Protection Fee</span>
-                <span>R{Number(buyerProtectionFee).toFixed(2)}</span>
-              </div>
-              {discountApplied > 0 && (
-                <div className="flex justify-between text-green-700">
-                  <span>Coupon / Discount {couponMeta?.code ? `(${couponMeta.code})` : ""}</span>
-                  <span>-R{Number(discountApplied).toFixed(2)}</span>
-                </div>
-              )}
-              <Separator />
-              <div className="flex justify-between font-bold text-lg">
-                <span>Total Paid</span>
-                <span className="text-green-600">R{Number(totalPaid).toFixed(2)}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Status */}
-          <div className="bg-green-50 rounded-lg p-4 border border-green-200 flex items-center gap-3">
-            <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
-            <div>
-              <p className="font-bold text-green-800">PAID — Payment Completed Successfully</p>
-              <p className="text-xs text-green-700">
-                {new Date(orderData.created_at).toLocaleString()}
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* ── Next Steps ── */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Next Steps</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex items-center gap-3 text-sm">
-            <Mail className="w-4 h-4 text-blue-500" />
-            <span>Confirmation email sent to your registered email address</span>
-          </div>
-          <div className="flex items-center gap-3 text-sm">
-            <Package className="w-4 h-4 text-orange-500" />
-            <span>Seller will be notified to prepare your item for shipment</span>
-          </div>
-          <div className="flex items-center gap-3 text-sm">
-            <Truck className="w-4 h-4 text-green-500" />
-            <span>{isPickupOrder ? 'Coordinate meetup details with the seller in chat' : 'You\'ll receive tracking information via email once shipped'}</span>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* ── Action Buttons ── */}
-      <div className="space-y-3 pt-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <Button
-            onClick={downloadReceipt}
-            disabled={isDownloading}
-            variant="outline"
-            className="py-3 font-semibold"
-          >
-            {isDownloading ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Generating PDF...
-              </>
-            ) : (
-              <>
-                <Download className="w-4 h-4 mr-2" />
-                Download Receipt (PDF)
-              </>
-            )}
-          </Button>
-          <Button onClick={onViewOrders} variant="outline" className="py-3 font-semibold">
-            <Eye className="w-4 h-4 mr-2" />
-            View My Orders
-          </Button>
         </div>
 
+        {/* Transaction Section */}
+        <div style={{ padding: "18px 24px", borderBottom: "1px solid #f0f0f0" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", lineHeight: 1.8 }}>
+            <span style={{ color: "#888" }}>Date</span>
+            <span style={{ color: "#1a1a1a", fontWeight: 500, textAlign: "right" }}>{new Date(orderData.created_at).toLocaleString()}</span>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", lineHeight: 1.8 }}>
+            <span style={{ color: "#888" }}>Payment Ref</span>
+            <span style={{ color: "#1a1a1a", fontWeight: 500, textAlign: "right", fontFamily: "'SFMono-Regular', Consolas, monospace" }}>{paymentRef || orderData.payment_reference || "Pending"}</span>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", lineHeight: 1.8 }}>
+            <span style={{ color: "#888" }}>Buyer</span>
+            <span style={{ color: "#1a1a1a", fontWeight: 500, textAlign: "right" }}>{buyerName} {buyerProfile?.email ? `(${buyerProfile.email})` : ""}</span>
+          </div>
+        </div>
+
+        {/* Item Section */}
+        <div style={{ padding: "18px 24px", borderBottom: "1px solid #f0f0f0", textAlign: "left" }}>
+          <div style={{ fontSize: "14px", fontWeight: 600, margin: "0 0 2px 0", color: "#1a1a1a" }}>{receiptItemTitle}</div>
+          <div style={{ fontSize: "12px", color: "#888", margin: "0 0 12px 0" }}>
+            Condition: {receiptCondition || "N/A"}  {"\u2022"}  Qty: {receiptQuantity}
+          </div>
+
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", lineHeight: 1.8 }}>
+            <span style={{ color: "#888" }}>Item Price</span>
+            <span style={{ color: "#1a1a1a", fontWeight: 500, textAlign: "right" }}>R{Number(itemPrice).toFixed(2)}</span>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", lineHeight: 1.8 }}>
+            <span style={{ color: "#888" }}>Delivery Fee</span>
+            <span style={{ color: "#1a1a1a", fontWeight: 500, textAlign: "right" }}>R{Number(deliveryFee).toFixed(2)}</span>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", lineHeight: 1.8 }}>
+            <span style={{ color: "#888" }}>Buyer's Protection Fee</span>
+            <span style={{ color: "#1a1a1a", fontWeight: 500, textAlign: "right" }}>R{Number(buyerProtectionFee).toFixed(2)}</span>
+          </div>
+          {discountApplied > 0 && (
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", lineHeight: 1.8 }}>
+              <span style={{ color: "#888" }}>Discount {couponMeta?.code ? `(${couponMeta.code})` : ""}</span>
+              <span style={{ color: "#16a34a", fontWeight: 500, textAlign: "right" }}>-R{Number(discountApplied).toFixed(2)}</span>
+            </div>
+          )}
+          {walletDeducted > 0 && (
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", lineHeight: 1.8 }}>
+              <span style={{ color: "#888" }}>Wallet Deduction</span>
+              <span style={{ color: "#1a1a1a", fontWeight: 500, textAlign: "right" }}>-R{Number(walletDeducted).toFixed(2)}</span>
+            </div>
+          )}
+
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "15px", fontWeight: 700, paddingTop: "10px", marginTop: "6px", borderTop: "1px solid #eaeaea" }}>
+            <span>Total Paid</span>
+            <span>R{Number(totalPaid).toFixed(2)}</span>
+          </div>
+          {walletDeducted > 0 && (
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", fontWeight: 500, color: "#666", marginTop: "4px" }}>
+              <span>Paid via Card</span>
+              <span>R{Number(Math.max(0, totalPaid - walletDeducted)).toFixed(2)}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Delivery Details Section */}
+        <div style={{ padding: "18px 24px", borderBottom: "1px solid #f0f0f0", textAlign: "left" }}>
+          <div style={{ fontSize: "13px", color: "#888", fontWeight: 600, textTransform: "uppercase", marginBottom: "8px" }}>Delivery Details</div>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", lineHeight: 1.8 }}>
+            <span style={{ color: "#888" }}>Method</span>
+            <span style={{ color: "#1a1a1a", fontWeight: 500, textAlign: "right" }}>{deliveryDisplayName}</span>
+          </div>
+          
+          {/* Locker Info */}
+          {deliveryMeta?.delivery_locker_data && (
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", lineHeight: 1.8 }}>
+              <span style={{ color: "#888" }}>Locker</span>
+              <span style={{ color: "#1a1a1a", fontWeight: 500, textAlign: "right", maxWidth: "65%" }}>
+                {(deliveryMeta.delivery_locker_data as any)?.name || "Locker"}<br />
+                <span style={{ fontSize: "11px", color: "#666" }}>
+                  {(deliveryMeta.delivery_locker_data as any)?.full_address || (deliveryMeta.delivery_locker_data as any)?.address || ""}
+                </span>
+              </span>
+            </div>
+          )}
+
+          {/* Address Info */}
+          {!deliveryMeta?.delivery_locker_data && deliveryAddress && (
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", lineHeight: 1.8 }}>
+              <span style={{ color: "#888" }}>Address</span>
+              <span style={{ color: "#1a1a1a", fontWeight: 500, textAlign: "right", maxWidth: "65%" }}>
+                {deliveryAddress.street || deliveryAddress.streetAddress || ""}, {deliveryAddress.suburb || ""}, {deliveryAddress.city || ""}, {deliveryAddress.postal_code || deliveryAddress.postalCode || ""}
+              </span>
+            </div>
+          )}
+
+          {!isPickupOrder && trackingNumber && (
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", lineHeight: 1.8 }}>
+              <span style={{ color: "#888" }}>Tracking Number</span>
+              <span style={{ color: "#1a1a1a", fontWeight: 500, textAlign: "right", fontFamily: "'SFMono-Regular', Consolas, monospace" }}>{trackingNumber}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div style={{ textAlign: "center", padding: "20px 24px", fontSize: "11px", color: "#999" }}>
+          <div style={{ fontWeight: 600, color: "#1a1a1a", marginBottom: "4px" }}>ReBooked Solutions</div>
+          <div style={{ marginBottom: "4px" }}>support@rebookedsolutions.co.za {"\u00b7"} rebookedsolutions.co.za</div>
+          <div>Automated receipt {"\u00b7"} {"\u00a9"} 2026 ReBooked Solutions</div>
+        </div>
+      </div>
+
+      {/* Action Buttons */}
+      <div className="space-y-3 pt-2">
+        <Button
+          onClick={downloadReceipt}
+          disabled={isDownloading}
+          variant="outline"
+          className="w-full py-3 font-semibold"
+        >
+          {isDownloading ? (
+            <>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              Generating PDF...
+            </>
+          ) : (
+            <>
+              <Download className="w-4 h-4 mr-2" />
+              Download Receipt
+            </>
+          )}
+        </Button>
         <Button
           onClick={onContinueShopping}
           className="w-full py-3 text-base font-semibold bg-green-600 hover:bg-green-700"
@@ -609,212 +555,21 @@ const Step4Confirmation: React.FC<Step4ConfirmationProps> = ({
         </Button>
       </div>
 
-      {/* ── Support Info ── */}
+      {/* Support Info */}
       <Card className="bg-blue-50 border-blue-200">
         <CardContent className="p-4">
-          <h3 className="font-medium mb-2">Need Help?</h3>
+          <h3 className="font-medium mb-1">Need Help?</h3>
           <p className="text-sm text-gray-600">
             Contact us at{" "}
             <a href="mailto:support@rebookedsolutions.co.za" className="text-blue-600 underline">
               support@rebookedsolutions.co.za
-            </a>{" "}
-            or check your order status in <strong>My Orders</strong>.
+            </a>
+            .
           </p>
         </CardContent>
       </Card>
-
-      {/* ── Hidden Receipt Div for PDF Generation ── */}
-      <div
-        ref={receiptRef}
-        style={{
-          position: "fixed",
-          left: "-9999px",
-          top: "-9999px",
-          width: "800px",
-          padding: "40px",
-          fontFamily: "Arial, sans-serif",
-          color: "#1f4e3d",
-          backgroundColor: "#ffffff",
-        }}
-      >
-        {/* Receipt Header */}
-        <div style={{ background: "linear-gradient(135deg, #2d8f58, #3ab26f)", padding: "28px 36px", borderRadius: "12px 12px 0 0", textAlign: "left", color: "white", marginBottom: "18px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "16px" }}>
-            <div>
-              <h1 style={{ margin: 0, fontSize: "26px", fontWeight: 800, letterSpacing: "0.2px" }}>ReBooked Solutions</h1>
-              <p style={{ margin: "6px 0 0", fontSize: "14px", opacity: 0.92 }}>Purchase receipt</p>
-            </div>
-            <div style={{ textAlign: "right" }}>
-              <div style={{ fontSize: "11px", opacity: 0.9, letterSpacing: "0.5px", textTransform: "uppercase" }}>Status</div>
-              <div style={{ marginTop: "4px", display: "inline-block", background: "rgba(255,255,255,0.16)", border: "1px solid rgba(255,255,255,0.25)", padding: "6px 10px", borderRadius: "999px", fontWeight: 800, fontSize: "12px" }}>
-                PAID
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Meta */}
-        <div style={{ border: "1px solid #e5e7eb", borderRadius: "12px", padding: "14px 16px", marginBottom: "16px" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 18px", fontSize: "12px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", gap: "10px" }}>
-              <span style={{ color: "#6b7280", fontWeight: 700 }}>Order</span>
-              <span style={{ fontFamily: "monospace", fontWeight: 800, color: "#111827" }}>{orderData.order_id}</span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", gap: "10px" }}>
-              <span style={{ color: "#6b7280", fontWeight: 700 }}>Payment Ref</span>
-              <span style={{ fontFamily: "monospace", color: "#111827" }}>{paymentRef || orderData.payment_reference || "Pending"}</span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", gap: "10px" }}>
-              <span style={{ color: "#6b7280", fontWeight: 700 }}>Date</span>
-              <span style={{ color: "#111827" }}>{new Date(orderData.created_at).toLocaleString()}</span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", gap: "10px" }}>
-              <span style={{ color: "#6b7280", fontWeight: 700 }}>Tracking</span>
-              <span style={{ color: "#111827", fontWeight: 700 }}>{trackingNumber || "Pending"}</span>
-            </div>
-            {commitDeadline && (
-              <div style={{ display: "flex", justifyContent: "space-between", gap: "10px", gridColumn: "1 / -1" }}>
-                <span style={{ color: "#6b7280", fontWeight: 700 }}>Commit Deadline</span>
-                <span style={{ color: "#111827", fontWeight: 700 }}>{formatDateTime(commitDeadline)}</span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Item */}
-        <div style={{ border: "1px solid #d1fae5", background: "#f0fdf4", borderRadius: "12px", padding: "16px", marginBottom: "14px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "16px", marginBottom: "10px" }}>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: "11px", color: "#166534", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.6px" }}>Item</div>
-              <div style={{ marginTop: "4px", fontSize: "16px", fontWeight: 800, color: "#0f172a" }}>{receiptItemTitle}</div>
-              {orderData.book_author && (
-                <div style={{ marginTop: "4px", fontSize: "12px", color: "#334155" }}>by {orderData.book_author}</div>
-              )}
-            </div>
-            <div style={{ textAlign: "right", minWidth: "160px" }}>
-              <div style={{ fontSize: "11px", color: "#166534", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.6px" }}>Item amount</div>
-              <div style={{ marginTop: "4px", fontSize: "18px", fontWeight: 900, color: "#16a34a" }}>R{Number(itemPrice).toFixed(2)}</div>
-            </div>
-          </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 18px", fontSize: "12px" }}>
-            {[
-              ["Item Type", String(receiptItemType).split("_").join(" ")],
-              ["Condition", receiptCondition],
-              ["Quantity", String(receiptQuantity)],
-              ["Province", book?.province],
-              ["Category", book?.category],
-              ["ISBN", book?.isbn],
-              ["Grade / Year", book?.grade || book?.universityYear],
-              ["School Name", book?.school_name],
-              ["Size", book?.size],
-              ["Color", book?.color],
-              ["Gender", book?.gender],
-              ["Subject", book?.subject],
-            ].filter(([, v]) => v).map(([label, val]) => (
-              <div key={String(label)} style={{ display: "flex", justifyContent: "space-between", gap: "10px" }}>
-                <span style={{ color: "#6b7280", fontWeight: 700 }}>{label}</span>
-                <span style={{ color: "#111827", fontWeight: 700, textAlign: "right" }}>{String(val)}</span>
-              </div>
-            ))}
-          </div>
-
-          {orderData.book_description && (
-            <div style={{ marginTop: "12px", paddingTop: "10px", borderTop: "1px solid #bbf7d0" }}>
-              <div style={{ fontSize: "11px", color: "#6b7280", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.6px", marginBottom: "6px" }}>Description</div>
-              <div style={{ fontSize: "12px", color: "#334155", lineHeight: 1.5 }}>{orderData.book_description}</div>
-            </div>
-          )}
-        </div>
-
-        {/* Buyer */}
-        <div style={{ border: "1px solid #e5e7eb", background: "#ffffff", borderRadius: "12px", padding: "16px", marginBottom: "14px" }}>
-          <div style={{ fontSize: "11px", color: "#374151", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.6px", marginBottom: "10px" }}>Buyer</div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 18px", fontSize: "12px" }}>
-            {[
-              ["Name", buyerName],
-              ["Email", buyerProfile?.email],
-              ["Phone", buyerProfile?.phone_number],
-            ].filter(([, v]) => v).map(([label, val]) => (
-              <div key={String(label)} style={{ display: "flex", justifyContent: "space-between", gap: "10px" }}>
-                <span style={{ color: "#6b7280", fontWeight: 700 }}>{label}</span>
-                <span style={{ color: "#111827", fontWeight: 700, textAlign: "right" }}>{String(val)}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Delivery */}
-        <div style={{ border: "1px solid #e5e7eb", background: "#ffffff", borderRadius: "12px", padding: "16px", marginBottom: "14px" }}>
-          <div style={{ fontSize: "11px", color: "#374151", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.6px", marginBottom: "10px" }}>Delivery</div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 18px", fontSize: "12px" }}>
-            {[
-              ["Delivery Method", deliveryDisplayName],
-              ["Delivery Type", orderRow?.delivery_type ? (String(orderRow.delivery_type).toLowerCase() === "locker" ? "Locker-to-Locker" : "Door-to-Door") : deliveryDisplayName],
-              ["Courier", deliveryMeta?.selected_courier_name],
-              ["Service", deliveryMeta?.selected_service_name],
-              ["Tracking Number", trackingNumber || "Pending"],
-            ].filter(([, v]) => v).map(([label, val]) => (
-              <div key={String(label)} style={{ display: "flex", justifyContent: "space-between", gap: "10px" }}>
-                <span style={{ color: "#6b7280", fontWeight: 700 }}>{label}</span>
-                <span style={{ color: "#111827", fontWeight: 700, textAlign: "right" }}>{String(val)}</span>
-              </div>
-            ))}
-          </div>
-          {orderRow?.delivery_type && String(orderRow.delivery_type).toLowerCase() === "locker" && deliveryMeta?.delivery_locker_data && (
-            <div style={{ marginTop: "12px", paddingTop: "10px", borderTop: "1px solid #e5e7eb" }}>
-              <div style={{ fontSize: "11px", color: "#6b7280", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.6px", marginBottom: "6px" }}>Locker</div>
-              <div style={{ fontSize: "12px", color: "#111827", fontWeight: 800 }}>
-                {(deliveryMeta.delivery_locker_data as any)?.name || "Locker"}
-              </div>
-              <div style={{ marginTop: "2px", fontSize: "12px", color: "#334155", lineHeight: 1.4 }}>
-                {(deliveryMeta.delivery_locker_data as any)?.full_address || (deliveryMeta.delivery_locker_data as any)?.address || ""}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Pricing */}
-        <div style={{ border: "1px solid #bbf7d0", background: "#f0fdf4", borderRadius: "12px", padding: "16px", marginBottom: "16px" }}>
-          <div style={{ fontSize: "11px", color: "#166534", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.6px", marginBottom: "10px" }}>Pricing</div>
-          <div style={{ fontSize: "12px" }}>
-            {[
-              ["Item Price", `R${Number(itemPrice).toFixed(2)}`],
-              ["Delivery Fee", `R${Number(deliveryFee).toFixed(2)}`],
-              ["Buyer's Protection Fee", `R${Number(buyerProtectionFee).toFixed(2)}`],
-            ].map(([label, val]) => (
-              <div key={label} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid #dcfce7" }}>
-                <span style={{ color: "#166534", fontWeight: 700 }}>{label}</span>
-                <span style={{ color: "#0f172a", fontWeight: 800 }}>{val}</span>
-              </div>
-            ))}
-            {discountApplied > 0 && (
-              <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid #dcfce7" }}>
-                <span style={{ color: "#166534", fontWeight: 700 }}>Coupon / Discount{couponMeta?.code ? ` (${couponMeta.code})` : ""}</span>
-                <span style={{ color: "#16a34a", fontWeight: 900 }}>-R{Number(discountApplied).toFixed(2)}</span>
-              </div>
-            )}
-            <div style={{ display: "flex", justifyContent: "space-between", paddingTop: "10px" }}>
-              <span style={{ color: "#0f172a", fontWeight: 900, fontSize: "14px" }}>Total Paid</span>
-              <span style={{ color: "#16a34a", fontWeight: 900, fontSize: "16px" }}>R{Number(totalPaid).toFixed(2)}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div style={{ textAlign: "center", paddingTop: "14px", borderTop: "1px solid #e5e7eb", fontSize: "11px", color: "#6b7280" }}>
-          <div style={{ fontWeight: 900, color: "#16a34a", marginBottom: "4px" }}>ReBooked Solutions</div>
-          <div>support@rebookedsolutions.co.za • rebookedsolutions.co.za</div>
-          <div style={{ marginTop: "6px", color: "#9ca3af" }}>
-            Automated receipt • © {new Date().getFullYear()} ReBooked Solutions
-          </div>
-        </div>
-      </div>
     </div>
   );
 };
 
 export default Step4Confirmation;
-
-
-

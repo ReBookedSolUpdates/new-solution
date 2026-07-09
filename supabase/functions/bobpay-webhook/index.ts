@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 import { EMAIL_FOOTER } from "../../../shared/email-footer.ts";
+import { buildBuyerPaymentEmail, buildSellerPaymentEmail } from "../_shared/email-templates.ts";
 import { crypto } from 'https://deno.land/std@0.177.0/crypto/mod.ts';
 
 const corsHeaders = {
@@ -256,23 +257,63 @@ Deno.serve(async (req) => {
       console.log('[bobpay-webhook] BobPay API validation successful');
     }
 
-    // Find the order
-    const { data: orders, error: orderError } = await supabaseClient
-      .from('orders')
-      .select('*')
-      .eq('payment_reference', webhookData.custom_payment_id)
-      .maybeSingle();
+    // If payment is paid, materialize the order from the intent
+    let orders: any = null;
+    if (webhookData.status === 'paid') {
+      console.log('✅ Payment confirmed! Materializing order from intent...');
+      
+      const { data: materializeResult, error: materializeError } = await supabaseClient.rpc("materialize_order_from_intent", {
+        p_payment_reference: webhookData.custom_payment_id,
+        p_paystack_reference: webhookData.short_reference,
+      });
 
-    if (orderError || !orders) {
-      console.error('❌ Order not found for reference:', webhookData.custom_payment_id);
-      return new Response('Order not found', { status: 404 });
+      if (materializeError || !materializeResult || !materializeResult.success) {
+        console.error('❌ Failed to materialize order from intent:', materializeError || materializeResult?.error);
+        return new Response('Failed to materialize order', { status: 409 });
+      }
+
+      // Fetch the newly created order
+      const { data: ordersResult, error: fetchErr } = await supabaseClient
+        .from('orders')
+        .select('*')
+        .eq('payment_reference', webhookData.custom_payment_id)
+        .maybeSingle();
+
+      if (fetchErr || !ordersResult) {
+        console.error('❌ Materialized order not found:', fetchErr);
+        return new Response('Order not found', { status: 404 });
+      }
+
+      orders = ordersResult;
+    } else {
+      // Payment failed or cancelled
+      console.log(`❌ Payment status is: ${webhookData.status}. Updating intent status to failed...`);
+      await supabaseClient
+        .from('order_intents')
+        .update({ status: 'failed', updated_at: new Date().toISOString() })
+        .eq('payment_reference', webhookData.custom_payment_id);
+        
+      // Update payment transaction
+      await supabaseClient
+        .from('payment_transactions')
+        .update({
+          status: webhookData.status,
+          verified_at: new Date().toISOString(),
+          paystack_response: {
+            ...webhookData,
+            provider: 'bobpay',
+          },
+        })
+        .eq('reference', webhookData.custom_payment_id);
+
+      return new Response('OK', { status: 200, headers: corsHeaders });
     }
 
     // Update payment transaction
     await supabaseClient
       .from('payment_transactions')
       .update({
-        status: webhookData.status === 'paid' ? 'success' : webhookData.status,
+        status: 'success',
         verified_at: new Date().toISOString(),
         paystack_response: {
           ...webhookData,
@@ -286,11 +327,11 @@ Deno.serve(async (req) => {
     const cartRecoveryEmail = orders.buyer_email || webhookData.email;
 
     if (webhookData.status === 'paid') {
-      console.log('✅ Payment confirmed! Marking item as sold and finalizing order...');
+      console.log('✅ Finalizing materialized order...');
 
       // Idempotency guard: BobPay can retry webhooks.
-      // If we've already processed payment, do not send emails again.
-      if (orders.payment_status === 'paid') {
+      // If the order has already been processed by this webhook run previously (unlikely at this step)
+      if (orders.payment_status === 'paid' && orders.status === 'pending_commit') {
         return new Response('OK', { status: 200, headers: corsHeaders });
       }
 
@@ -435,36 +476,7 @@ Deno.serve(async (req) => {
       const FOOTER = EMAIL_FOOTER;
 
       if (buyerEmail && supabaseUrl && supabaseServiceKey) {
-        const buyerEmailHtml = `
-          <div style="font-family:Arial,sans-serif;background:#f3fef7;padding:20px;color:#1f4e3d;">
-            <div style="max-width:500px;margin:auto;background:#ffffff;padding:30px;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,0.05);">
-              <div style="background:linear-gradient(135deg,#3ab26f,#2d8f58);padding:24px;border-radius:8px 8px 0 0;text-align:center;color:white;margin:-30px -30px 24px;">
-                <h1 style="margin:0;font-size:22px;">Payment Confirmed!</h1>
-                <p style="margin:6px 0 0;opacity:0.9;">Your order is on its way</p>
-              </div>
-              <p>Hello <strong>${buyerName}</strong>,</p>
-              <p>Your payment has been processed successfully. The seller has been notified and has 48 hours to confirm your order.</p>
-              <div style="background:#f3fef7;border:1px solid #3ab26f;border-radius:8px;padding:16px;margin:20px 0;">
-                <h3 style="margin:0 0 12px;color:#1f4e3d;font-size:14px;">🧾 Receipt</h3>
-                <table style="width:100%;border-collapse:collapse;font-size:13px;">
-                  <tr><td style="padding:4px 0;color:#6b7280;font-weight:600;width:40%;">Item</td><td style="padding:4px 0;">${bookTitle}</td></tr>
-                  ${itemImageUrl ? `<tr><td style="padding:4px 0;color:#6b7280;font-weight:600;">Photo</td><td style="padding:4px 0;"><img src="${itemImageUrl}" alt="${bookTitle}" style="width: 80px; height: auto; border-radius: 4px;" /></td></tr>` : ''}
-                  <tr><td style="padding:4px 0;color:#6b7280;font-weight:600;">Seller</td><td style="padding:4px 0;">${sellerName}</td></tr>
-                  <tr><td style="padding:4px 0;color:#6b7280;font-weight:600;">Order ID</td><td style="padding:4px 0;font-family:monospace;font-size:11px;">${orders.order_id || orders.id}</td></tr>
-                  <tr><td style="padding:4px 0;color:#6b7280;font-weight:600;">Payment Reference</td><td style="padding:4px 0;font-family:monospace;font-size:11px;">${paymentReference}</td></tr>
-                  <tr><td style="padding:4px 0;color:#6b7280;font-weight:600;">Total Paid</td><td style="padding:4px 0;font-weight:bold;color:#3ab26f;">R${webhookData.paid_amount.toFixed(2)}</td></tr>
-                  <tr><td style="padding:4px 0;color:#6b7280;font-weight:600;">Seller Commit Deadline</td><td style="padding:4px 0;">${commitDeadlineText}</td></tr>
-                </table>
-              </div>
-              <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:14px;margin:16px 0;">
-                <p style="margin:0;font-size:13px;color:#1e40af;"><strong>⏳ What happens next?</strong><br/>
-                  Once the seller confirms, your item will be prepared for shipment. You'll receive tracking info via email. If the seller doesn't respond within 48 hours, you'll get a full automatic refund.
-                </p>
-              </div>
-              <a href="https://rebookedsolutions.co.za/profile?tab=activity" style="display:inline-block;padding:12px 20px;background:#3ab26f;color:#ffffff;text-decoration:none;border-radius:5px;margin-top:16px;font-weight:bold;">View Your Orders</a>
-              ${FOOTER}
-            </div>
-          </div>`;
+        const buyerEmailHtml = buildBuyerPaymentEmail(buyerName, bookTitle, itemImageUrl, sellerName, orders.order_id || orders.id, paymentReference, webhookData.paid_amount, commitDeadlineText);
 
         try {
           await fetch(`${supabaseUrl}/functions/v1/send-email`, {
@@ -479,37 +491,7 @@ Deno.serve(async (req) => {
       }
 
       if (sellerEmail && supabaseUrl && supabaseServiceKey) {
-        const sellerEmailHtml = `
-          <div style="font-family:Arial,sans-serif;background:#f3fef7;padding:20px;color:#1f4e3d;">
-            <div style="max-width:500px;margin:auto;background:#ffffff;padding:30px;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,0.05);">
-              <div style="background:linear-gradient(135deg,#e17055,#c0392b);padding:24px;border-radius:8px 8px 0 0;text-align:center;color:white;margin:-30px -30px 24px;">
-                <h1 style="margin:0;font-size:22px;">New Sale – Action Required!</h1>
-                <p style="margin:6px 0 0;opacity:0.9;">Confirm within 48 hours</p>
-              </div>
-              <p>Hello <strong>${sellerName}</strong>,</p>
-              <p>Great news! Someone just purchased your item and is waiting for your confirmation.</p>
-              <div style="background:#fff3cd;border:1px solid #fbbf24;border-radius:8px;padding:14px;margin:16px 0;text-align:center;">
-                <p style="margin:0;font-weight:bold;color:#b45309;font-size:14px;">You must confirm within 48 hours or the order will be automatically cancelled.</p>
-              </div>
-              <div style="background:#f3fef7;border:1px solid #3ab26f;border-radius:8px;padding:16px;margin:20px 0;">
-                <h3 style="margin:0 0 12px;color:#1f4e3d;font-size:14px;">📋 Sale Details</h3>
-                <table style="width:100%;border-collapse:collapse;font-size:13px;">
-                  <tr><td style="padding:4px 0;color:#6b7280;font-weight:600;width:40%;">Item</td><td style="padding:4px 0;">${bookTitle}</td></tr>
-                  ${itemImageUrl ? `<tr><td style="padding:4px 0;color:#6b7280;font-weight:600;">Photo</td><td style="padding:4px 0;"><img src="${itemImageUrl}" alt="${bookTitle}" style="width: 80px; height: auto; border-radius: 4px;" /></td></tr>` : ''}
-                  <tr><td style="padding:4px 0;color:#6b7280;font-weight:600;">Buyer</td><td style="padding:4px 0;">${buyerName}</td></tr>
-                  <tr><td style="padding:4px 0;color:#6b7280;font-weight:600;">Order ID</td><td style="padding:4px 0;font-family:monospace;font-size:11px;">${orders.order_id || orders.id}</td></tr>
-                </table>
-              </div>
-              <p style="font-size:13px;"><strong>Steps to confirm:</strong><br/>
-                1. Log in to your ReBooked Solutions account<br/>
-                2. Go to Profile → Activity → Commits<br/>
-                3. Click "Commit Sale" for this item<br/>
-                4. We'll arrange courier pickup from your location
-              </p>
-              <a href="https://rebookedsolutions.co.za/profile?tab=activity" style="display:inline-block;padding:12px 20px;background:#3ab26f;color:#ffffff;text-decoration:none;border-radius:5px;margin-top:16px;font-weight:bold;">View & Confirm Sale →</a>
-              ${FOOTER}
-            </div>
-          </div>`;
+        const sellerEmailHtml = buildSellerPaymentEmail(sellerName, bookTitle, itemImageUrl, buyerName, orders.order_id || orders.id);
 
         try {
           await fetch(`${supabaseUrl}/functions/v1/send-email`, {

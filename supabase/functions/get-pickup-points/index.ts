@@ -1,11 +1,11 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { getShippingConfig } from "../_shared/shipping-config.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-const TCG_API_URL = Deno.env.get("TCG_BASE_URL");
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -22,11 +22,7 @@ serve(async (req) => {
       );
     }
 
-    // Pickup points use TCG API
-    const TCG_API_KEY = Deno.env.get("TCG_API_KEY");
-    const apiUrl = TCG_API_URL;
-    const apiKey = TCG_API_KEY;
-    const providerName = "The Courier Guy";
+    const { apiUrl, apiKey, providerName } = getShippingConfig();
 
     if (!apiUrl) {
       return new Response(

@@ -1,14 +1,11 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
+import { getShippingConfig } from "../_shared/shipping-config.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const IS_PRODUCTION = Deno.env.get("VITE_PRODUCTION") === "true";
-const TCG_API_URL = IS_PRODUCTION 
-  ? Deno.env.get("TCG_BASE_URL") 
-  : (Deno.env.get("SANDBOX_TCG_BASE_URL") || Deno.env.get("TCG_BASE_URL"));
 const TCG_API_KEY_PROD = Deno.env.get("TCG_API_KEY");
 const TCG_API_KEY_SANDBOX = Deno.env.get("SANDBOX_TCG_API_KEY");
 const TCG_API_KEY = IS_PRODUCTION ? TCG_API_KEY_PROD : (TCG_API_KEY_SANDBOX || TCG_API_KEY_PROD);
@@ -45,11 +42,11 @@ Deno.serve(async (req) => {
     }
 
     if (!TCG_API_URL) {
-      throw new Error(`${IS_PRODUCTION ? "TCG_BASE_URL" : "SANDBOX_TCG_BASE_URL"} is not configured in Supabase secrets`);
+      throw new Error(`Shipping URL is not configured in Supabase secrets`);
     }
 
     if (!TCG_API_KEY) {
-      throw new Error(`${IS_PRODUCTION ? "TCG_API_KEY" : "SANDBOX_TCG_API_KEY"} is not configured in Supabase secrets`);
+      throw new Error(`Shipping API Key is not configured in Supabase secrets`);
     }
 
     let resolvedShipmentId = shipment_id;
@@ -89,7 +86,7 @@ Deno.serve(async (req) => {
       console.log('[get-shipment-label] Fetching label by ID:', resolvedShipmentId);
 
       const labelRes = await fetch(
-        `${TCG_API_URL}/shipments/label?id=${resolvedShipmentId}`,
+        `${apiUrl}/shipments/label?id=${resolvedShipmentId}`,
         {
           method: 'GET',
           headers: {
@@ -137,7 +134,7 @@ Deno.serve(async (req) => {
       console.log('[get-shipment-label] Looking up shipment by tracking ref:', resolvedTrackingRef);
 
       const shipmentsRes = await fetch(
-        `${TCG_API_URL}/shipments?tracking_reference=${encodeURIComponent(resolvedTrackingRef)}`,
+        `${apiUrl}/shipments?tracking_reference=${encodeURIComponent(resolvedTrackingRef)}`,
         {
           method: 'GET',
           headers: {
@@ -172,7 +169,7 @@ Deno.serve(async (req) => {
       }
 
       const labelRes = await fetch(
-        `${TCG_API_URL}/shipments/label?id=${foundShipmentId}`,
+        `${apiUrl}/shipments/label?id=${foundShipmentId}`,
         {
           method: 'GET',
           headers: { 'Authorization': `Bearer ${TCG_API_KEY}` },

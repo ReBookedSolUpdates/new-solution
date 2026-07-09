@@ -32,6 +32,7 @@ export const mapBookFromDatabase = (bookData: any): Book => {
     author: bookData.author || (itemType === 'uniform' ? bookData.school_name : itemType === 'school_supply' ? bookData.subject : ""),
     description: bookData.description || "",
     price: bookData.price || 0,
+    originalPrice: bookData.original_price || undefined,
     category: bookData.category || (itemType === 'uniform' ? 'Uniform' : itemType === 'school_supply' ? 'School Supply' : "Other"),
     condition:
       (bookData.condition as

@@ -82,13 +82,46 @@ const CheckoutSuccess: React.FC = () => {
         .maybeSingle();
 
       if (!order && reference) {
-        // Fallback: try by order_id (the human readable one) or internal id
+        // Fallback: try by order_id (the human readable one) or internal id (only if valid UUID)
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        const isUuid = uuidRegex.test(reference);
+        const orFilter = isUuid 
+          ? `order_id.eq."${reference}",id.eq."${reference}"`
+          : `order_id.eq."${reference}"`;
+
         const { data: fallbackOrder } = await supabase
           .from("orders")
           .select("*")
-          .or(`order_id.eq."${reference}",id.eq."${reference}"`)
+          .or(orFilter)
           .maybeSingle();
         order = fallbackOrder;
+      }
+
+      if (!order && reference) {
+        // Check order_intents to see if order is not materialized yet
+        const { data: intent } = await supabase
+          .from("order_intents")
+          .select("*")
+          .eq("payment_reference", reference)
+          .maybeSingle();
+
+        if (intent) {
+          console.log("[CheckoutSuccess] Found order intent. Triggering payment materialization fallback...");
+          const { data: matResult, error: matError } = await supabase.rpc("materialize_order_from_intent", {
+            p_payment_reference: reference
+          });
+
+          if (matResult?.success) {
+            const { data: refetchedOrder } = await supabase
+              .from("orders")
+              .select("*")
+              .eq("payment_reference", reference)
+              .maybeSingle();
+            order = refetchedOrder;
+          } else {
+            console.error("[CheckoutSuccess] Materialization fallback failed:", matError || matResult?.error);
+          }
+        }
       }
 
       if (orderError || !order) {

@@ -36,6 +36,7 @@ interface PaymentInitRequest {
   cancel_url: string;
   notify_url: string;
   order_id?: string;
+  order_intent_id?: string;
   buyer_id?: string;
 }
 
@@ -165,14 +166,15 @@ Deno.serve(async (req) => {
       throw new Error('BobPay response missing payment URL');
     }
 
-    // Store transaction and update order
-    if (paymentData.order_id) {
+    // Store transaction and update order/intent
+    if (paymentData.order_id || paymentData.order_intent_id) {
       const amountInCents = Math.round(paymentData.amount * 100);
 
       const { error: txError } = await supabaseClient
         .from('payment_transactions')
         .insert({
-          order_id: paymentData.order_id,
+          order_id: paymentData.order_id || null,
+          order_intent_id: paymentData.order_intent_id || null,
           user_id: paymentData.buyer_id || user.id,
           reference: paymentData.custom_payment_id,
           custom_payment_id: paymentData.custom_payment_id,
@@ -197,14 +199,16 @@ Deno.serve(async (req) => {
         throw new Error(`Failed to store transaction: ${txError.message}`);
       }
 
-      const { error: orderUpdateError } = await supabaseClient
-        .from('orders')
-        .update({ payment_reference: paymentData.custom_payment_id })
-        .eq('id', paymentData.order_id);
+      if (paymentData.order_id) {
+        const { error: orderUpdateError } = await supabaseClient
+          .from('orders')
+          .update({ payment_reference: paymentData.custom_payment_id })
+          .eq('id', paymentData.order_id);
 
-      if (orderUpdateError) {
-        console.error('[bobpay-initialize-payment] Failed to update order:', orderUpdateError);
-        throw new Error(`Failed to update order with payment reference: ${orderUpdateError.message}`);
+        if (orderUpdateError) {
+          console.error('[bobpay-initialize-payment] Failed to update order:', orderUpdateError);
+          throw new Error(`Failed to update order with payment reference: ${orderUpdateError.message}`);
+        }
       }
     }
 

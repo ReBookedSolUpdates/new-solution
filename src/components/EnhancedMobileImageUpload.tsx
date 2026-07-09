@@ -291,7 +291,6 @@ const EnhancedMobileImageUpload = ({
     const tempImages = [...imageArray];
     tempImages[index] = objectUrl;
     updateImages(tempImages);
-
     setIsUploading((prev) => ({ ...prev, [index]: true }));
 
     try {
@@ -301,7 +300,9 @@ const EnhancedMobileImageUpload = ({
       updateImages(newImages);
       toast.success(`${slots[index].label} uploaded successfully!`);
     } catch (error) {
-      toast.error(`Failed to upload ${slots[index].label}. Please try again.`);
+      console.error(`[EnhancedMobileImageUpload] Failed to upload ${slots[index].label}:`, error);
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      toast.error(`Failed to upload ${slots[index].label}: ${errorMsg}`);
       // Remove temporary preview on failure
       const newImages = [...imageArray];
       newImages[index] = "";

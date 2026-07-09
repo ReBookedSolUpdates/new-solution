@@ -1,7 +1,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
-import { createEmailTemplate } from "../_shared/email-templates.ts";
+import {
+  buildMeetupCommitBuyerEmail,
+  buildCourierCommitBuyerEmail,
+  buildCourierCommitSellerEmail
+} from "../_shared/email-templates.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -104,25 +108,26 @@ serve(async (req) => {
     }
 
 
-    // Fetch the order with service role to bypass RLS for initial check
-    const { data: order, error: orderError } = await supabase
-      .from("orders")
-      .select("*")
-      .eq("id", order_id)
-      .single();
+    // Lock and fetch the order atomically using FOR UPDATE SKIP LOCKED
+    const { data: lockResult, error: lockError } = await supabase.rpc("lock_order_for_commitment", {
+      p_order_id: order_id
+    });
 
-    if (orderError || !order) {
+    if (lockError || !lockResult || !lockResult.success) {
+      console.error("❌ Failed to lock order for commitment:", lockError || lockResult?.error);
       return new Response(
         JSON.stringify({
           success: false,
-          error: "Order not found",
+          error: lockResult?.error || "Order is currently locked by another transaction, already committed, or not found.",
         }),
         {
-          status: 404,
+          status: 409,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         }
       );
     }
+
+    const order = lockResult.order;
 
     // CRITICAL: Verify seller is committing to their own order
     // This is the RLS equivalent check for service role operations
@@ -137,21 +142,6 @@ serve(async (req) => {
         }),
         {
           status: 403,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
-    }
-
-    // Validate order status - allow 'paid', 'pending', and 'pending_commit' statuses
-    const allowedStatuses = ["paid", "pending", "pending_commit"];
-    if (!allowedStatuses.includes(order.status)) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: `Order cannot be committed in status: ${order.status}`,
-        }),
-        {
-          status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         }
       );
@@ -231,19 +221,7 @@ serve(async (req) => {
         const commitDeadlineText = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleString('en-ZA', { year: 'numeric', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' });
         // Send email to buyer
         if (order.buyer_email) {
-          const buyerHtml = `
-            <div style="font-family:Arial,sans-serif;background:#f3fef7;padding:20px;color:#1f4e3d;">
-              <div style="max-width:500px;margin:auto;background:#ffffff;padding:30px;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,0.05);">
-                <div style="background:linear-gradient(135deg,#3ab26f,#2d8f58);padding:24px;border-radius:8px 8px 0 0;text-align:center;color:white;margin:-30px -30px 24px;">
-                  <h1 style="margin:0;font-size:22px;">Seller Committed!</h1>
-                  <p style="margin:6px 0 0;opacity:0.9;">Coordinate your meetup</p>
-                </div>
-                <p>Hello,</p>
-                <p>The seller has committed to your pickup order for <strong>${items[0]?.title || "your book"}</strong>.</p>
-                <p><strong>Meetup Window:</strong> You have 7 days (until ${commitDeadlineText}) to meet up with the seller and complete the handoff. The R20 service fee is now non-refundable.</p>
-                <p>Please open the chat to coordinate the time and location.</p>
-              </div>
-            </div>`;
+          const buyerHtml = buildMeetupCommitBuyerEmail(items[0]?.title || "your book", commitDeadlineText);
           await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
             method: "POST",
             headers: { "Authorization": `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`, "Content-Type": "application/json" },
@@ -1037,65 +1015,25 @@ serve(async (req) => {
     const pickupMethodText =
       pickupType === "locker" ? "from your selected locker" : "from your address";
 
-    // Buyer email
-    const buyerHtml = createEmailTemplate(
-      {
-        title: "Order Confirmed - Pickup Scheduled",
-        headerText: "Order Confirmed!",
-        headerType: "default",
-        headerSubtext: `Great news, ${buyerName}!`
-      },
-      `
-      <p><strong>${sellerName}</strong> has confirmed your order and is preparing your item(s) for delivery ${deliveryMethodText}.</p>
-      
-      <div class='info-box-success'>
-        <h3 style='margin-top: 0;'>Order Summary</h3>
-        <p><strong>Order ID:</strong> ${order_id}</p>
-        <p><strong>Item(s):</strong> ${(items || []).map((item) => item.title || 'Item').join(', ')}</p>
-        <p><strong>Delivery:</strong> ${deliveryType === 'locker' ? 'Locker Delivery' : 'Door-to-Door'}</p>
-        ${shipmentData.tracking_number ? `<p><strong>Tracking:</strong> <span style='color: #4f46e5; font-weight: bold;'>${shipmentData.tracking_number}</span></p>` : ''}
-      </div>
-      
-      <div class='info-box'>
-        <p style='margin: 0; font-size: 14px;'><strong>Estimated delivery: 2-3 business days.</strong><br>We'll notify you when it's out for delivery.</p>
-      </div>
-      
-      <div style='text-align: center;'>
-        <a href='https://rebookedsolutions.co.za/orders/${order_id}' class='btn'>View Order Details</a>
-      </div>
-      `
+    const itemTitles = (items || []).map((item) => item.title || 'Item').join(', ');
+    const buyerHtml = buildCourierCommitBuyerEmail(
+      buyerName,
+      sellerName,
+      order_id,
+      itemTitles,
+      deliveryType || 'door',
+      deliveryMethodText,
+      shipmentData.tracking_number
     );
 
-    // Seller email
-    const sellerHtml = createEmailTemplate(
-      {
-        title: "Commitment Confirmed",
-        headerText: "Commitment Confirmed!",
-        headerType: "default",
-        headerSubtext: `Thank you, ${sellerName}!`
-      },
-      `
-      <p>You've successfully committed to sell your item(s). The buyer has been notified and pickup has been scheduled ${pickupMethodText}.</p>
-      
-      <div class='info-box-success'>
-        <h3 style='margin-top: 0;'>Order Details</h3>
-        <p><strong>Order ID:</strong> ${order_id}</p>
-        <p><strong>Item(s):</strong> ${(items || []).map((item) => item.title || 'Item').join(', ')}</p>
-        <p><strong>Buyer:</strong> ${buyerName}</p>
-        <p><strong>Pickup Type:</strong> ${pickupType === 'locker' ? 'Locker Drop-off' : 'Courier Pickup'}</p>
-        ${shipmentData.tracking_number ? `<p><strong>Tracking:</strong> <span style='color: #10b981; font-weight: bold;'>${shipmentData.tracking_number}</span></p>` : ''}
-      </div>
-      
-      <div class='info-box'>
-        <p style='margin: 0; font-size: 14px;'>
-          <strong>${pickupType === 'locker' ? 'Please drop off your package at the selected locker location as soon as possible.' : 'A courier will contact you within 24 hours to arrange pickup at your address.'}</strong>
-        </p>
-      </div>
-      
-      <div style='text-align: center;'>
-        <a href='https://rebookedsolutions.co.za/orders/${order_id}' class='btn'>Print Shipping Label</a>
-      </div>
-      `
+    const sellerHtml = buildCourierCommitSellerEmail(
+      sellerName,
+      buyerName,
+      order_id,
+      itemTitles,
+      pickupType || 'door',
+      pickupMethodText,
+      shipmentData.tracking_number
     );
 
     // Send emails (non-blocking)
