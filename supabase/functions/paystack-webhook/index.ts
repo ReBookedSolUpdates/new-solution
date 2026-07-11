@@ -40,6 +40,15 @@ async function verifySignature(signature: string | null, rawBody: string, secret
   }
 }
 
+// Clamp renewal date: if the day-of-month is > 28, set to 28th.
+// This ensures subscriptions starting on 29th/30th/31st always renew on the 28th.
+function clampRenewalDate(date: Date): Date {
+  if (date.getUTCDate() > 28) {
+    date.setUTCDate(28);
+  }
+  return date;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -122,9 +131,10 @@ Deno.serve(async (req) => {
     switch (payload.event) {
       case 'subscription.create':
       case 'charge.success': {
-        const currentPeriodEnd = eventData.current_period_end 
-          ? new Date(eventData.current_period_end).toISOString()
-          : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(); // +30 days default
+        const rawEnd = eventData.current_period_end 
+          ? new Date(eventData.current_period_end)
+          : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+        const currentPeriodEnd = clampRenewalDate(rawEnd).toISOString();
 
         const currentPeriodStart = eventData.current_period_start
           ? new Date(eventData.current_period_start).toISOString()

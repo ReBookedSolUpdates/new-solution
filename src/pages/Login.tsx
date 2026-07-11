@@ -33,9 +33,16 @@ const Login = () => {
   const [errorType, setErrorType] = useState<
     "verify_email" | "register" | "reset_password" | "general" | null
   >(null);
-  const { login, signInWithGoogle, isAuthenticated } = useAuth();
+  const { login, signInWithGoogle, isAuthenticated, profile } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Check client-side cached business status for instant redirect
+  useEffect(() => {
+    if (localStorage.getItem("is_business_user") === "true") {
+      navigate("/business-profile", { replace: true });
+    }
+  }, [navigate]);
 
   // Only handle OAuth redirect if there are actual OAuth parameters in the URL
   const hasOAuthParams =
@@ -63,9 +70,13 @@ const Login = () => {
   // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated) {
-      navigate("/profile", { replace: true });
+      if (profile?.isBusiness || localStorage.getItem("is_business_user") === "true") {
+        navigate("/business-profile", { replace: true });
+      } else {
+        navigate("/profile", { replace: true });
+      }
     }
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated, profile, navigate]);
 
   const handleResendVerification = async () => {
     if (!email.trim()) {
@@ -141,7 +152,11 @@ const Login = () => {
       // Give a moment for auth state to update, then check if we're authenticated
       setTimeout(() => {
         if (isAuthenticated) {
-          navigate("/profile", { replace: true });
+          if (profile?.isBusiness || localStorage.getItem("is_business_user") === "true") {
+            navigate("/business-profile", { replace: true });
+          } else {
+            navigate("/profile", { replace: true });
+          }
         }
       }, 100);
 
@@ -151,7 +166,11 @@ const Login = () => {
       setTimeout(async () => {
         if (isAuthenticated) {
           toast.success("Login successful!");
-          navigate("/profile", { replace: true });
+          if (profile?.isBusiness || localStorage.getItem("is_business_user") === "true") {
+            navigate("/business-profile", { replace: true });
+          } else {
+            navigate("/profile", { replace: true });
+          }
           return;
         }
 

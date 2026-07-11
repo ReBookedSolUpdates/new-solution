@@ -286,9 +286,12 @@ export async function getUserConversations(userId: string, includeArchived = fal
       const getResult = (result: PromiseSettledResult<any>) =>
         result.status === 'fulfilled' ? result.value.data || undefined : undefined;
 
-      const unreadCount = unreadResult.status === 'fulfilled' ? (unreadResult.value as any).count || 0 : 0;
-
       let lastMessage = getResult(lastMsgResult);
+      let unreadCount = unreadResult.status === 'fulfilled' ? (unreadResult.value as any).count || 0 : 0;
+
+      if (lastMessage?.sender_id === userId) {
+        unreadCount = 0;
+      }
       if (lastMessage?.is_encrypted && lastMessage?.content_encrypted) {
         try {
           const { data: { session } } = await supabase.auth.getSession();

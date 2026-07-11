@@ -141,8 +141,8 @@ export function useChatMessages(conversationId: string | null) {
   }, [conversationId]);
 
   const send = useCallback(
-    async (content: string, mediaUrl?: string, mediaType?: string) => {
-      if (!conversationId || !user?.id) return;
+    async (content: string, mediaUrl?: string, mediaType?: string): Promise<{ success: boolean; content?: string }> => {
+      if (!conversationId || !user?.id) return { success: false, content };
 
       // Create optimistic message immediately with a temporary ID
       const optimisticId = `temp-${Date.now()}-${Math.random()}`;
@@ -163,8 +163,7 @@ export function useChatMessages(conversationId: string | null) {
       setMessages((prev) => [...prev, optimisticMessage]);
 
       try {
-        setIsSending(true);
-        // Send to server asynchronously
+        // Send to server asynchronously — no loading state change, fully optimistic
         const sent = await sendMessage(conversationId, user.id, content, mediaUrl, mediaType);
 
         // Replace optimistic message with actual server message
@@ -178,13 +177,12 @@ export function useChatMessages(conversationId: string | null) {
         supabase.functions.invoke("chat-notification", {
           body: { conversation_id: conversationId, sender_id: user.id, content },
         }).catch(() => {});
+
+        return { success: true };
       } catch (err) {
-        // Remove optimistic message on error
+        // Remove optimistic message on error — caller restores content to input
         setMessages((prev) => prev.filter((m) => m.id !== optimisticId));
-        const errorMessage = err instanceof Error ? err.message : "Failed to send message";
-        toast.error(errorMessage);
-      } finally {
-        setIsSending(false);
+        return { success: false, content };
       }
     },
     [conversationId, user?.id]

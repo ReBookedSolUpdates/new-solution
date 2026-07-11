@@ -94,6 +94,9 @@ const Chats = () => {
                   setListRefreshKey(k => k + 1);
                 }}
                 onArchived={handleArchived}
+                onMessagesRead={() => {
+                  setListRefreshKey(k => k + 1);
+                }}
               />
             </div>
           ) : (

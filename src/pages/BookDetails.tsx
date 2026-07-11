@@ -28,6 +28,11 @@ import debugLogger from "@/utils/debugLogger";
 import { supabase } from "@/integrations/supabase/client";
 import { emailService } from "@/services/emailService";
 
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Plus } from "lucide-react";
+
 const BookDetails = () => {
   const params = useParams<{ id?: string; '*'?: string }>();
   const location = useLocation();
@@ -38,6 +43,9 @@ const BookDetails = () => {
   const { addToCart } = useCart();
   const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
   const [isWishlisted, setIsWishlisted] = useState(false);
+  const [isRestockDialogOpen, setIsRestockDialogOpen] = useState(false);
+  const [restockQuantity, setRestockQuantity] = useState(1);
+  const [isRestocking, setIsRestocking] = useState(false);
 
   // Validate and debug book ID
   useEffect(() => {
@@ -52,7 +60,7 @@ const BookDetails = () => {
     const validId = extractBookId(id);
   }, [id, navigate]);
 
-  const { book, isLoading, error } = useBookDetails(id || "");
+  const { book, isLoading, error, refetch } = useBookDetails(id || "");
 
   // Canonicalize: if the current URL doesn't match the canonical for this item, redirect.
   useEffect(() => {
@@ -323,6 +331,42 @@ const BookDetails = () => {
   const isOwner = user?.id === book.seller?.id;
   const showCommissionDetails = false; // Never show commission details to anyone
 
+  const handleRestockSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (restockQuantity <= 0) {
+      toast.error("Please enter a valid quantity.");
+      return;
+    }
+    setIsRestocking(true);
+    try {
+      const currentAvailable = book.availableQuantity || 0;
+      const currentInitial = book.initialQuantity || 0;
+      const newAvailable = currentAvailable + restockQuantity;
+      const newInitial = currentInitial + restockQuantity;
+
+      const { error } = await supabase
+        .from("books")
+        .update({
+          available_quantity: newAvailable,
+          initial_quantity: newInitial,
+          sold: false
+        })
+        .eq("id", book.id);
+
+      if (error) throw error;
+
+      toast.success(`Successfully added ${restockQuantity} to stock!`);
+      setIsRestockDialogOpen(false);
+      setRestockQuantity(1);
+      refetch();
+    } catch (err: any) {
+      console.error("Restock failed:", err);
+      toast.error(err.message || "Failed to restock item.");
+    } finally {
+      setIsRestocking(false);
+    }
+  };
+
   // JSON-LD Product structured data for rich results
   const productSchema = book ? {
     "@context": "https://schema.org",
@@ -387,6 +431,7 @@ const BookDetails = () => {
               onBuyNow={handleBuyNow}
               onAddToCart={handleAddToCart}
               onEditBook={handleEditBook}
+              onRestock={() => setIsRestockDialogOpen(true)}
               onShare={handleShare}
               onViewSellerProfile={handleViewSellerProfile}
               onToggleWishlist={handleToggleWishlist}
@@ -429,6 +474,51 @@ const BookDetails = () => {
           sellerId={book.seller?.id}
           sellerName={book.seller?.name}
         />
+
+        {/* Restock Dialog */}
+        <Dialog open={isRestockDialogOpen} onOpenChange={setIsRestockDialogOpen}>
+          <DialogContent className="rounded-2xl max-w-sm">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Plus className="h-5 w-5 text-green-650" />
+                Restock Item
+              </DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleRestockSubmit} className="space-y-4 py-2">
+              <p className="text-sm text-gray-500">
+                Add more quantity to this listing.
+              </p>
+              <div className="space-y-1.5">
+                <Label htmlFor="quantity-to-add">Quantity to Add</Label>
+                <Input
+                  id="quantity-to-add"
+                  type="number"
+                  min="1"
+                  required
+                  value={restockQuantity}
+                  onChange={(e) => setRestockQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                />
+              </div>
+              <div className="flex gap-2 justify-end mt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsRestockDialogOpen(false)}
+                  className="rounded-xl"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={isRestocking}
+                  className="bg-green-600 hover:bg-green-700 text-white rounded-xl"
+                >
+                  {isRestocking ? "Updating..." : "Add Stock"}
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
     </Layout>
   );

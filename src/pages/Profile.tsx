@@ -253,7 +253,19 @@ const Profile = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // No automatic redirect. Instead, show a button in the profile header so they can go to their business profile.
+  // Check client-side cached business status for instant redirect
+  useEffect(() => {
+    if (localStorage.getItem("is_business_user") === "true") {
+      navigate("/business-profile", { replace: true });
+    }
+  }, [navigate]);
+
+  // Auto-route business users to their business profile
+  useEffect(() => {
+    if (profile && !profile.isFallback && profile.isBusiness) {
+      navigate("/business-profile", { replace: true });
+    }
+  }, [profile, navigate]);
 
   const isMobile = useIsMobile();
   const [activeTab, setActiveTab] = useState(() => {
@@ -285,25 +297,10 @@ const Profile = () => {
     if (!user) return;
     const checkUnreadMessages = async () => {
       try {
-        const { data: convs } = await supabase
-          .from("conversations")
-          .select("id")
-          .or(`buyer_id.eq.${user.id},seller_id.eq.${user.id}`)
-          .eq("status", "active");
-
-        if (convs && convs.length > 0) {
-          const convIds = convs.map((c) => c.id);
-          const { count } = await supabase
-            .from("messages")
-            .select("id", { count: "exact", head: true })
-            .in("conversation_id", convIds)
-            .neq("sender_id", user.id)
-            .is("read_at", null);
-
-          setHasUnreadMessages((count || 0) > 0);
-        } else {
-          setHasUnreadMessages(false);
-        }
+        const { getUserConversations } = await import("@/services/chatService");
+        const convs = await getUserConversations(user.id);
+        const hasUnread = convs.some(c => (c.unread_count || 0) > 0);
+        setHasUnreadMessages(hasUnread);
       } catch (err) {
         console.error("Error checking unread messages:", err);
       }
@@ -311,13 +308,13 @@ const Profile = () => {
 
     checkUnreadMessages();
 
-    // Set up realtime channel to watch for new messages for this user
+    // Set up realtime channel to watch for new or read status updated messages for this user
     const channel = supabase
       .channel("global-profile-unread")
       .on(
         "postgres_changes",
         {
-          event: "INSERT",
+          event: "*",
           schema: "public",
           table: "messages",
         },

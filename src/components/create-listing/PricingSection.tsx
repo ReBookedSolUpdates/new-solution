@@ -8,6 +8,8 @@ import {
 } from "@/services/book/bookUtils";
 import { useIsMobile } from "@/hooks/use-mobile";
 
+import { useAuth } from "@/contexts/AuthContext";
+
 interface PricingSectionProps {
   formData: BookFormData;
   errors: Record<string, string>;
@@ -21,9 +23,13 @@ export const PricingSection = ({
   errors,
   onInputChange,
 }: PricingSectionProps) => {
+  const { profile } = useAuth();
   const isMobile = useIsMobile();
-  const commission = calculateCommission(formData.price);
-  const sellerReceives = calculateSellerReceives(formData.price);
+  const isTier1 = profile?.subscription_tier === "tier1";
+  const commissionRate = isTier1 ? 6.5 : 10;
+
+  const commission = formData.price * (commissionRate / 100);
+  const sellerReceives = formData.price - commission;
 
   const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = e.target.value;
@@ -222,7 +228,7 @@ export const PricingSection = ({
               <span className="font-medium">R{formData.price.toFixed(2)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-600">Commission (10%):</span>
+              <span className="text-gray-600">Commission ({commissionRate}%):</span>
               <span className="text-red-600">-R{commission.toFixed(2)}</span>
             </div>
             <div className="border-t pt-1 flex justify-between">

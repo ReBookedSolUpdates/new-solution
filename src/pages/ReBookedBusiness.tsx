@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Layout from "@/components/Layout";
 import SEO from "@/components/SEO";
@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import {
   ArrowRight,
   BadgeCheck,
@@ -28,6 +30,33 @@ import {
 const ReBookedBusinessPage = () => {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
+  const [redeemCode, setRedeemCode] = useState("");
+  const [isRedeeming, setIsRedeeming] = useState(false);
+
+  const handleRedeemCode = async () => {
+    if (!user) {
+      toast.error("Please sign in first to redeem a code.");
+      navigate("/auth");
+      return;
+    }
+    if (!redeemCode.trim()) return;
+    setIsRedeeming(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("redeem-business-code", {
+        body: { code: redeemCode }
+      });
+      if (error || !data.success) {
+        throw new Error(error?.message || data?.error || "Redemption failed");
+      }
+      toast.success(data.message || "Code redeemed successfully! 🎉");
+      setRedeemCode("");
+      navigate("/business-profile");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to redeem code");
+    } finally {
+      setIsRedeeming(false);
+    }
+  };
 
   return (
     <Layout>
@@ -129,7 +158,7 @@ const ReBookedBusinessPage = () => {
             <Card className="border border-gray-200 h-full">
               <CardContent className="p-5 space-y-4">
                 <p className="text-sm text-gray-600">
-                  All ReBooked Business accounts pay a flat <strong>10% platform fee</strong> (Business Free). Upgrade to <strong>Business Tier 1</strong> for a reduced <strong>6.5% fee</strong> and access to premium features.
+                  All ReBooked Business accounts pay a flat <strong>10% platform fee</strong> (Business Free). Upgrade to <strong>Business Tier 1 (R79/month)</strong> for a reduced <strong>6.5% fee</strong> and access to premium features.
                 </p>
 
                 <div className="grid grid-cols-2 gap-3">
@@ -139,7 +168,7 @@ const ReBookedBusinessPage = () => {
                   </div>
                   <div className="p-4 bg-emerald-50 rounded-xl text-center border border-emerald-100">
                     <p className="text-2xl font-bold text-emerald-700">6.5%</p>
-                    <p className="text-xs text-emerald-600 mt-0.5">Business Tier 1</p>
+                    <p className="text-xs text-emerald-600 mt-0.5">Business Tier 1 (R79/mo)</p>
                   </div>
                 </div>
 
@@ -255,6 +284,39 @@ const ReBookedBusinessPage = () => {
             </Card>
           </div>
         </div>
+
+        {/* Redeem Code Section */}
+        {user && (!profile?.isBusiness || (profile as any)?.subscription_tier !== "tier_1") && (
+          <div className="mb-12 max-w-md mx-auto text-center">
+            <Card className="border border-emerald-250 bg-emerald-50/20 rounded-2xl shadow-sm">
+              <CardContent className="p-6 space-y-4">
+                <h3 className="font-bold text-gray-900 text-sm flex items-center justify-center gap-1.5">
+                  <BadgeCheck className="h-4 w-4 text-emerald-600" /> Have a Partner Promo Code?
+                </h3>
+                <p className="text-xs text-gray-500">
+                  Enter your promo code (e.g. "supabase") below to immediately unlock Tier 1 Business benefits.
+                </p>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Enter code"
+                    className="flex-1 px-3.5 py-1.5 border rounded-xl text-sm focus:ring-2 focus:ring-book-500 outline-none border-gray-200 uppercase tracking-wider text-center"
+                    value={redeemCode}
+                    onChange={(e) => setRedeemCode(e.target.value)}
+                  />
+                  <Button
+                    type="button"
+                    onClick={handleRedeemCode}
+                    disabled={isRedeeming || !redeemCode.trim()}
+                    className="bg-book-600 hover:bg-book-700 text-white text-xs px-4 rounded-xl font-semibold"
+                  >
+                    {isRedeeming ? "Redeeming..." : "Redeem"}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
         {/* CTA */}
         <div className="text-center py-4">

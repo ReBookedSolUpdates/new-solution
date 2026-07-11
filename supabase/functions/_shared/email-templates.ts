@@ -1138,7 +1138,8 @@ export function buildBusinessPaymentFailedEmail(businessName: string): string {
   );
 }
 
-export function buildBusinessSubscriptionCancelledEmail(businessName: string): string {
+export function buildBusinessSubscriptionCancelledEmail(businessName: string, featuresLost?: string): string {
+  const featuresList = featuresLost || 'contact display, bulk promotions, restock-republish, and automated messages';
   return createEmailTemplate(
     {
       title: "ReBooked Business — Subscription Cancelled",
@@ -1198,6 +1199,40 @@ export function buildBusinessVerifiedEmail(businessName: string): string {
   );
 }
 
+export function buildBusinessDowngradedEmail(businessName: string, featuresLost?: string): string {
+  const featuresList = featuresLost || 'contact display, bulk promotions, restock-republish, and automated messages';
+  return createEmailTemplate(
+    {
+      title: "Your ReBooked Business Account Downgraded",
+      headerText: "Account Downgraded to Free",
+      headerType: "warning",
+      headerEmoji: "📉",
+      headerSubtext: `Hello ${businessName},`
+    },
+    `
+    <p>Your subscription period has ended, and your account has been downgraded to the <strong>ReBooked Business Free</strong> tier.</p>
+    <p>Your commission rate has reverted to the flat 10% rate, and premium features (<em>${featuresList}</em>) are no longer active.</p>
+    
+    <div class="info-box-warning">
+      <h3 style="margin-top: 0; color: #b45309;">What changed:</h3>
+      <ul style="padding-left: 20px; margin: 0; font-size: 14px; line-height: 1.8;">
+        <li>Commission rate reverted to <strong>10%</strong> (was 6.5%)</li>
+        <li>Public contact info hidden from your store card</li>
+        <li>Bulk promotions paused</li>
+        <li>Restock & republish paused</li>
+        <li>Automated messages paused</li>
+      </ul>
+    </div>
+    
+    <p>You can reactivate Tier 1 at any time from your ReBooked Business dashboard.</p>
+    
+    <div style="text-align: center; margin: 24px 0;">
+      <a href="https://rebookedsolutions.co.za/business-profile?tab=settings_payouts" class="btn">Upgrade to Tier 1 Again</a>
+    </div>
+    `
+  );
+}
+
 export function buildBulkPromoAppliedEmail(businessName: string, itemCount: number, discountInfo: string): string {
   return createEmailTemplate(
     {
@@ -1249,94 +1284,4 @@ export function buildAutoResponderSetupEmail(businessName: string, autoMessage: 
   );
 }
 
-export function buildBusinessSubscriptionActivatedEmail(businessName: string, tierName: string, commissionRate: number): string {
-  return createEmailTemplate(
-    {
-      title: "ReBooked Business — Subscription Active!",
-      headerText: "Tier 1 Activated",
-      headerType: "success",
-      headerEmoji: "🚀",
-      headerSubtext: `Hi ${businessName},`
-    },
-    `
-    <p>We are excited to let you know that your <strong>ReBooked Business ${tierName}</strong> subscription is now active!</p>
-    <p>You now enjoy a reduced flat platform commission of <strong>${commissionRate}%</strong> on all textbook, reader, uniform, and school supply sales.</p>
-    
-    <div class="info-box">
-      <h3 style="margin-top: 0; color: #1f4e3d;">Your Premium Features Are Unlocked:</h3>
-      <ul style="padding-left: 20px; margin: 0; font-size: 14px; line-height: 1.6; color: #1f4e3d;">
-        <li>🚀 6.5% platform commission rate</li>
-        <li>📣 Store-wide bulk promotions & category discounts</li>
-        <li>📞 Public contact details (phone, Instagram, email) shown on your store card</li>
-        <li>💬 Chat auto-responder active</li>
-        <li>🔄 Restock and republish out-of-stock items</li>
-      </ul>
-    </div>
-    
-    <div style="text-align: center; margin: 24px 0;">
-      <a href="https://rebookedsolutions.co.za/business-profile" class="btn">Go to Business Dashboard</a>
-    </div>
-    `
-  );
-}
-
-export function buildBusinessPaymentFailedEmail(businessName: string): string {
-  return createEmailTemplate(
-    {
-      title: "Action Required: ReBooked Business Payment Failed",
-      headerText: "Payment Failed",
-      headerType: "warning",
-      headerEmoji: "⚠️",
-      headerSubtext: `Hello ${businessName},`
-    },
-    `
-    <p>We were unable to process your recurring charge for your <strong>ReBooked Business Tier 1</strong> subscription.</p>
-    <p>Your subscription is currently in a <strong>5-day grace period</strong>. You still have full access to Tier 1 features, but we will retry the charge. If payment is not received within 5 days, your account will be automatically downgraded to the Free tier.</p>
-    
-    <div style="text-align: center; margin: 24px 0;">
-      <a href="https://rebookedsolutions.co.za/business-profile?tab=settings_payouts" class="btn">Update Billing Information</a>
-    </div>
-    `
-  );
-}
-
-export function buildBusinessSubscriptionCancelledEmail(businessName: string, featuresLost: string): string {
-  return createEmailTemplate(
-    {
-      title: "Your ReBooked Business Subscription Cancelled",
-      headerText: "Subscription Cancelled",
-      headerType: "warning",
-      headerEmoji: "📅",
-      headerSubtext: `Hello ${businessName},`
-    },
-    `
-    <p>Your cancellation request has been received. Your <strong>ReBooked Business Tier 1</strong> subscription will remain active until the end of your current billing period.</p>
-    <p>At that time, your account will be downgraded to the Business Free tier, and you will lose access to premium features: <em>${featuresLost}</em>.</p>
-    
-    <div style="text-align: center; margin: 24px 0;">
-      <a href="https://rebookedsolutions.co.za/business-profile" class="btn">Manage Subscription</a>
-    </div>
-    `
-  );
-}
-
-export function buildBusinessDowngradedEmail(businessName: string, featuresLost: string): string {
-  return createEmailTemplate(
-    {
-      title: "Your ReBooked Business Account Downgraded",
-      headerText: "Account Downgraded",
-      headerType: "warning",
-      headerEmoji: "📉",
-      headerSubtext: `Hi ${businessName},`
-    },
-    `
-    <p>Your subscription period has ended, and your account has been downgraded to the <strong>ReBooked Business Free</strong> tier.</p>
-    <p>Your commission rate has reverted to the flat 10% rate, and premium features (<em>${featuresLost}</em>) are no longer active.</p>
-    
-    <div style="text-align: center; margin: 24px 0;">
-      <a href="https://rebookedsolutions.co.za/business-profile?tab=settings_payouts" class="btn">Upgrade to Tier 1 Again</a>
-    </div>
-    `
-  );
-}
 

@@ -169,11 +169,7 @@ const FeaturedBookCard = ({ book, className = "" }: { book: Book; className?: st
         {book.originalPrice && book.originalPrice > book.price && (
           <div className="absolute top-12 left-3">
             <Badge className="bg-red-600 hover:bg-red-700 text-white text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded-full shadow-md">
-              {book.originalPrice - book.price >= 1 ? (
-                `SAVE R${Math.round(book.originalPrice - book.price)}`
-              ) : (
-                `${Math.round((1 - book.price / book.originalPrice) * 100)}% OFF`
-              )}
+              {`${Math.round((1 - book.price / book.originalPrice) * 100)}% OFF`}
             </Badge>
           </div>
         )}

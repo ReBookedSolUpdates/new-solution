@@ -388,6 +388,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try { await logoutUser(authState.user.id); } catch (_) {}
       }
     } finally {
+      localStorage.removeItem("is_business_user");
       setAuthState({ ...INITIAL_AUTH_STATE, isLoading: false });
     }
   }, [authState.user?.id]);
@@ -413,6 +414,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       throw error;
     }
   }, []);
+
+  useEffect(() => {
+    if (authState.profile) {
+      if (authState.profile.isBusiness) {
+        localStorage.setItem("is_business_user", "true");
+      } else {
+        localStorage.removeItem("is_business_user");
+      }
+    } else {
+      localStorage.removeItem("is_business_user");
+    }
+  }, [authState.profile]);
 
   // ─── Context value — only changes when authState actually changes ───────────
   const value = useMemo(() => ({

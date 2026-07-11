@@ -230,11 +230,7 @@ const BookGrid = ({
                     )}
                     {book.originalPrice && book.originalPrice > book.price && (
                       <div className="absolute top-2 left-2 bg-red-600 text-white px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider shadow-md z-10">
-                        {book.originalPrice - book.price >= 1 ? (
-                          `SAVE R${Math.round(book.originalPrice - book.price)}`
-                        ) : (
-                          `${Math.round((1 - book.price / book.originalPrice) * 100)}% OFF`
-                        )}
+                        {`${Math.round((1 - book.price / book.originalPrice) * 100)}% OFF`}
                       </div>
                     )}
                     <button
@@ -362,11 +358,7 @@ const BookGrid = ({
                     )}
                     {book.originalPrice && book.originalPrice > book.price && (
                       <div className="absolute top-2 left-2 bg-red-600 text-white px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider shadow-md z-10">
-                        {book.originalPrice - book.price >= 1 ? (
-                          `SAVE R${Math.round(book.originalPrice - book.price)}`
-                        ) : (
-                          `${Math.round((1 - book.price / book.originalPrice) * 100)}% OFF`
-                        )}
+                        {`${Math.round((1 - book.price / book.originalPrice) * 100)}% OFF`}
                       </div>
                     )}
                     <button

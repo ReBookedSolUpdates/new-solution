@@ -48,7 +48,7 @@ Deno.serve(async (req) => {
 
     const paystackPayload = {
       email,
-      amount: 9900, // R99.00 in cents
+      amount: 7900, // R79.00 in cents
       plan: PAYSTACK_PLAN_CODE,
       callback_url: 'https://rebookedsolutions.co.za/business-profile?tab=settings_payouts',
       metadata: {

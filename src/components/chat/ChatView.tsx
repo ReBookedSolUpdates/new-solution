@@ -10,7 +10,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { fetchSuggestions, fetchAddressDetails, type Suggestion } from "@/services/addressAutocompleteService";
 import { Button } from "@/components/ui/button";
-import { Send, ArrowLeft, Flag, AlertTriangle, Loader2, User, Shield, Check, CheckCheck, CheckCircle, Archive, Package, Image, X as XIcon, ChevronDown, ChevronUp, Video, MapPin } from "lucide-react";
+import { Send, ArrowLeft, Flag, AlertTriangle, Loader2, User, Shield, Check, CheckCheck, CheckCircle, Archive, Package, Image, X as XIcon, ChevronDown, ChevronUp, Video, MapPin, Store } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
@@ -318,6 +318,7 @@ interface ChatViewProps {
   conversation: Conversation;
   onBack: () => void;
   onArchived?: () => void;
+  onMessagesRead?: () => void;
 }
 
 function getDisplayName(profile?: { first_name: string | null; last_name: string | null; email: string | null }): string {
@@ -352,9 +353,9 @@ const REPORT_CATEGORIES = [
 
 type ReportCategory = typeof REPORT_CATEGORIES[number]["id"];
 
-const ChatViewContent = ({ conversation, onBack, onArchived, selectedMedia, setSelectedMedia }: ChatViewProps & { selectedMedia: { path: string; type: string } | null; setSelectedMedia: (media: { path: string; type: string } | null) => void }) => {
+const ChatViewContent = ({ conversation, onBack, onArchived, onMessagesRead, selectedMedia, setSelectedMedia }: ChatViewProps & { selectedMedia: { path: string; type: string } | null; setSelectedMedia: (media: { path: string; type: string } | null) => void }) => {
   const { user, profile } = useAuth();
-  const { messages, isLoading, isSending, send } = useChatMessages(conversation.id);
+  const { messages, isLoading, send } = useChatMessages(conversation.id);
   const [messageListings, setMessageListings] = useState<Record<string, any>>({});
   const [newMessage, setNewMessage] = useState("");
   const [showReportDialog, setShowReportDialog] = useState(false);
@@ -390,7 +391,9 @@ const ChatViewContent = ({ conversation, onBack, onArchived, selectedMedia, setS
       .from("messages")
       .update({ read_at: new Date().toISOString() })
       .in("id", unreadIds)
-      .then(() => {});
+      .then(() => {
+        onMessagesRead?.();
+      });
   }, [messages, user?.id, conversation.id]);
 
   // Auto-scroll to bottom
@@ -452,7 +455,7 @@ const ChatViewContent = ({ conversation, onBack, onArchived, selectedMedia, setS
     // Query all orders between buyer and seller
     supabase
       .from("orders")
-      .select("id, status, order_type, pickup_status, delivery_status, delivery_method, delivery_option, meetup_location, meetup_time, total_amount, created_at, book_id, item_id, item_type, items")
+      .select("id, status, order_type, pickup_status, delivery_status, delivery_type, delivery_option, meetup_location, meetup_time, total_amount, created_at, book_id, item_id, item_type, items")
       .eq("buyer_id", conversation.buyer_id)
       .eq("seller_id", conversation.seller_id)
       .order("created_at", { ascending: false })
@@ -547,14 +550,21 @@ const ChatViewContent = ({ conversation, onBack, onArchived, selectedMedia, setS
   }, []);
 
   const handleSend = async () => {
-    if (isSending || isUploadingMedia) return;
+    if (isUploadingMedia) return;
     const trimmed = newMessage.trim();
     if (!trimmed && !mediaPreview) return;
+    // Save text before clearing — will restore on send failure
+    const savedText = newMessage;
     setNewMessage("");
     const mUrl = mediaPreview?.url;
     const mType = mediaPreview?.type;
     setMediaPreview(null);
-    await send(trimmed, mUrl, mType);
+    const result = await send(trimmed, mUrl, mType);
+    if (!result.success && result.content) {
+      // Restore message text to input so user can retry
+      setNewMessage(result.content);
+      toast.error("Failed to send message. Your text has been restored.");
+    }
     setTimeout(() => {
       textareaRef.current?.focus();
     }, 50);
@@ -645,6 +655,8 @@ const ChatViewContent = ({ conversation, onBack, onArchived, selectedMedia, setS
           .eq("conversation_id", conversation.id)
           .neq("sender_id", user.id)
           .is("read_at", null);
+        // Notify parent that messages have been read so unread indicators update
+        onMessagesRead?.();
       } catch (e) {
         console.error("Failed to mark messages read on back:", e);
       }
@@ -1143,7 +1155,7 @@ const ChatViewContent = ({ conversation, onBack, onArchived, selectedMedia, setS
               size="icon"
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => mediaInputRef.current?.click()}
-              disabled={isSending || isUploadingMedia}
+              disabled={isUploadingMedia}
               className="h-10 w-10 rounded-xl shrink-0 text-book-400 hover:text-book-700 hover:bg-book-100"
               title="Attach photo or video"
             >
@@ -1160,6 +1172,38 @@ const ChatViewContent = ({ conversation, onBack, onArchived, selectedMedia, setS
             >
               <MapPin className="h-4 w-4" />
             </Button>
+            {profile?.is_business && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={async () => {
+                  try {
+                    const { data: addressData } = await supabase
+                      .from("user_addresses" as any)
+                      .select("pickup_address")
+                      .eq("user_id", user.id)
+                      .maybeSingle() as any;
+                    
+                    const addr = addressData?.pickup_address;
+                    if (addr && addr.street_address) {
+                      const addrText = `Store Location: ${addr.street_address}, ${addr.suburb || ""}, ${addr.city || ""}, ${addr.province || ""}`;
+                      await send(addrText);
+                      toast.success("Store location sent successfully!");
+                    } else {
+                      toast.error("Please configure your pickup address in Settings first.");
+                    }
+                  } catch (e) {
+                    toast.error("Failed to retrieve store address");
+                  }
+                }}
+                className="h-10 w-10 rounded-xl shrink-0 text-emerald-500 hover:text-emerald-700 hover:bg-emerald-50"
+                title="Send Store Location Address"
+              >
+                <Store className="h-4 w-4" />
+              </Button>
+            )}
             <textarea
               ref={textareaRef}
               value={newMessage}
@@ -1175,15 +1219,11 @@ const ChatViewContent = ({ conversation, onBack, onArchived, selectedMedia, setS
             <Button
               onMouseDown={(e) => e.preventDefault()}
               onClick={handleSend}
-              disabled={(!newMessage.trim() && !mediaPreview) || isSending || isUploadingMedia}
+              disabled={(!newMessage.trim() && !mediaPreview) || isUploadingMedia}
               size="icon"
               className="bg-book-600 hover:bg-book-700 h-10 w-10 rounded-xl shrink-0"
             >
-              {isSending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Send className="h-4 w-4" />
-              )}
+              <Send className="h-4 w-4" />
             </Button>
           </div>
         </div>

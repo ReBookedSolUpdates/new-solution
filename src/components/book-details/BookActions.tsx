@@ -1,6 +1,6 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ShoppingCart, CreditCard, Edit, Clock, Share2, Heart } from "lucide-react";
+import { ShoppingCart, CreditCard, Edit, Clock, Share2, Heart, Plus } from "lucide-react";
 import { Book } from "@/types/book";
 import { UserProfile } from "@/types/address"; // UserProfile includes id
 import { toast } from "sonner";
@@ -11,6 +11,7 @@ interface BookActionsProps {
   onBuyNow: () => void;
   onAddToCart: () => void;
   onEditBook: () => void;
+  onRestock?: () => void;
   onCommit?: () => void;
   onShare: () => void;
   onViewSellerProfile: () => void;
@@ -25,6 +26,7 @@ const BookActions = ({
   onBuyNow,
   onAddToCart,
   onEditBook,
+  onRestock,
   onCommit,
   onShare,
   onViewSellerProfile,
@@ -50,11 +52,7 @@ const BookActions = ({
                     R{book.originalPrice.toLocaleString()}
                   </span>
                   <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded font-bold uppercase tracking-wider">
-                    {book.originalPrice - book.price >= 1 ? (
-                      `SAVE R${Math.round(book.originalPrice - book.price)}`
-                    ) : (
-                      `${Math.round((1 - book.price / book.originalPrice) * 100)}% OFF`
-                    )}
+                    {`${Math.round((1 - book.price / book.originalPrice) * 100)}% OFF`}
                   </span>
                 </div>
                 <div className="text-3xl font-bold text-red-600">
@@ -106,13 +104,25 @@ const BookActions = ({
               </Button>
             </div>
           ) : isOwner ? (
-            <Button
-              onClick={onEditBook}
-              className="w-full bg-book-600 hover:bg-book-700"
-            >
-              <Edit className="mr-2 h-4 w-4" />
-              Edit Item
-            </Button>
+            <div className="space-y-3">
+              <Button
+                onClick={onEditBook}
+                className="w-full bg-book-600 hover:bg-book-700"
+              >
+                <Edit className="mr-2 h-4 w-4" />
+                Edit Item
+              </Button>
+              {onRestock && (
+                <Button
+                  onClick={onRestock}
+                  variant="outline"
+                  className="w-full border-green-600 text-green-700 hover:bg-green-50"
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Restock Item
+                </Button>
+              )}
+            </div>
           ) : (
             <div className="space-y-3">
               <Button
