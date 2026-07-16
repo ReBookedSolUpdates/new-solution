@@ -443,10 +443,10 @@ Deno.serve(async (req) => {
         }),
       ]);
 
-      // STEP 5: Emails
+      // STEP 5: Emails & Auto-Commit
       const [{ data: buyerProfile }, { data: sellerProfile }] = await Promise.all([
         supabaseClient.from('profiles').select('email, full_name, name').eq('id', orders.buyer_id).single(),
-        supabaseClient.from('profiles').select('email, full_name, name').eq('id', orders.seller_id).single(),
+        supabaseClient.from('profiles').select('email, full_name, name, is_business, auto_commit, subscription_tier').eq('id', orders.seller_id).single(),
       ]);
 
       const buyerEmail = buyerProfile?.email || orders.buyer_email;
@@ -457,6 +457,32 @@ Deno.serve(async (req) => {
       const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
       const paymentReference = orders.payment_reference || orders.paystack_reference || webhookData.custom_payment_id;
       const commitDeadlineText = new Date(commitDeadlineIso).toLocaleString('en-ZA', { year: 'numeric', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+
+      const isBusinessSeller = !!sellerProfile?.is_business;
+      const autoCommitEnabled = !!sellerProfile?.auto_commit;
+      let autoCommitted = false;
+
+      // Handle Auto-Commit if enabled for business seller
+      if (isBusinessSeller && autoCommitEnabled && supabaseUrl && supabaseServiceKey) {
+        console.log(`[bobpay-webhook] Seller ${orders.seller_id} is business with auto_commit enabled. Triggering commit-to-sale...`);
+        try {
+          const commitResponse = await fetch(`${supabaseUrl}/functions/v1/commit-to-sale`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${supabaseServiceKey}`
+            },
+            body: JSON.stringify({ order_id: orders.id })
+          });
+          const commitResult = await commitResponse.json();
+          console.log('[bobpay-webhook] commit-to-sale result:', commitResult);
+          if (commitResult.success) {
+            autoCommitted = true;
+          }
+        } catch (commitError) {
+          console.error('[bobpay-webhook] Error calling commit-to-sale:', commitError);
+        }
+      }
 
       let itemImageUrl = "";
       if (bookId) {
@@ -473,35 +499,99 @@ Deno.serve(async (req) => {
         }
       }
 
-      const FOOTER = EMAIL_FOOTER;
-
       if (buyerEmail && supabaseUrl && supabaseServiceKey) {
-        const buyerEmailHtml = buildBuyerPaymentEmail(buyerName, bookTitle, itemImageUrl, sellerName, orders.order_id || orders.id, paymentReference, webhookData.paid_amount, commitDeadlineText);
-
-        try {
-          await fetch(`${supabaseUrl}/functions/v1/send-email`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseServiceKey}` },
-            body: JSON.stringify({ to: buyerEmail, subject: 'Payment Confirmed – ReBooked Solutions', html: buyerEmailHtml }),
-          });
-          console.log('✅ Buyer email sent');
-        } catch (emailError) {
-          console.warn('⚠️ Failed to send buyer email:', emailError);
+        let buyerSubject = 'Payment Confirmed – ReBooked Solutions';
+        
+        if (isBusinessSeller) {
+          buyerSubject = autoCommitted 
+            ? 'Payment & Order Confirmed – ReBooked Solutions' 
+            : 'Payment Confirmed – Waiting for Business Confirmation';
+          
+          try {
+            await fetch(`${supabaseUrl}/functions/v1/send-email`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseServiceKey}` },
+              body: JSON.stringify({
+                to: buyerEmail,
+                subject: buyerSubject,
+                templateId: 'business-buyer-payment',
+                templateData: {
+                  buyerName,
+                  bookTitle,
+                  itemImageUrl,
+                  sellerName,
+                  orderId: orders.order_id || orders.id,
+                  autoCommitted,
+                  paymentReference,
+                  paidAmount: webhookData.paid_amount,
+                  commitDeadlineText,
+                  itemPrice: orders.amount ? orders.amount / 100 : webhookData.paid_amount,
+                  deliveryFee: 0,
+                  buyerProtectionFee: 0,
+                  walletDeduction: 0,
+                  cardPaymentAmount: webhookData.paid_amount
+                }
+              })
+            });
+            console.log('✅ Business Buyer email sent via template');
+          } catch (err) {
+            console.warn('⚠️ Failed to send business buyer email template:', err);
+          }
+        } else {
+          const buyerEmailHtml = buildBuyerPaymentEmail(buyerName, bookTitle, itemImageUrl, sellerName, orders.order_id || orders.id, paymentReference, webhookData.paid_amount, commitDeadlineText);
+          try {
+            await fetch(`${supabaseUrl}/functions/v1/send-email`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseServiceKey}` },
+              body: JSON.stringify({ to: buyerEmail, subject: buyerSubject, html: buyerEmailHtml }),
+            });
+            console.log('✅ Buyer email sent');
+          } catch (emailError) {
+            console.warn('⚠️ Failed to send buyer email:', emailError);
+          }
         }
       }
 
       if (sellerEmail && supabaseUrl && supabaseServiceKey) {
-        const sellerEmailHtml = buildSellerPaymentEmail(sellerName, bookTitle, itemImageUrl, buyerName, orders.order_id || orders.id);
+        let sellerSubject = autoCommitted 
+          ? 'New Sale Confirmed – Auto-Committed | ReBooked Solutions' 
+          : 'New Sale – Confirm Within 48 Hours | ReBooked Solutions';
 
-        try {
-          await fetch(`${supabaseUrl}/functions/v1/send-email`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseServiceKey}` },
-            body: JSON.stringify({ to: sellerEmail, subject: 'New Sale – Confirm Within 48 Hours | ReBooked Solutions', html: sellerEmailHtml }),
-          });
-          console.log('✅ Seller email sent');
-        } catch (emailError) {
-          console.warn('⚠️ Failed to send seller email:', emailError);
+        if (isBusinessSeller) {
+          try {
+            await fetch(`${supabaseUrl}/functions/v1/send-email`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseServiceKey}` },
+              body: JSON.stringify({
+                to: sellerEmail,
+                subject: sellerSubject,
+                templateId: 'business-seller-payment',
+                templateData: {
+                  sellerName,
+                  bookTitle,
+                  itemImageUrl,
+                  buyerName,
+                  orderId: orders.order_id || orders.id,
+                  autoCommitted
+                }
+              })
+            });
+            console.log('✅ Business Seller email sent via template');
+          } catch (err) {
+            console.warn('⚠️ Failed to send business seller email template:', err);
+          }
+        } else {
+          const sellerEmailHtml = buildSellerPaymentEmail(sellerName, bookTitle, itemImageUrl, buyerName, orders.order_id || orders.id);
+          try {
+            await fetch(`${supabaseUrl}/functions/v1/send-email`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseServiceKey}` },
+              body: JSON.stringify({ to: sellerEmail, subject: sellerSubject, html: sellerEmailHtml }),
+            });
+            console.log('✅ Seller email sent');
+          } catch (emailError) {
+            console.warn('⚠️ Failed to send seller email:', emailError);
+          }
         }
       }
 

@@ -7,21 +7,6 @@ const corsHeaders = {
 
 const PAYSTACK_SECRET_KEY = Deno.env.get('PAYSTACK_SECRET_KEY') || 'sk_test_placeholder_key_value_here';
 
-// Environment-based plan code selection:
-// - Sandbox/test: use PAYSTACK_PLAN_CODE_SANDBOX (falls back to PAYSTACK_PLAN_CODE)
-// - Production/live: use PAYSTACK_PLAN_CODE
-const isProduction = !PAYSTACK_SECRET_KEY.startsWith('sk_test_');
-const PAYSTACK_PLAN_CODE = isProduction
-  ? (Deno.env.get('PAYSTACK_PLAN_CODE') || 'PLN_placeholder_tier1_code')
-  : (Deno.env.get('PAYSTACK_PLAN_CODE_SANDBOX') || Deno.env.get('PAYSTACK_PLAN_CODE') || 'PLN_placeholder_tier1_code');
-
-console.log('[paystack-subscription-checkout] Config check:', {
-  hasSecretKey: !!Deno.env.get('PAYSTACK_SECRET_KEY'),
-  hasPlanCode: !!PAYSTACK_PLAN_CODE,
-  environment: isProduction ? 'production' : 'sandbox',
-  planCode: PAYSTACK_PLAN_CODE,
-});
-
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -47,25 +32,55 @@ Deno.serve(async (req) => {
       throw new Error('Invalid authentication');
     }
 
-    // 2. Initialize Paystack Subscription transaction
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    // 2. Verify user has a past_due subscription
+    const { data: sub, error: subErr } = await supabase
+      .from('business_subscriptions')
+      .select('status, paystack_subscription_code, paystack_customer_code')
+      .eq('business_id', user.id)
+      .maybeSingle();
+
+    if (subErr) throw subErr;
+
+    if (!sub) {
+      throw new Error('No subscription found for this account.');
+    }
+
+    if (sub.status !== 'past_due' && sub.status !== 'cancelled') {
+      throw new Error('Recovery payment is only available for past-due or cancelled subscriptions.');
+    }
+
+    // 3. Initialize a flat R79 recovery transaction via Paystack
     const body = await req.json().catch(() => ({}));
     const email = body.email || user.email;
 
     if (!email) {
-      throw new Error('Email is required to initiate checkout');
+      throw new Error('Email is required to initiate recovery checkout');
     }
 
     const paystackPayload = {
       email,
-      amount: 7900, // R79.00 in cents
-      plan: PAYSTACK_PLAN_CODE,
-      callback_url: 'https://rebookedsolutions.co.za/business-profile?tab=settings_payouts',
+      amount: 7900, // R79.00 in cents (ZAR)
+      currency: 'ZAR',
+      callback_url: 'https://rebookedsolutions.co.za/business-profile?tab=settings_payouts&recovery=true',
       metadata: {
-        user_id: user.id
+        user_id: user.id,
+        type: 'subscription_recovery',
+        custom_fields: [
+          {
+            display_name: 'Payment Type',
+            variable_name: 'payment_type',
+            value: 'Subscription Recovery — Tier 1 Reinstatement'
+          }
+        ]
       }
     };
 
-    console.log('[paystack-subscription-checkout] Calling Paystack initialize:', paystackPayload);
+    console.log('[paystack-recovery-checkout] Initializing recovery payment:', paystackPayload);
 
     const response = await fetch('https://api.paystack.co/transaction/initialize', {
       method: 'POST',
@@ -77,10 +92,24 @@ Deno.serve(async (req) => {
     });
 
     const result = await response.json();
-    console.log('[paystack-subscription-checkout] Paystack response:', result);
+    console.log('[paystack-recovery-checkout] Paystack response:', result);
 
     if (!response.ok || !result.status) {
-      throw new Error(result.message || 'Failed to initialize Paystack checkout');
+      throw new Error(result.message || 'Failed to initialize recovery checkout');
+    }
+
+    // 4. Store the recovery reference in DB for tracking
+    const { error: updateErr } = await supabase
+      .from('business_subscriptions')
+      .update({
+        recovery_reference: result.data.reference,
+        updated_at: new Date().toISOString()
+      })
+      .eq('business_id', user.id);
+
+    if (updateErr) {
+      console.warn('[paystack-recovery-checkout] Failed to store recovery reference:', updateErr.message);
+      // Non-fatal — continue with the flow
     }
 
     return new Response(
@@ -97,7 +126,7 @@ Deno.serve(async (req) => {
     );
 
   } catch (error: any) {
-    console.error('[paystack-subscription-checkout] Error:', error.message);
+    console.error('[paystack-recovery-checkout] Error:', error.message);
     return new Response(
       JSON.stringify({
         success: false,

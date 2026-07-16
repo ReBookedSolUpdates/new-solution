@@ -1284,4 +1284,241 @@ export function buildAutoResponderSetupEmail(businessName: string, autoMessage: 
   );
 }
 
+// =====================================================================
+// Grace Period Emails (3-day countdown on payment failure)
+// =====================================================================
 
+export function buildGracePeriodDay1Email(businessName: string, recoveryUrl: string): string {
+  return createEmailTemplate(
+    {
+      title: "ReBooked Business — Payment Failed",
+      headerText: "Payment Failed — 3 Days to Restore Access",
+      headerType: "error",
+      headerEmoji: "⚠️",
+      headerSubtext: `Hello ${businessName},`
+    },
+    `
+    <p>We were unable to process your <strong>ReBooked Business Tier 1</strong> subscription payment. Your Tier 1 access is currently in a <strong>3-day grace period</strong>.</p>
+    
+    <div class="info-box-error">
+      <h3 style="margin-top: 0; color:#dc2626;">What happens if unresolved?</h3>
+      <ul style="padding-left: 20px; margin: 0; font-size: 14px; line-height: 1.8;">
+        <li>Commission rate reverts from <strong>6.5%</strong> to <strong>10%</strong></li>
+        <li>Public contact info hidden from your store card</li>
+        <li>Bulk promotions, restock &amp; republish paused</li>
+        <li>Automated messages paused</li>
+      </ul>
+    </div>
+    
+    <p>To restore your Tier 1 access immediately, you can pay a flat <strong>R79 recovery fee</strong> or update your card on file.</p>
+    
+    <div style="text-align: center; margin: 24px 0;">
+      <a href="${recoveryUrl}" class="btn-danger">Restore My Tier 1 Access</a>
+    </div>
+    
+    <p style="font-size: 13px; color: #6b7280;">⏳ You have <strong>3 days</strong> remaining before your subscription is automatically cancelled.</p>
+    `
+  );
+}
+
+export function buildGracePeriodDay2Email(businessName: string, recoveryUrl: string): string {
+  return createEmailTemplate(
+    {
+      title: "ReBooked Business — Payment Reminder",
+      headerText: "Reminder: 2 Days Left to Restore Access",
+      headerType: "error",
+      headerEmoji: "⏳",
+      headerSubtext: `Hello ${businessName},`
+    },
+    `
+    <p>This is a reminder that your <strong>ReBooked Business Tier 1</strong> subscription payment is still outstanding.</p>
+    
+    <div class="info-box" style="border-left: 4px solid #f59e0b; background: #fffbeb;">
+      <p style="margin: 0; font-size: 14px; color: #92400e;">
+        <strong>⏳ 2 days remaining</strong> — Your Tier 1 access will be cancelled automatically if payment is not resolved.
+      </p>
+    </div>
+    
+    <p>Act now to keep your premium features:</p>
+    <ul style="padding-left: 20px; font-size: 14px; line-height: 1.8;">
+      <li>Locked 6.5% commission rate</li>
+      <li>Public contact display on your store</li>
+      <li>Bulk promotions &amp; restock tools</li>
+      <li>Automated buyer messages</li>
+    </ul>
+    
+    <div style="text-align: center; margin: 24px 0;">
+      <a href="${recoveryUrl}" class="btn-danger">Pay R79 &amp; Restore Access</a>
+    </div>
+    
+    <p style="font-size: 13px; color: #6b7280;">You can also update your card on file from your business dashboard.</p>
+    `
+  );
+}
+
+export function buildGracePeriodFinalWarningEmail(businessName: string, recoveryUrl: string): string {
+  return createEmailTemplate(
+    {
+      title: "ReBooked Business — FINAL WARNING",
+      headerText: "FINAL WARNING: Subscription Cancelled Today",
+      headerType: "error",
+      headerEmoji: "🚨",
+      headerSubtext: `Hello ${businessName},`
+    },
+    `
+    <p>This is your <strong>final warning</strong>. Your <strong>ReBooked Business Tier 1</strong> subscription will be <strong>cancelled at the end of today</strong> unless payment is resolved immediately.</p>
+    
+    <div class="info-box-error">
+      <h3 style="margin-top: 0; color:#dc2626;">⚠️ Last chance — action required NOW</h3>
+      <p style="margin: 0; font-size: 14px;">
+        After cancellation, your account will be downgraded to <strong>Business Free</strong>:
+      </p>
+      <ul style="padding-left: 20px; margin: 8px 0 0; font-size: 14px; line-height: 1.8;">
+        <li>Commission rate increases to <strong>10%</strong></li>
+        <li>All Tier 1 premium features disabled</li>
+        <li>You will need to re-subscribe to regain access</li>
+      </ul>
+    </div>
+    
+    <div style="text-align: center; margin: 24px 0;">
+      <a href="${recoveryUrl}" class="btn-danger" style="font-size: 16px; padding: 14px 32px;">Pay R79 Now &amp; Keep Tier 1</a>
+    </div>
+    
+    <p style="font-size: 13px; color: #dc2626; font-weight: 600; text-align: center;">This is the last reminder. Your subscription will be cancelled automatically if no action is taken today.</p>
+    `
+  );
+}
+
+export function buildBusinessSellerPaymentEmail(
+  sellerName: string, 
+  bookTitle: string, 
+  itemImageUrl: string, 
+  buyerName: string, 
+  orderId: string,
+  autoCommitted: boolean
+): string {
+  const headerGradient = autoCommitted 
+    ? "linear-gradient(135deg, #00b894, #00cec9)" 
+    : "linear-gradient(135deg, #e17055, #c0392b)";
+  const headerText = autoCommitted ? "New Sale – Confirmed!" : "New Sale – Action Required!";
+  const subtext = autoCommitted ? "Automatically committed via Business Auto-Commit" : "Confirm within 48 hours";
+
+  return `
+    <div style="font-family:Arial,sans-serif;background:#f3fef7;padding:20px;color:#1f4e3d;">
+      <div style="max-width:500px;margin:auto;background:#ffffff;padding:30px;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,0.05); border: 1px solid #e5e7eb;">
+        <div style="background:${headerGradient};padding:24px;border-radius:8px 8px 0 0;text-align:center;color:white;margin:-30px -30px 24px;">
+          <h1 style="margin:0;font-size:22px;">${headerText}</h1>
+          <p style="margin:6px 0 0;opacity:0.9;">${subtext}</p>
+        </div>
+        <p>Hello <strong>${sellerName}</strong>,</p>
+        <p>Great news! Someone just purchased your item and payment has been confirmed.</p>
+        
+        ${autoCommitted ? `
+        <div style="background:#d1fae5;border:1px solid #10b981;border-radius:8px;padding:14px;margin:16px 0;text-align:center;">
+          <p style="margin:0;font-weight:bold;color:#065f46;font-size:14px;">✅ This sale has been auto-committed according to your business settings. Courier pickup scheduling is underway.</p>
+        </div>
+        ` : `
+        <div style="background:#fff3cd;border:1px solid #fbbf24;border-radius:8px;padding:14px;margin:16px 0;text-align:center;">
+          <p style="margin:0;font-weight:bold;color:#b45309;font-size:14px;">You must confirm this sale within 48 hours or the order will be automatically cancelled.</p>
+        </div>
+        `}
+
+        <div style="background:#f3fef7;border:1px solid #3ab26f;border-radius:8px;padding:16px;margin:20px 0;">
+          <h3 style="margin:0 0 12px;color:#1f4e3d;font-size:14px;">📋 Sale Details</h3>
+          <table style="width:100%;border-collapse:collapse;font-size:13px;">
+            <tr><td style="padding:4px 0;color:#6b7280;font-weight:600;width:40%;">Item</td><td style="padding:4px 0;">${bookTitle}</td></tr>
+            ${itemImageUrl ? `<tr><td style="padding:4px 0;color:#6b7280;font-weight:600;">Photo</td><td style="padding:4px 0;"><img src="${itemImageUrl}" alt="${bookTitle}" style="width: 80px; height: auto; border-radius: 4px;" /></td></tr>` : ''}
+            <tr><td style="padding:4px 0;color:#6b7280;font-weight:600;">Buyer</td><td style="padding:4px 0;">${buyerName}</td></tr>
+            <tr><td style="padding:4px 0;color:#6b7280;font-weight:600;">Order ID</td><td style="padding:4px 0;font-family:monospace;font-size:11px;">${orderId}</td></tr>
+          </table>
+        </div>
+        
+        ${autoCommitted ? `
+        <p style="font-size:13px;">No action is required from your side. You can manage your fulfillment options directly inside your business panel.</p>
+        ` : `
+        <p style="font-size:13px;"><strong>Steps to confirm:</strong><br/>
+          1. Log in to your ReBooked Solutions Business account<br/>
+          2. Go to Business Dashboard → Commits<br/>
+          3. Click "Commit Sale" for this item<br/>
+          4. We'll arrange courier pickup from your location
+        </p>
+        `}
+        
+        <a href="https://rebookedsolutions.co.za/business-profile?tab=orders" style="display:inline-block;padding:12px 20px;background:#3ab26f;color:#ffffff;text-decoration:none;border-radius:5px;margin-top:16px;font-weight:bold;">View Order in Dashboard →</a>
+        ${EMAIL_FOOTER}
+      </div>
+    </div>`;
+}
+
+export function buildBusinessBuyerPaymentEmail(
+  buyerName: string, 
+  bookTitle: string, 
+  itemImageUrl: string, 
+  sellerName: string, 
+  orderId: string, 
+  autoCommitted: boolean,
+  paymentReference: string, 
+  paidAmount: number, 
+  commitDeadlineText: string,
+  itemPrice: number = 0,
+  deliveryFee: number = 0,
+  buyerProtectionFee: number = 0,
+  walletDeduction: number = 0,
+  cardPaymentAmount: number = 0
+): string {
+  const displayItemPrice = itemPrice > 0 ? itemPrice : paidAmount;
+  const headerGradient = autoCommitted 
+    ? "linear-gradient(135deg, #00b894, #00cec9)" 
+    : "linear-gradient(135deg, #3ab26f, #2d8f58)";
+  const headerText = autoCommitted ? "Payment & Order Confirmed!" : "Payment Confirmed!";
+  const subtext = autoCommitted ? "Your order has been accepted by the business" : "Waiting for business confirmation";
+
+  return `
+    <div style="font-family:Arial,sans-serif;background:#f3fef7;padding:20px;color:#1f4e3d;">
+      <div style="max-width:500px;margin:auto;background:#ffffff;padding:30px;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,0.05); border: 1px solid #e5e7eb;">
+        <div style="background:${headerGradient};padding:24px;border-radius:8px 8px 0 0;text-align:center;color:white;margin:-30px -30px 24px;">
+          <h1 style="margin:0;font-size:22px;">${headerText}</h1>
+          <p style="margin:6px 0 0;opacity:0.9;">${subtext}</p>
+        </div>
+        <p>Hello <strong>${buyerName}</strong>,</p>
+        <p>Your payment has been processed successfully. You purchased from <strong>${sellerName}</strong>, a verified ReBooked Business partner.</p>
+        
+        ${autoCommitted ? `
+        <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:14px;margin:16px 0;">
+          <p style="margin:0;font-size:13px;color:#1e40af;"><strong>🚀 Confirmed & Dispatching!</strong><br/>
+            Since this seller has Auto-Commit enabled, your order is already confirmed. Handover/pickup is being scheduled and you will receive tracking updates shortly.
+          </p>
+        </div>
+        ` : `
+        <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:14px;margin:16px 0;">
+          <p style="margin:0;font-size:13px;color:#1e40af;"><strong>⏳ What happens next?</strong><br/>
+            The seller has been notified and has 48 hours to confirm the order. Once confirmed, your item will be prepared for shipment. If the seller does not confirm, you'll receive a full automatic refund.
+          </p>
+        </div>
+        `}
+
+        <div style="background:#f3fef7;border:1px solid #3ab26f;border-radius:8px;padding:16px;margin:20px 0;">
+          <h3 style="margin:0 0 12px;color:#1f4e3d;font-size:14px;">🧾 Receipt</h3>
+          <table style="width:100%;border-collapse:collapse;font-size:13px;">
+            <tr><td style="padding:4px 0;color:#6b7280;font-weight:600;width:40%;">Item</td><td style="padding:4px 0;">${bookTitle}</td></tr>
+            ${itemImageUrl ? `<tr><td style="padding:4px 0;color:#6b7280;font-weight:600;">Photo</td><td style="padding:4px 0;"><img src="${itemImageUrl}" alt="${bookTitle}" style="width: 80px; height: auto; border-radius: 4px;" /></td></tr>` : ''}
+            <tr><td style="padding:4px 0;color:#6b7280;font-weight:600;">Seller</td><td style="padding:4px 0;">${sellerName} (Business)</td></tr>
+            <tr><td style="padding:4px 0;color:#6b7280;font-weight:600;">Order ID</td><td style="padding:4px 0;font-family:monospace;font-size:11px;">${orderId}</td></tr>
+            <tr><td style="padding:4px 0;color:#6b7280;font-weight:600;">Payment Reference</td><td style="padding:4px 0;font-family:monospace;font-size:11px;">${paymentReference}</td></tr>
+            
+            <!-- Pricing breakdown -->
+            <tr><td style="padding:4px 0;color:#6b7280;font-weight:600;">Item Price</td><td style="padding:4px 0;">R${displayItemPrice.toFixed(2)}</td></tr>
+            ${deliveryFee > 0 ? `<tr><td style="padding:4px 0;color:#6b7280;font-weight:600;">Delivery Fee</td><td style="padding:4px 0;">R${deliveryFee.toFixed(2)}</td></tr>` : ''}
+            ${buyerProtectionFee > 0 ? `<tr><td style="padding:4px 0;color:#6b7280;font-weight:600;">Buyer's Protection Fee</td><td style="padding:4px 0;">R${buyerProtectionFee.toFixed(2)}</td></tr>` : ''}
+            ${walletDeduction > 0 ? `<tr><td style="padding:4px 0;color:#6b7280;font-weight:600;">Wallet Deduction</td><td style="padding:4px 0;color:#dc2626;">-R${walletDeduction.toFixed(2)}</td></tr>` : ''}
+            
+            <tr style="border-top: 1px solid #3ab26f;"><td style="padding:6px 0;color:#6b7280;font-weight:bold;">Total Paid</td><td style="padding:6px 0;font-weight:bold;color:#3ab26f;">R${paidAmount.toFixed(2)}</td></tr>
+            ${cardPaymentAmount > 0 ? `<tr><td style="padding:4px 0;color:#6b7280;font-weight:600;">Paid via Card</td><td style="padding:4px 0;">R${cardPaymentAmount.toFixed(2)}</td></tr>` : ''}
+          </table>
+        </div>
+        
+        <a href="https://rebookedsolutions.co.za/profile?tab=activity" style="display:inline-block;padding:12px 20px;background:#3ab26f;color:#ffffff;text-decoration:none;border-radius:5px;margin-top:16px;font-weight:bold;">View Your Orders</a>
+        ${EMAIL_FOOTER}
+      </div>
+    </div>`;
+}

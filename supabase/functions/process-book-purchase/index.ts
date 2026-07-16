@@ -137,7 +137,7 @@ serve(async (req) => {
     // Get buyer and seller profiles
     const [{ data: buyer, error: buyerError }, { data: seller, error: sellerError }] = await Promise.all([
       supabase.from("profiles").select("id, name, email, phone_number, pickup_address, subaccount_code").eq("id", buyer_id).maybeSingle(),
-      supabase.from("profiles").select("id, name, email, phone_number, pickup_address, subaccount_code").eq("id", seller_id).maybeSingle()
+      supabase.from("profiles").select("id, name, email, phone_number, pickup_address, subaccount_code, is_business, auto_commit, subscription_tier").eq("id", seller_id).maybeSingle()
     ]);
 
     if (buyerError || !buyer) {
@@ -206,6 +206,35 @@ serve(async (req) => {
       id: dbResult.order_id,
       status: "pending_commit",
     };
+
+    // Auto-commit if seller is business and auto_commit is enabled
+    if (seller?.is_business && seller?.auto_commit) {
+      console.log(`[process-book-purchase] Seller ${seller_id} is business with auto_commit enabled. Triggering commit-to-sale...`);
+      try {
+        const commitResponse = await fetch(`${SUPABASE_URL}/functions/v1/commit-to-sale`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`
+          },
+          body: JSON.stringify({ order_id: order.id })
+        });
+        const commitResult = await commitResponse.json();
+        console.log('[process-book-purchase] commit-to-sale result:', commitResult);
+        if (commitResult.success) {
+          const { data: updatedOrder } = await supabase
+            .from("orders")
+            .select("status")
+            .eq("id", order.id)
+            .maybeSingle();
+          if (updatedOrder) {
+            order.status = updatedOrder.status;
+          }
+        }
+      } catch (commitError) {
+        console.error('[process-book-purchase] Error calling commit-to-sale:', commitError);
+      }
+    }
 
     // Create notifications
     const notificationPromises = [

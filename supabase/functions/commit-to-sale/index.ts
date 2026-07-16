@@ -33,7 +33,7 @@ serve(async (req) => {
     // Create service role client for admin operations
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // Authenticate user from JWT token
+    // Authenticate user from JWT token or verify service role
     const authHeader = req.headers.get("Authorization");
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return new Response(
@@ -49,22 +49,30 @@ serve(async (req) => {
     }
 
     const token = authHeader.replace("Bearer ", "");
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser(token);
+    let user = null;
+    let isServiceRole = false;
 
-    if (authError || !user) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: "Unauthorized - invalid token",
-        }),
-        {
-          status: 401,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
+    if (token === SUPABASE_SERVICE_ROLE_KEY) {
+      isServiceRole = true;
+    } else {
+      const {
+        data: { user: authUser },
+        error: authError,
+      } = await supabase.auth.getUser(token);
+
+      if (authError || !authUser) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: "Unauthorized - invalid token",
+          }),
+          {
+            status: 401,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+      user = authUser;
     }
 
 
@@ -129,11 +137,15 @@ serve(async (req) => {
 
     const order = lockResult.order;
 
+    if (isServiceRole) {
+      user = { id: order.seller_id };
+    }
+
     // CRITICAL: Verify seller is committing to their own order
     // This is the RLS equivalent check for service role operations
-    if (order.seller_id !== user.id) {
+    if (!isServiceRole && order.seller_id !== user?.id) {
       console.warn(
-        `[commit-to-sale] Unauthorized: User ${user.id} is not seller ${order.seller_id}`,
+        `[commit-to-sale] Unauthorized: User ${user?.id} is not seller ${order.seller_id}`,
       );
       return new Response(
         JSON.stringify({

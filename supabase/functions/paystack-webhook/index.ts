@@ -131,6 +131,60 @@ Deno.serve(async (req) => {
     switch (payload.event) {
       case 'subscription.create':
       case 'charge.success': {
+        // Check if this is a recovery payment (R79 one-off to reinstate access)
+        const isRecoveryPayment = eventData.metadata?.type === 'subscription_recovery';
+
+        if (isRecoveryPayment) {
+          console.log('[paystack-webhook] Processing recovery payment for user:', userId);
+
+          // Reinstate subscription to active tier1, clear grace period fields
+          const { error: subErr } = await supabase
+            .from('business_subscriptions')
+            .update({
+              status: 'active',
+              tier: 'tier1',
+              payment_failed_at: null,
+              grace_period_end: null,
+              grace_reminders_sent: 0,
+              recovery_reference: null,
+              updated_at: new Date().toISOString()
+            })
+            .eq('business_id', userId);
+
+          if (subErr) throw subErr;
+
+          // Update profiles table
+          const { data: existingSub } = await supabase
+            .from('business_subscriptions')
+            .select('current_period_end')
+            .eq('business_id', userId)
+            .maybeSingle();
+
+          const { error: profErr } = await supabase
+            .from('profiles')
+            .update({
+              subscription_tier: 'tier1',
+              subscription_active_until: existingSub?.current_period_end || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+            })
+            .eq('id', userId);
+
+          if (profErr) throw profErr;
+
+          // Send reinstatement confirmation email
+          if (userEmailAddress) {
+            const emailHtml = buildBusinessSubscriptionActivatedEmail(businessName, 'Tier 1', 6.5);
+            await supabase.functions.invoke('send-email', {
+              body: {
+                to: userEmailAddress,
+                subject: 'Your ReBooked Business Tier 1 is Restored! 🎉',
+                html: emailHtml,
+              }
+            });
+          }
+          break;
+        }
+
+        // Standard subscription charge.success / subscription.create flow
         const rawEnd = eventData.current_period_end 
           ? new Date(eventData.current_period_end)
           : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
@@ -140,7 +194,7 @@ Deno.serve(async (req) => {
           ? new Date(eventData.current_period_start).toISOString()
           : new Date().toISOString();
 
-        // 1. Upsert business_subscriptions record
+        // 1. Upsert business_subscriptions record (clear any grace period fields on success)
         const { error: subErr } = await supabase
           .from('business_subscriptions')
           .upsert({
@@ -152,6 +206,10 @@ Deno.serve(async (req) => {
             current_period_start: currentPeriodStart,
             current_period_end: currentPeriodEnd,
             cancel_at_period_end: eventData.cancel_at_period_end || false,
+            payment_failed_at: null,
+            grace_period_end: null,
+            grace_reminders_sent: 0,
+            recovery_reference: null,
             updated_at: new Date().toISOString()
           }, { onConflict: 'business_id' });
 
@@ -183,15 +241,23 @@ Deno.serve(async (req) => {
       }
 
       case 'invoice.payment_failed': {
-        // Mark subscription status as past_due
+        // Mark subscription status as past_due and start grace period tracking
+        const gracePeriodEnd = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString();
+
         const { error: subErr } = await supabase
           .from('business_subscriptions')
-          .update({ status: 'past_due', updated_at: new Date().toISOString() })
+          .update({
+            status: 'past_due',
+            payment_failed_at: new Date().toISOString(),
+            grace_period_end: gracePeriodEnd,
+            grace_reminders_sent: 1, // This webhook email counts as reminder 1
+            updated_at: new Date().toISOString()
+          })
           .eq('business_id', userId);
 
         if (subErr) throw subErr;
 
-        // Do not immediately revoke access to tier1 (we grant a grace period)
+        // Do not immediately revoke access to tier1 (we grant a 3-day grace period)
         if (userEmailAddress) {
           const emailHtml = buildBusinessPaymentFailedEmail(businessName);
           await supabase.functions.invoke('send-email', {

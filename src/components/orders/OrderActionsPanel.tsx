@@ -420,8 +420,8 @@ const OrderActionsPanel: React.FC<OrderActionsPanelProps> = ({
           </Button>
         </div>
 
-        {/* Seller: Download Waybill (only when committed/shipped and tracking exists, and NOT a pickup order) */}
-        {!isPickup && userRole === "seller" &&
+        {/* Buyer/Seller: Download Waybill (only when committed/shipped and tracking exists, and NOT a pickup order) */}
+        {!isPickup && (userRole === "seller" || userRole === "buyer") &&
           (order.tracking_number ||
             ["committed", "in_transit", "out_for_delivery", "delivered", "collected", "picked_up"].includes(
               (order.status || "").toLowerCase()

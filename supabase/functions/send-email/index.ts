@@ -30,7 +30,9 @@ import {
   buildDeliveryComplaintAcknowledgmentBuyerEmail,
   buildDeliveryComplaintNotificationSellerEmail,
   buildContactAcknowledgmentEmail,
-  buildSellerAwayNotificationEmail
+  buildSellerAwayNotificationEmail,
+  buildBusinessSellerPaymentEmail,
+  buildBusinessBuyerPaymentEmail
 } from "../_shared/email-templates.ts";
 
 const corsHeaders = {
@@ -96,6 +98,14 @@ function getTemplateHtml(templateId: string, data: any): string {
       );
     case "seller-payment":
       return buildSellerPaymentEmail(data.sellerName, data.bookTitle, data.itemImageUrl, data.buyerName, data.orderId);
+    case "business-seller-payment":
+      return buildBusinessSellerPaymentEmail(data.sellerName, data.bookTitle, data.itemImageUrl, data.buyerName, data.orderId, data.autoCommitted);
+    case "business-buyer-payment":
+      return buildBusinessBuyerPaymentEmail(
+        data.buyerName, data.bookTitle, data.itemImageUrl, data.sellerName, data.orderId, data.autoCommitted,
+        data.paymentReference, data.paidAmount, data.commitDeadlineText,
+        data.itemPrice, data.deliveryFee, data.buyerProtectionFee, data.walletDeduction, data.cardPaymentAmount
+      );
     case "buyer-cancel":
       return buildBuyerCancelEmail(data.buyerName, data.actorText, data.cancelReason, data.refundAmount);
     case "seller-cancel":

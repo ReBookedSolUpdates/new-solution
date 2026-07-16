@@ -54,10 +54,15 @@ const PayoutRequestForm: React.FC<PayoutRequestFormProps> = ({
   }, [bankingLoading, hasBankingDetails]);
 
   const amountValue = amount ? parseFloat(amount) : 0;
-  const isValid = amountValue > 0 && amountValue <= (availableBalance || 0);
+  const isValid = amountValue >= 100 && amountValue <= (availableBalance || 0);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (amountValue < 100) {
+      toast.error("Minimum withdrawal amount is R100.00");
+      return;
+    }
 
     if (!isValid) {
       toast.error("Invalid amount");
@@ -190,21 +195,26 @@ const PayoutRequestForm: React.FC<PayoutRequestFormProps> = ({
               <Input
                 type="number"
                 step="0.01"
-                min="0.01"
+                min="100"
                 max={availableBalance}
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                placeholder="Enter amount"
-                disabled={loading}
+                placeholder="Enter amount (min R100)"
+                disabled={loading || availableBalance < 100}
                 className="border-border"
               />
-              {amount && !isValid && (
-                <p className="text-xs text-destructive">
-                  Amount must be between R0.01 and {PayoutService.formatZAR(availableBalance)}
+              {availableBalance < 100 && (
+                <p className="text-xs text-destructive font-semibold">
+                  Minimum withdrawal amount is R100.00. Your balance is too low.
+                </p>
+              )}
+              {amount && !isValid && availableBalance >= 100 && (
+                <p className="text-xs text-destructive font-semibold">
+                  Amount must be between R100.00 and {PayoutService.formatZAR(availableBalance)}
                 </p>
               )}
               {amount && isValid && (
-                <p className="text-xs text-primary">
+                <p className="text-xs text-primary font-semibold">
                   ✓ Valid amount
                 </p>
               )}

@@ -28,6 +28,7 @@ export interface ReceiptOrder {
   metadata?: any;
   wallet_deducted_amount?: number | null;
   total_amount?: number | null;
+  commission_rate?: number | null;
 }
 
 export function buildPremiumReceiptHtml(order: ReceiptOrder, isSeller: boolean): string {
@@ -61,8 +62,15 @@ export function buildPremiumReceiptHtml(order: ReceiptOrder, isSeller: boolean):
     ? Number(order.wallet_deducted_amount) / 100
     : 0;
 
-  const payout = itemPrice * 0.9;
-  const commission = itemPrice * 0.1;
+  // Resolve commission rate dynamically
+  const rate = typeof order.commission_rate === "number"
+    ? order.commission_rate
+    : (metadata.commission_rate_applied !== undefined
+      ? Number(metadata.commission_rate_applied)
+      : 0.10); // Default to 10%
+
+  const commission = itemPrice * rate;
+  const payout = itemPrice - commission;
 
   const createdDate = order.created_at ? new Date(order.created_at).toLocaleString() : "";
   const paymentRef = order.payment_reference || order.paystack_reference || "Pending";
@@ -148,7 +156,7 @@ export function buildPremiumReceiptHtml(order: ReceiptOrder, isSeller: boolean):
         ${isSeller ? `
           <!-- Seller pricing breakdown -->
           <div style="display: flex; justify-content: space-between; font-size: 13px; line-height: 1.8;">
-            <span style="color: #888;">Commission Fee (10%)</span>
+            <span style="color: #888;">Commission Fee (${(rate * 100).toFixed(1)}%)</span>
             <span style="color: #b91c1c; font-weight: 500; text-align: right;">-R${commission.toFixed(2)}</span>
           </div>
           <div style="display: flex; justify-content: space-between; font-size: 15px; font-weight: 700; padding-top: 10px; margin-top: 6px; border-top: 1px solid #eaeaea;">

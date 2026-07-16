@@ -28,6 +28,9 @@ export interface Profile {
   created_at?: string;
   preferred_delivery_locker_data?: any;
   subscriptionTier?: "free" | "tier1";
+  phone_number?: string;
+  auto_responder_message?: string;
+  auto_commit?: boolean;
 }
 
 export const loginUser = async (email: string, password: string) => {
@@ -173,7 +176,7 @@ export const fetchUserProfileQuick = async (
     const { data: profile, error: profileError } = (await withTimeout(
       supabase
         .from("profiles")
-        .select("id, first_name, last_name, name, full_name, email, status, profile_picture_url, bio, is_admin, is_business, business_name, instagram_handle, show_address_to_public, show_phone_to_public, created_at, preferred_delivery_locker_data, subscription_tier")
+        .select("id, first_name, last_name, name, full_name, email, status, profile_picture_url, bio, is_admin, is_business, business_name, instagram_handle, show_address_to_public, show_phone_to_public, created_at, preferred_delivery_locker_data, subscription_tier, phone_number, auto_responder_message, auto_commit")
         .eq("id", user.id)
         .single(),
       12000, // Increased to 12 seconds
@@ -216,6 +219,9 @@ export const fetchUserProfileQuick = async (
       created_at: profile.created_at,
       preferred_delivery_locker_data: profile.preferred_delivery_locker_data,
       subscriptionTier: profile.subscription_tier || "free",
+      phone_number: profile.phone_number || "",
+      auto_responder_message: profile.auto_responder_message || "",
+      auto_commit: !!profile.auto_commit,
     };
 
     return profileData;
@@ -236,83 +242,85 @@ export const fetchUserProfile = async (user: User): Promise<Profile | null> => {
       async () => {
         return await withTimeout(
           supabase
-            .from("profiles")
-            .select(
-              "id, first_name, last_name, name, full_name, email, status, profile_picture_url, bio, is_admin, is_business, business_name, instagram_handle, show_address_to_public, show_phone_to_public, created_at, preferred_delivery_locker_data, subscription_tier",
-            )
-            .eq("id", user.id)
-            .single(),
-          10000, // 10 second timeout for full fetch
-          "Full profile fetch timed out",
-        );
-      },
-      {
-        maxRetries: 2,
-        baseDelay: 500,
-        maxDelay: 5000,
-        retryCondition: (error: any) => isNetworkError(error),
-      },
-    );
-
-    const { data: profile, error: profileError } = result as any;
-
-    if (profileError) {
-      logError("Error fetching profile", profileError);
-
-      if (profileError.code === "PGRST116") {
-        return await createUserProfile(user);
-      }
-
-      throw new Error(
-        getErrorMessage(profileError, "Failed to fetch user profile"),
+          .select(
+            "id, first_name, last_name, name, full_name, email, status, profile_picture_url, bio, is_admin, is_business, business_name, instagram_handle, show_address_to_public, show_phone_to_public, created_at, preferred_delivery_locker_data, subscription_tier, phone_number, auto_responder_message, auto_commit",
+          )
+          .eq("id", user.id)
+          .single(),
+        10005, // 10 second timeout for full fetch
+        "Full profile fetch timed out",
       );
-    }
+    },
+    {
+      maxRetries: 2,
+      baseDelay: 500,
+      maxDelay: 5000,
+      retryCondition: (error: any) => isNetworkError(error),
+    },
+  );
 
-    if (!profile) {
+  const { data: profile, error: profileError } = result as any;
+
+  if (profileError) {
+    logError("Error fetching profile", profileError);
+
+    if (profileError.code === "PGRST116") {
       return await createUserProfile(user);
     }
 
-    // Check admin status - first check the profile flag, then fallback to email check
-    let isAdmin = false;
+    throw new Error(
+      getErrorMessage(profileError, "Failed to fetch user profile"),
+    );
+  }
 
-    if (profile.is_admin === true) {
-      isAdmin = true;
-    } else {
-      // Quick email-based admin check without additional database calls
-      const adminEmails = ["AdminSimnLi@gmail.com", "adminsimnli@gmail.com"];
-      const userEmail = profile.email || user.email || "";
-      isAdmin = adminEmails.includes(userEmail.toLowerCase());
+  if (!profile) {
+    return await createUserProfile(user);
+  }
 
-      if (isAdmin) {
-        // Update admin flag in background (non-blocking)
-        supabase
-          .from("profiles")
-          .update({ is_admin: true })
-          .eq("id", user.id)
-          .then(() => {})
-          .catch(() => {});
-      }
+  // Check admin status - first check the profile flag, then fallback to email check
+  let isAdmin = false;
+
+  if (profile.is_admin === true) {
+    isAdmin = true;
+  } else {
+    // Quick email-based admin check without additional database calls
+    const adminEmails = ["AdminSimnLi@gmail.com", "adminsimnli@gmail.com"];
+    const userEmail = profile.email || user.email || "";
+    isAdmin = adminEmails.includes(userEmail.toLowerCase());
+
+    if (isAdmin) {
+      // Update admin flag in background (non-blocking)
+      supabase
+        .from("profiles")
+        .update({ is_admin: true })
+        .eq("id", user.id)
+        .then(() => {})
+        .catch(() => {});
     }
+  }
 
-    const displayName = buildDisplayName({ ...profile, email: profile.email || user.email });
+  const displayName = buildDisplayName({ ...profile, email: profile.email || user.email });
 
-    return {
-      id: profile.id,
-      name: displayName,
-      email: profile.email || user.email || "",
-      isAdmin,
-      isBusiness: profile.is_business || false,
-      businessName: profile.business_name || "",
-      instagramHandle: profile.instagram_handle || "",
-      showAddressToPublic: !!profile.show_address_to_public,
-      showPhoneToPublic: !!profile.show_phone_to_public,
-      status: profile.status || "active",
-      profile_picture_url: profile.profile_picture_url,
-      bio: profile.bio,
-      created_at: profile.created_at,
-      preferred_delivery_locker_data: profile.preferred_delivery_locker_data,
-      subscriptionTier: profile.subscription_tier || "free",
-    };
+  return {
+    id: profile.id,
+    name: displayName,
+    email: profile.email || user.email || "",
+    isAdmin,
+    isBusiness: profile.is_business || false,
+    businessName: profile.business_name || "",
+    instagramHandle: profile.instagram_handle || "",
+    showAddressToPublic: !!profile.show_address_to_public,
+    showPhoneToPublic: !!profile.show_phone_to_public,
+    status: profile.status || "active",
+    profile_picture_url: profile.profile_picture_url,
+    bio: profile.bio,
+    created_at: profile.created_at,
+    preferred_delivery_locker_data: profile.preferred_delivery_locker_data,
+    subscriptionTier: profile.subscription_tier || "free",
+    phone_number: profile.phone_number || "",
+    auto_responder_message: profile.auto_responder_message || "",
+    auto_commit: !!profile.auto_commit,
+  };
   } catch (error) {
     logError("Error in fetchUserProfile", error);
     throw new Error(getErrorMessage(error, "Failed to load user profile"));

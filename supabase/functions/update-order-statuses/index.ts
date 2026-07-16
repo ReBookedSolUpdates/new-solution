@@ -22,11 +22,23 @@ serve(async (req) => {
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
-  try {
-    console.log(`Starting automated order status update (Production: ${IS_PRODUCTION})...`);
+  // Load Shipping config correctly
+  const { apiUrl: TCG_BASE_URL, apiKey: defaultApiKey, isProduction: IS_PRODUCTION } = getShippingConfig();
 
-    // 1. Fetch orders that are in transit or scheduled for pickup
-    const { data: activeOrders, error: fetchError } = await supabase
+  try {
+    // Parse request body for POST request
+    let specificOrderId: string | null = null;
+    if (req.method === "POST") {
+      try {
+        const body = await req.json();
+        specificOrderId = body.order_id || null;
+      } catch (_) {}
+    }
+
+    console.log(`Starting order status update (Production: ${IS_PRODUCTION}, Specific Order: ${specificOrderId})...`);
+
+    // 1. Fetch active orders
+    let query = supabase
       .from("orders")
       .select(`
         id, 
@@ -40,12 +52,19 @@ serve(async (req) => {
         seller_full_name,
         items
       `)
-      .in("status", ["in_transit", "pickup_scheduled", "committed"])
       .not("tracking_number", "is", null);
+
+    if (specificOrderId) {
+      query = query.eq("id", specificOrderId);
+    } else {
+      query = query.in("status", ["in_transit", "pickup_scheduled", "committed"]);
+    }
+
+    const { data: activeOrders, error: fetchError } = await query;
 
     if (fetchError) throw fetchError;
 
-    console.log(`Found ${activeOrders?.length || 0} active orders to check.`);
+    console.log(`Found ${activeOrders?.length || 0} orders to check.`);
 
     const results = [];
 
@@ -170,8 +189,36 @@ serve(async (req) => {
       }
     }
 
+    // Log manual courier check event and refresh timestamp if specific check
+    if (specificOrderId && activeOrders && activeOrders.length > 0) {
+      const order = activeOrders[0];
+      const updatedItem = results.find(r => r.order_id === specificOrderId);
+      
+      await Promise.all([
+        supabase.from("order_events").insert({
+          order_id: specificOrderId,
+          event_type: "courier_pulled",
+          actor: "seller",
+          details: {
+            updated: !!updatedItem,
+            status: updatedItem ? updatedItem.new : order.status,
+            delivery_status: order.delivery_status
+          }
+        }),
+        supabase
+          .from("orders")
+          .update({ last_courier_refresh_at: new Date().toISOString() })
+          .eq("id", specificOrderId)
+      ]);
+    }
+
     return new Response(
-      JSON.stringify({ success: true, processedCount: activeOrders?.length || 0, updates: results }),
+      JSON.stringify({ 
+        success: true, 
+        processedCount: activeOrders?.length || 0, 
+        updated: specificOrderId ? results.some(r => r.order_id === specificOrderId) : false,
+        updates: results 
+      }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {

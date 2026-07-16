@@ -40,9 +40,9 @@ export async function checkLiveSubscription(businessId: string): Promise<Subscri
       const isPastDue = subscription.status === "past_due";
       const isActive = subscription.status === "active";
 
-      // Grace period check for past_due (allow 5 days after period end)
+      // Grace period check for past_due (allow 3 days after period end)
       const withinGracePeriod = isPastDue && currentPeriodEnd
-        ? new Date(currentPeriodEnd).getTime() + 5 * 24 * 60 * 60 * 1000 >= Date.now()
+        ? new Date(currentPeriodEnd).getTime() + 3 * 24 * 60 * 60 * 1000 >= Date.now()
         : false;
 
       const hasAccess = subscription.tier === "tier1" && (isActive || withinGracePeriod);

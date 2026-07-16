@@ -64,7 +64,7 @@ import SellerProfile from "./pages/SellerProfile";
 import GettingStarted from "./pages/GettingStarted";
 import CategoryInfoPage from "./pages/CategoryInfoPage";
 import ReBookedBusiness from "./pages/ReBookedBusiness";
-import BusinessProfile from "./pages/BusinessProfile";
+import BusinessProfile from "./pages/BusinessProfile"; // Modularized tab structure
 import TextbooksInfo from "./pages/TextbooksInfo";
 import UniformsInfo from "./pages/UniformsInfo";
 import SchoolSuppliesInfo from "./pages/SchoolSuppliesInfo";
