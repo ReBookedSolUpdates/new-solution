@@ -55,6 +55,10 @@ export const BusinessProfilePage = () => {
   const [loadingWallet, setLoadingWallet] = useState<boolean>(false);
   const [hasUnreadMessages, setHasUnreadMessages] = useState<boolean>(false);
 
+  // Real order-based revenue
+  const [orderRevenue, setOrderRevenue] = useState<number>(0);
+  const [loadingRevenue, setLoadingRevenue] = useState<boolean>(true);
+
   // Live subscription checks
   const [subscriptionStatus, setSubscriptionStatus] = useState<{
     isTier1: boolean;
@@ -230,6 +234,38 @@ export const BusinessProfilePage = () => {
     }
   }, [user]);
 
+  // 6. Fetch Real Order Revenue from completed orders
+  const fetchOrderRevenue = async () => {
+    if (!user) return;
+    setLoadingRevenue(true);
+    try {
+      const { data, error } = await supabase
+        .from("orders")
+        .select("total_amount")
+        .eq("seller_id", user.id)
+        .eq("status", "completed");
+
+      if (error) throw error;
+
+      const total = (data || []).reduce(
+        (acc: number, order: any) => acc + (Number(order.total_amount) || 0),
+        0
+      );
+      setOrderRevenue(total);
+    } catch (err) {
+      console.warn("Failed to fetch order revenue:", err);
+      // Fallback: keep the listing-based approximation
+    } finally {
+      setLoadingRevenue(false);
+    }
+  };
+
+  useEffect(() => {
+    if (user) {
+      fetchOrderRevenue();
+    }
+  }, [user]);
+
   // Remove deal handler
   const handleRemoveDeal = async (bookId: string) => {
     try {
@@ -254,7 +290,9 @@ export const BusinessProfilePage = () => {
   };
 
   // Derive stats for overview
-  const totalEarnings = listings.reduce((acc, curr) => acc + (Number(curr.price) * (curr.sold_quantity || 0)), 0);
+  // Use real order revenue when available, fallback to listing-based estimate
+  const listingBasedEarnings = listings.reduce((acc, curr) => acc + (Number(curr.price) * (curr.sold_quantity || 0)), 0);
+  const totalEarnings = !loadingRevenue && orderRevenue > 0 ? orderRevenue : listingBasedEarnings;
   const activeStock = listings.reduce((acc, curr) => acc + (curr.available_quantity || 0), 0);
   const soldItems = listings.reduce((acc, curr) => acc + (curr.sold_quantity || 0), 0);
 

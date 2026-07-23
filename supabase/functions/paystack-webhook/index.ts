@@ -3,7 +3,8 @@ import {
   buildBusinessSubscriptionActivatedEmail,
   buildBusinessPaymentFailedEmail,
   buildBusinessSubscriptionCancelledEmail,
-  buildBusinessDowngradedEmail
+  buildBusinessDowngradedEmail,
+  buildBusinessSubscriptionRenewedReceiptEmail
 } from "../_shared/email-templates.ts";
 
 const corsHeaders = {
@@ -11,7 +12,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const PAYSTACK_SECRET_KEY = Deno.env.get('PAYSTACK_SECRET_KEY') || 'sk_test_placeholder_key_value_here';
+const sandboxKey = Deno.env.get('PAYSTACK_SECRET_KEY_SANDBOX');
+const PAYSTACK_SECRET_KEY = sandboxKey || Deno.env.get('PAYSTACK_SECRET_KEY') || 'sk_test_placeholder_key_value_here';
 const PAYSTACK_WEBHOOK_SECRET = Deno.env.get('PAYSTACK_WEBHOOK_SECRET') || PAYSTACK_SECRET_KEY;
 
 // Verifies Paystack HMAC SHA512 signature
@@ -181,6 +183,15 @@ Deno.serve(async (req) => {
               }
             });
           }
+
+          // In-app notification
+          await supabase.from('notifications').insert({
+            user_id: userId,
+            title: 'Subscription Restored',
+            message: 'Your ReBooked Business Tier 1 has been successfully restored! Thank you for your payment.',
+            type: 'billing',
+            read: false
+          });
           break;
         }
 
@@ -193,6 +204,15 @@ Deno.serve(async (req) => {
         const currentPeriodStart = eventData.current_period_start
           ? new Date(eventData.current_period_start).toISOString()
           : new Date().toISOString();
+
+        // Check if subscription was already active (renewal check)
+        const { data: existingSub } = await supabase
+          .from('business_subscriptions')
+          .select('status')
+          .eq('business_id', userId)
+          .maybeSingle();
+
+        const isRenewal = existingSub && existingSub.status === 'active';
 
         // 1. Upsert business_subscriptions record (clear any grace period fields on success)
         const { error: subErr } = await supabase
@@ -226,15 +246,44 @@ Deno.serve(async (req) => {
 
         if (profErr) throw profErr;
 
-        // 3. Trigger email
-        if (userEmailAddress) {
-          const emailHtml = buildBusinessSubscriptionActivatedEmail(businessName, 'Tier 1', 6.5);
-          await supabase.functions.invoke('send-email', {
-            body: {
-              to: userEmailAddress,
-              subject: 'Your ReBooked Business Tier 1 is Active! 🚀',
-              html: emailHtml,
-            }
+        // 3. Trigger email & notifications
+        if (isRenewal) {
+          if (userEmailAddress) {
+            const receiptHtml = buildBusinessSubscriptionRenewedReceiptEmail(businessName, 'R79.00', new Date(currentPeriodEnd).toLocaleDateString());
+            await supabase.functions.invoke('send-email', {
+              body: {
+                to: userEmailAddress,
+                subject: 'Your ReBooked Business Subscription Renewed Receipt 🧾',
+                html: receiptHtml,
+              }
+            });
+          }
+          // In-app notification
+          await supabase.from('notifications').insert({
+            user_id: userId,
+            title: 'Subscription Renewed',
+            message: `Your ReBooked Business Tier 1 subscription has been successfully renewed. Next billing date is ${new Date(currentPeriodEnd).toLocaleDateString()}.`,
+            type: 'billing',
+            read: false
+          });
+        } else {
+          if (userEmailAddress) {
+            const emailHtml = buildBusinessSubscriptionActivatedEmail(businessName, 'Tier 1', 6.5);
+            await supabase.functions.invoke('send-email', {
+              body: {
+                to: userEmailAddress,
+                subject: 'Your ReBooked Business Tier 1 is Active! 🚀',
+                html: emailHtml,
+              }
+            });
+          }
+          // In-app notification
+          await supabase.from('notifications').insert({
+            user_id: userId,
+            title: 'Subscription Activated',
+            message: 'Your ReBooked Business Tier 1 is now active! Enjoy 6.5% commission rate and premium features.',
+            type: 'billing',
+            read: false
           });
         }
         break;
@@ -268,6 +317,15 @@ Deno.serve(async (req) => {
             }
           });
         }
+
+        // In-app notification
+        await supabase.from('notifications').insert({
+          user_id: userId,
+          title: 'Payment Failed',
+          message: 'Your monthly subscription payment of R79.00 failed. Please recover your account within 3 days to maintain Tier 1 access.',
+          type: 'billing',
+          read: false
+        });
         break;
       }
 
@@ -327,6 +385,15 @@ Deno.serve(async (req) => {
             }
           });
         }
+
+        // In-app notification
+        await supabase.from('notifications').insert({
+          user_id: userId,
+          title: 'Subscription Downgraded',
+          message: 'Your ReBooked Business account has been downgraded to the Free tier. Your commission rate is now 10%.',
+          type: 'billing',
+          read: false
+        });
         break;
       }
 

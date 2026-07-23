@@ -69,7 +69,7 @@ const BuyersProtectionDialog = ({
         )}
       </DialogTrigger>
 
-      <DialogContent className="buyers-protection-dialog mx-auto max-h-[85vh] w-[calc(100vw-1rem)] max-w-xs overflow-y-auto rounded-2xl p-2 sm:max-w-2xl sm:p-6">
+      <DialogContent hideCloseButton className="buyers-protection-dialog mx-auto max-h-[85vh] w-[calc(100vw-1rem)] max-w-xs overflow-y-auto rounded-2xl p-2 sm:max-w-2xl sm:p-6">
         <DialogHeader className="rounded-[1.5rem] border border-emerald-100 bg-[linear-gradient(135deg,_#ecfdf5,_#ffffff_55%,_#f0fdf4)] p-4 sm:p-6">
           <div className="mb-4 inline-flex w-fit items-center gap-2 rounded-full border border-emerald-200 bg-white/90 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">
             <ShieldCheck className="h-3.5 w-3.5" />

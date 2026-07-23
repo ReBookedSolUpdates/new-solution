@@ -486,211 +486,119 @@ export const DealsUploadTab: React.FC<DealsUploadTabProps> = ({ isTier1 }) => {
 
   return (
     <div className="space-y-8 animate-fadeIn">
-      {/* 1. BULK CATALOG UPLOAD */}
-      <Card className="border border-gray-250 shadow-sm bg-white overflow-hidden">
-        <CardContent className="p-6 space-y-6">
+      {/* 1. STOCK CREATION & LISTING ACTIONS */}
+      <Card className="border border-gray-200 shadow-sm bg-white overflow-hidden">
+        <CardContent className="p-6 space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <h3 className="font-bold text-gray-900 text-base flex items-center gap-2">
-                <Plus className="h-5 w-5 text-book-600" /> Bulk Catalog Uploader
+                <Plus className="h-5 w-5 text-book-600" /> Create & Upload New Stock
               </h3>
-              <p className="text-xs text-gray-400 font-medium mt-1">
-                Upload your stock in bulk via CSV or key them in using the manual grid.
+              <p className="text-xs text-gray-500 mt-1">
+                Add new items to your business catalog using our step-by-step listing creator.
               </p>
             </div>
-            <div className="flex gap-1.5 bg-gray-50 border rounded-xl p-0.5 self-start">
+            <div className="flex flex-wrap gap-2">
               <Button
-                variant={uploadMethod === "grid" ? "default" : "ghost"}
-                size="sm"
-                className={`text-xs font-bold rounded-lg ${uploadMethod === "grid" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500"}`}
-                onClick={() => setUploadMethod("grid")}
+                onClick={() => navigate("/create-listing")}
+                className="bg-book-600 hover:bg-book-700 text-white font-semibold text-xs rounded-xl h-10 px-5 flex items-center gap-2"
               >
-                Manual Grid
-              </Button>
-              <Button
-                variant={uploadMethod === "csv" ? "default" : "ghost"}
-                size="sm"
-                className={`text-xs font-bold rounded-lg ${uploadMethod === "csv" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500"}`}
-                onClick={() => setUploadMethod("csv")}
-              >
-                CSV Upload
+                <Plus className="h-4 w-4" />
+                Create Listing
               </Button>
             </div>
           </div>
-
-          {uploadMethod === "grid" ? (
-            /* MANUAL GRID UPLOADER */
-            <div className="space-y-4">
-              <div className="overflow-x-auto border border-gray-150 rounded-2xl">
-                <table className="w-full text-xs text-left">
-                  <thead className="bg-gray-50 text-gray-400 uppercase font-bold border-b">
-                    <tr>
-                      <th className="p-3">Title</th>
-                      <th className="p-3">Author</th>
-                      <th className="p-3">Type</th>
-                      <th className="p-3">Condition</th>
-                      <th className="p-3">Price</th>
-                      <th className="p-3">Qty</th>
-                      <th className="p-3 text-center">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100 bg-white">
-                    {manualRows.map((row) => (
-                      <tr key={row.id}>
-                        <td className="p-3">
-                          <input
-                            type="text"
-                            placeholder="Math Grade 10"
-                            className="w-full border rounded-lg px-2.5 py-1.5 outline-none focus:ring-1 focus:ring-book-500"
-                            value={row.title}
-                            onChange={(e) => updateManualRow(row.id, "title", e.target.value)}
-                          />
-                        </td>
-                        <td className="p-3">
-                          <input
-                            type="text"
-                            placeholder="Author"
-                            className="w-full border rounded-lg px-2.5 py-1.5 outline-none focus:ring-1 focus:ring-book-500"
-                            value={row.author}
-                            onChange={(e) => updateManualRow(row.id, "author", e.target.value)}
-                          />
-                        </td>
-                        <td className="p-3">
-                          <select
-                            className="border rounded-lg px-2 py-1.5 outline-none focus:ring-1 focus:ring-book-500 bg-white"
-                            value={row.itemType}
-                            onChange={(e) => updateManualRow(row.id, "itemType", e.target.value)}
-                          >
-                            <option value="textbook">Textbook</option>
-                            <option value="reader">Reader</option>
-                            <option value="uniform">Uniform</option>
-                            <option value="school_supply">Supply</option>
-                          </select>
-                        </td>
-                        <td className="p-3">
-                          <select
-                            className="border rounded-lg px-2 py-1.5 outline-none focus:ring-1 focus:ring-book-500 bg-white"
-                            value={row.condition}
-                            onChange={(e) => updateManualRow(row.id, "condition", e.target.value)}
-                          >
-                            <option value="New">New</option>
-                            <option value="Good">Good</option>
-                            <option value="Better">Better</option>
-                            <option value="Average">Average</option>
-                          </select>
-                        </td>
-                        <td className="p-3">
-                          <input
-                            type="number"
-                            min="0"
-                            className="w-20 border rounded-lg px-2.5 py-1.5 outline-none focus:ring-1 focus:ring-book-500"
-                            value={row.price || ""}
-                            onChange={(e) => updateManualRow(row.id, "price", Number(e.target.value))}
-                          />
-                        </td>
-                        <td className="p-3">
-                          <input
-                            type="number"
-                            min="1"
-                            className="w-16 border rounded-lg px-2.5 py-1.5 outline-none focus:ring-1 focus:ring-book-500"
-                            value={row.quantity || 1}
-                            onChange={(e) => updateManualRow(row.id, "quantity", Number(e.target.value))}
-                          />
-                        </td>
-                        <td className="p-3 text-center">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => removeManualRow(row.id)}
-                            className="h-8 w-8 text-red-650 hover:bg-red-50 hover:text-red-700 rounded-lg"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={addManualRow}
-                  className="rounded-xl border-gray-300 text-xs font-semibold bg-white"
-                >
-                  + Add Row
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={handleBulkSubmit}
-                  disabled={isBulkUploading}
-                  className="bg-book-600 hover:bg-book-700 text-white font-bold rounded-xl text-xs"
-                >
-                  {isBulkUploading && <Loader2 className="h-3.5 w-3.5 animate-spin mr-2" />}
-                  Submit Bulk Upload ({manualRows.length} items)
-                </Button>
-              </div>
-            </div>
-          ) : (
-            /* CSV UPLOADER */
-            <div className="space-y-4">
-              <div className="border border-dashed border-gray-300 p-6 rounded-2xl text-center bg-gray-50/50 relative">
-                <input
-                  type="file"
-                  accept=".csv"
-                  onChange={handleCsvUpload}
-                  className="absolute inset-0 opacity-0 cursor-pointer"
-                />
-                <UploadCloud className="h-10 w-10 text-gray-400 mx-auto mb-3" />
-                <p className="text-xs font-bold text-gray-800">Drag & drop your CSV file here, or click to browse</p>
-                <p className="text-[10px] text-gray-400 mt-1">UTF-8 CSV format only. Max 5MB file.</p>
-              </div>
-
-              {csvFile && (
-                <div className="flex items-center justify-between p-3 bg-indigo-50 border border-indigo-100 rounded-xl text-xs text-indigo-950">
-                  <span>Selected: <strong>{csvFile.name}</strong> ({csvPreview.length} items parsed)</span>
-                  <Button
-                    size="sm"
-                    onClick={handleBulkSubmit}
-                    disabled={isBulkUploading}
-                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-[10px] h-8 px-4"
-                  >
-                    {isBulkUploading && <Loader2 className="h-3 w-3 animate-spin mr-2" />}
-                    Confirm & Upload
-                  </Button>
-                </div>
-              )}
-
-              {/* Requirement rules list */}
-              <div className="border rounded-2xl overflow-hidden bg-white border-gray-250">
-                <button
-                  onClick={() => setCsvRequirementsExpanded(!csvRequirementsExpanded)}
-                  className="w-full flex items-center justify-between p-3 bg-gray-50 text-xs font-bold text-gray-700"
-                >
-                  <span>CSV File Structure & Header Requirements</span>
-                  {csvRequirementsExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                </button>
-                {csvRequirementsExpanded && (
-                  <div className="p-4 border-t text-xs text-gray-600 space-y-2.5 leading-relaxed bg-white">
-                    <p>Make sure your CSV contains the following exact column headers (case-insensitive):</p>
-                    <div className="grid grid-cols-2 gap-3 p-3 bg-gray-50 rounded-xl font-mono text-[10px] text-gray-800">
-                      <div>title (Required)</div>
-                      <div>price (Required)</div>
-                      <div>author</div>
-                      <div>itemtype (textbook, reader, uniform, school_supply)</div>
-                      <div>condition (New, Good, Better, Average)</div>
-                      <div>quantity (number of items)</div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
         </CardContent>
       </Card>
 
-      {/* 2. CATALOG INVENTORY & DEALS */}
+
+
+
+      {/* CSV Bulk Upload & Column Structure Guidance Section */}
+      <Card className="border border-gray-200 shadow-sm bg-white overflow-hidden">
+        <CardContent className="p-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-bold text-gray-900 text-base flex items-center gap-2">
+                <UploadCloud className="h-5 w-5 text-book-600" /> Bulk CSV Upload Inventory
+              </h3>
+              <p className="text-xs text-gray-500 mt-1">
+                Upload your catalog in bulk using a standard CSV file.
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setCsvRequirementsExpanded(!csvRequirementsExpanded)}
+              className="text-xs rounded-xl flex items-center gap-1 border-gray-300"
+            >
+              {csvRequirementsExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+              {csvRequirementsExpanded ? "Hide CSV Format Specs" : "View Required CSV Format Specs"}
+            </Button>
+          </div>
+
+          {/* Expandable CSV Column Structure Section */}
+          {csvRequirementsExpanded && (
+            <div className="p-4 bg-book-50/50 border border-book-200 rounded-xl space-y-3 text-xs">
+              <h4 className="font-bold text-book-900 text-xs uppercase tracking-wider">Required CSV Columns & Header Names:</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-gray-700 font-mono text-[11px]">
+                <div className="bg-white p-2.5 rounded-lg border border-book-100">
+                  <span className="font-bold text-book-700">title</span> (Required) - Name of the item/book
+                </div>
+                <div className="bg-white p-2.5 rounded-lg border border-book-100">
+                  <span className="font-bold text-book-700">price</span> (Required) - Item price in ZAR (e.g. 150.00)
+                </div>
+                <div className="bg-white p-2.5 rounded-lg border border-book-100">
+                  <span className="font-bold text-book-700">author</span> (Optional) - Book author or brand
+                </div>
+                <div className="bg-white p-2.5 rounded-lg border border-book-100">
+                  <span className="font-bold text-book-700">itemtype</span> (Optional) - textbook, reader, uniform, school_supply
+                </div>
+                <div className="bg-white p-2.5 rounded-lg border border-book-100">
+                  <span className="font-bold text-book-700">condition</span> (Optional) - New, Good, Better, Average
+                </div>
+                <div className="bg-white p-2.5 rounded-lg border border-book-100">
+                  <span className="font-bold text-book-700">quantity</span> (Optional) - Available stock count (e.g. 5)
+                </div>
+                <div className="bg-white p-2.5 rounded-lg border border-book-100">
+                  <span className="font-bold text-book-700">grade</span> (Optional) - e.g. Grade 10, Grade 11
+                </div>
+                <div className="bg-white p-2.5 rounded-lg border border-book-100">
+                  <span className="font-bold text-book-700">image_url_1</span> (Optional) - Direct URL link to photo
+                </div>
+              </div>
+              <div className="pt-2 border-t border-book-100">
+                <span className="font-bold text-gray-800">Sample Row Header Format:</span>
+                <pre className="bg-gray-900 text-emerald-400 p-2.5 rounded-lg overflow-x-auto text-[11px] mt-1">
+title,author,itemtype,condition,price,quantity,grade,image_url_1
+"Grade 10 Mathematics CAPS","J. Smith",textbook,Good,180.00,3,"Grade 10","https://example.com/cover.jpg"
+                </pre>
+              </div>
+            </div>
+          )}
+
+          {/* File Input & Upload Trigger */}
+          <div className="flex flex-col sm:flex-row items-center gap-3">
+            <input
+              type="file"
+              accept=".csv"
+              onChange={handleFileUpload}
+              className="text-xs text-gray-600 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-book-50 file:text-book-700 hover:file:bg-book-100"
+            />
+            {csvPreview.length > 0 && (
+              <Button
+                onClick={handleBulkSubmit}
+                disabled={isBulkUploading}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl h-9 px-4 ml-auto"
+              >
+                {isBulkUploading ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Check className="h-4 w-4 mr-1" />}
+                Upload {csvPreview.length} CSV Items
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
       <Card className="border border-gray-200 shadow-sm bg-white overflow-hidden">
         <CardContent className="p-6">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">

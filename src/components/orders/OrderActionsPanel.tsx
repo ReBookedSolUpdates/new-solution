@@ -704,6 +704,26 @@ const OrderActionsPanel: React.FC<OrderActionsPanelProps> = ({
             )}
           </div>
 
+          {/* Shipment Label / Sticker Download Button for Courier orders */}
+          {!isPickup && (order.tracking_number || (order as any).tcg_shipment_id || (order as any).waybill_url) && (
+            <div className="mt-3">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleDownloadWaybill}
+                disabled={isWaybillLoading}
+                className="w-full border-blue-300 text-blue-700 hover:bg-blue-50 hover:border-blue-500 font-medium gap-2"
+              >
+                {isWaybillLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Download className="h-4 w-4 text-blue-600" />
+                )}
+                Download Shipment Label / Sticker
+              </Button>
+            </div>
+          )}
+
           {/* Cancel Order Button - matches Chat button style, blurred/disabled when not cancellable */}
           {!showMissedPickupActions && (
             <div className="mt-4 space-y-2">
@@ -721,7 +741,7 @@ const OrderActionsPanel: React.FC<OrderActionsPanelProps> = ({
                     Cancel Order
                   </Button>
                 </DialogTrigger>
-                <DialogContent>
+                <DialogContent hideCloseButton>
                   <DialogHeader>
                     <DialogTitle>Cancel Order</DialogTitle>
                     <DialogDescription>

@@ -455,7 +455,7 @@ const ChatViewContent = ({ conversation, onBack, onArchived, onMessagesRead, sel
     // Query all orders between buyer and seller
     supabase
       .from("orders")
-      .select("id, status, order_type, pickup_status, delivery_status, delivery_type, delivery_option, meetup_location, meetup_time, total_amount, created_at, book_id, item_id, item_type, items")
+      .select("id, status, order_type, pickup_status, delivery_status, delivery_type, delivery_option, meetup_location, meetup_time, total_amount, created_at, book_id, item_id, item_type, items, dispute_reason, dispute_status, dispute_timer_expires_at, dispute_resolution, dispute_escalated")
       .eq("buyer_id", conversation.buyer_id)
       .eq("seller_id", conversation.seller_id)
       .order("created_at", { ascending: false })
@@ -773,6 +773,96 @@ const ChatViewContent = ({ conversation, onBack, onArchived, onMessagesRead, sel
                     {order.status.replace(/_/g, " ")}
                   </Badge>
                 </button>
+
+                {/* Horizontal Progress Timeline */}
+                {!["cancelled"].includes(order.status) && (() => {
+                  let activeIdx = 0; // Paid
+                  const status = order.status;
+                  if (["committed", "awaiting_pickup", "pickup_scheduled", "ready_for_pickup"].includes(status)) {
+                    activeIdx = 1; // Committed
+                  } else if (
+                    ["dispatched", "in_transit", "handed_over", "awaiting_buyer_confirmation", "disputed", "escalated"].includes(status)
+                  ) {
+                    activeIdx = 2; // Shipped / In Transit
+                  } else if (["delivered", "completed"].includes(status)) {
+                    activeIdx = 3; // Delivered
+                  }
+
+                  const steps = [
+                    { label: "Paid", desc: "Awaiting accept" },
+                    { label: "Committed", desc: order.order_type === "pickup" ? "Meetup set" : "Ready" },
+                    { label: "Shipped", desc: order.order_type === "pickup" ? "Meetup" : "In transit" },
+                    { label: "Delivered", desc: "Delivered" }
+                  ];
+
+                  return (
+                    <div className="bg-gray-50/50 px-3 py-2.5 border-t border-book-100 flex items-center justify-between gap-1 shrink-0">
+                      {steps.map((step, idx) => {
+                        const isCompleted = idx < activeIdx;
+                        const isCurrent = idx === activeIdx;
+
+                        return (
+                          <React.Fragment key={idx}>
+                            {idx > 0 && (
+                              <div
+                                className={`flex-1 h-0.5 min-w-[12px] ${
+                                  idx <= activeIdx ? "bg-book-600" : "bg-gray-200"
+                                }`}
+                              />
+                            )}
+                            <div className="flex flex-col items-center">
+                              <div
+                                className={`w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-black ${
+                                  isCompleted
+                                    ? "bg-book-600 text-white"
+                                    : isCurrent
+                                    ? "bg-book-50 border border-book-600 text-book-700 font-bold"
+                                    : "bg-gray-100 text-gray-400 border border-gray-200"
+                                }`}
+                              >
+                                {isCompleted ? "✓" : idx + 1}
+                              </div>
+                              <span className={`text-[8px] font-bold mt-0.5 ${isCurrent ? "text-book-700" : "text-gray-500"}`}>
+                                {step.label}
+                              </span>
+                            </div>
+                          </React.Fragment>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+
+                {/* Dispute Warning Banner inside Order Card context */}
+                {(order.status === "disputed" || order.status === "escalated" || order.dispute_status === "resolved") && (
+                  <div className={`p-3 border-t text-left space-y-1 ${order.dispute_status === "resolved" ? "bg-emerald-50 border-emerald-200" : "bg-red-50 border-red-200"}`}>
+                    <div className={`flex items-center gap-1.5 font-bold text-[10px] ${order.dispute_status === "resolved" ? "text-emerald-950" : "text-red-950"}`}>
+                      {order.dispute_status === "resolved" ? (
+                        <>
+                          <CheckCircle className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                          Dispute Resolved
+                        </>
+                      ) : (
+                        <>
+                          <AlertTriangle className="h-3.5 w-3.5 text-red-650 shrink-0" />
+                          Active Dispute {order.dispute_escalated && "— Escalated to Support"}
+                        </>
+                      )}
+                    </div>
+                    <p className={`text-[9px] leading-relaxed ${order.dispute_status === "resolved" ? "text-emerald-700" : "text-red-700"}`}>
+                      {order.dispute_status === "resolved" ? (
+                        <>Resolution: "{order.dispute_resolution || "Escrow released"}"</>
+                      ) : (
+                        <>Reason: "{order.dispute_reason || "Not specified"}"</>
+                      )}
+                    </p>
+                    {order.dispute_status !== "resolved" && order.dispute_timer_expires_at && (
+                      <p className="text-[8.5px] text-red-650 font-semibold">
+                        SLA Deadline: {new Date(order.dispute_timer_expires_at).toLocaleString()}
+                      </p>
+                    )}
+                  </div>
+                )}
                 {expandedOrders.has(order.id) && (
                   <div className="px-2.5 py-2 border-t border-book-200 bg-white text-[10px]">
                     <div className="grid grid-cols-2 gap-2">
@@ -1172,38 +1262,47 @@ const ChatViewContent = ({ conversation, onBack, onArchived, onMessagesRead, sel
             >
               <MapPin className="h-4 w-4" />
             </Button>
-            {profile?.is_business && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={async () => {
-                  try {
-                    const { data: addressData } = await supabase
-                      .from("user_addresses" as any)
-                      .select("pickup_address")
-                      .eq("user_id", user.id)
-                      .maybeSingle() as any;
-                    
-                    const addr = addressData?.pickup_address;
-                    if (addr && addr.street_address) {
-                      const addrText = `Store Location: ${addr.street_address}, ${addr.suburb || ""}, ${addr.city || ""}, ${addr.province || ""}`;
-                      await send(addrText);
-                      toast.success("Store location sent successfully!");
-                    } else {
-                      toast.error("Please configure your pickup address in Settings first.");
-                    }
-                  } catch (e) {
-                    toast.error("Failed to retrieve store address");
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={async () => {
+                try {
+                  // Fetch saved address or locker from profile & user_addresses
+                  const [{ data: prof }, { data: addrRow }] = await Promise.all([
+                    supabase.from("profiles").select("pickup_address_encrypted, preferred_pickup_locker_data, preferred_delivery_locker_data").eq("id", user.id).maybeSingle(),
+                    supabase.from("user_addresses" as any).select("pickup_address").eq("user_id", user.id).maybeSingle()
+                  ]);
+                  
+                  let formattedAddr = "";
+
+                  // Check preferred locker
+                  const locker = (prof as any)?.preferred_pickup_locker_data || (prof as any)?.preferred_delivery_locker_data;
+                  if (locker && locker.name) {
+                    formattedAddr = `Locker: ${locker.name} (${locker.full_address || locker.address || ""})`;
+                  } else if (addrRow?.pickup_address?.street_address || addrRow?.pickup_address?.street) {
+                    const a = addrRow.pickup_address;
+                    formattedAddr = `${a.street_address || a.street}, ${a.suburb || a.city || ""}, ${a.province || ""}`;
+                  } else if (prof?.pickup_address_encrypted) {
+                    formattedAddr = prof.pickup_address_encrypted;
                   }
-                }}
-                className="h-10 w-10 rounded-xl shrink-0 text-emerald-500 hover:text-emerald-700 hover:bg-emerald-50"
-                title="Send Store Location Address"
-              >
-                <Store className="h-4 w-4" />
-              </Button>
-            )}
+
+                  if (formattedAddr) {
+                    await send(`📍 My Saved Pickup Address:\n${formattedAddr}`);
+                    toast.success("Pickup address shared in chat!");
+                  } else {
+                    toast.error("No saved pickup address found. Please configure your address in Profile Settings first.");
+                  }
+                } catch (e) {
+                  toast.error("Failed to share saved pickup address");
+                }
+              }}
+              className="h-10 w-10 rounded-xl shrink-0 text-emerald-500 hover:text-emerald-700 hover:bg-emerald-50"
+              title="Quick-share your saved pickup address"
+            >
+              <Store className="h-4 w-4" />
+            </Button>
             <textarea
               ref={textareaRef}
               value={newMessage}

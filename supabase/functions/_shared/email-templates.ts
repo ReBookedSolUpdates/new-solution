@@ -1522,3 +1522,63 @@ export function buildBusinessBuyerPaymentEmail(
       </div>
     </div>`;
 }
+
+export function buildBusinessSubscriptionRenewedReceiptEmail(businessName: string, amount: string, nextRenewalDate: string): string {
+  return createEmailTemplate(
+    {
+      title: "ReBooked Business — Subscription Renewed",
+      headerText: "Subscription Renewed Receipt",
+      headerType: "default",
+      headerEmoji: "🧾",
+      headerSubtext: `Hello ${businessName},`
+    },
+    `
+    <p>Thank you for partnering with ReBooked Solutions! We have successfully processed your monthly renewal payment for <strong>ReBooked Business Tier 1</strong>.</p>
+    
+    <div class="info-box" style="background:#f0fdf4; border-color:#86efac; color:#166534; padding:15px; border-left:4px solid #166534; border-radius:4px; margin: 16px 0;">
+      <h3 style="margin-top: 0; color:#15803d; font-size:15px;">Receipt Details</h3>
+      <p style="margin: 4px 0;"><strong>Plan:</strong> ReBooked Business Tier 1 (6.5% commission rate)</p>
+      <p style="margin: 4px 0;"><strong>Billing Amount:</strong> ${amount} (R79/month)</p>
+      <p style="margin: 4px 0;"><strong>Payment Method:</strong> Card on file via Paystack</p>
+      <p style="margin: 4px 0;"><strong>Next Renewal Date:</strong> ${nextRenewalDate}</p>
+    </div>
+    
+    <p>No action is required on your part. Your locked-in 6.5% commission rate and premium dashboard features remain active.</p>
+    
+    <div style="text-align: center; margin: 24px 0;">
+      <a href="https://rebookedsolutions.co.za/business-profile" class="btn">Go to Business Dashboard</a>
+    </div>
+    `
+  );
+}
+
+export function buildDisputeEscalatedOpsEmail(orderId: string, buyerName: string, sellerName: string, reason: string, timerExpiresAt: string): string {
+  return createEmailTemplate(
+    {
+      title: "🚨 URGENT: Dispute SLA Expired",
+      headerText: "Dispute SLA Expired — Action Required",
+      headerType: "error",
+      headerEmoji: "🚨",
+      headerSubtext: `Order ID: ${orderId}`
+    },
+    `
+    <p>The 48-hour resolution window for the dispute on order <strong>${orderId}</strong> has expired without any resolution from the seller.</p>
+    
+    <div class="info-box-error" style="padding:15px; border-left:4px solid #dc2626; background:#fef2f2; border-radius:4px; margin:16px 0;">
+      <h3 style="margin-top: 0; color:#dc2626; font-size:15px;">Dispute Escalation Details</h3>
+      <p style="margin: 4px 0;"><strong>Order ID:</strong> ${orderId}</p>
+      <p style="margin: 4px 0;"><strong>Buyer:</strong> ${buyerName}</p>
+      <p style="margin: 4px 0;"><strong>Seller:</strong> ${sellerName}</p>
+      <p style="margin: 4px 0;"><strong>Dispute Reason:</strong> ${reason}</p>
+      <p style="margin: 4px 0;"><strong>SLA Timer Expired:</strong> ${timerExpiresAt}</p>
+    </div>
+    
+    <p>This dispute has been automatically escalated to ReBooked Solutions ops. Please review the dispute history and mediate the settlement immediately.</p>
+    
+    <div style="text-align: center; margin: 24px 0;">
+      <a href="https://rebookedsolutions.co.za/orders/${orderId}" class="btn-danger">View Order in Dashboard</a>
+    </div>
+    `
+  );
+}
+

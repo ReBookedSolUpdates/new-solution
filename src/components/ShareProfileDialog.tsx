@@ -10,7 +10,7 @@ import {
   DialogFooter,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { Share2, Copy, ExternalLink } from "lucide-react";
+import { Share2, Copy, ExternalLink, Building2, BadgeCheck } from "lucide-react";
 import { toast } from "sonner";
 import { ActivityService } from "@/services/activityService";
 import { supabase } from "@/integrations/supabase/client";
@@ -23,6 +23,8 @@ interface ShareProfileDialogProps {
   userName: string;
   isOwnProfile: boolean;
   userProfilePicture?: string;
+  isBusiness?: boolean;
+  subscriptionTier?: string;
 }
 
 const ShareProfileDialog = ({
@@ -32,6 +34,8 @@ const ShareProfileDialog = ({
   userName,
   isOwnProfile,
   userProfilePicture,
+  isBusiness = false,
+  subscriptionTier = "free",
 }: ShareProfileDialogProps) => {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const profileUrl = `${window.location.origin}/seller/${userId}`;
@@ -155,8 +159,8 @@ const ShareProfileDialog = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-[90vw] max-w-[90vw] sm:max-w-md mx-auto my-auto">
-                <DialogHeader>
+      <DialogContent hideCloseButton className="w-[90vw] max-w-[90vw] sm:max-w-md mx-auto my-auto">
+        <DialogHeader>
           <DialogTitle className="flex items-center">
             <Share2 className="h-5 w-5 text-book-600 mr-2" />
             Share Your ReBooked Mini
@@ -175,16 +179,30 @@ const ShareProfileDialog = ({
 
         <div className="space-y-4">
           {/* ReBooked Mini Preview Card */}
-          <div className="border border-book-200 rounded-lg p-4 bg-gradient-to-br from-book-50 to-white">
-            <h3 className="text-xs font-semibold text-book-600 mb-3 uppercase tracking-wide">Your ReBooked Mini Card</h3>
-            <div className="flex items-center gap-3 p-3 bg-white rounded-lg border border-book-100">
-              <div className="w-16 h-16 rounded-full overflow-hidden bg-book-100 flex-shrink-0 border-2 border-book-200 flex items-center justify-center">
+          <div className={`border rounded-lg p-4 bg-gradient-to-br ${
+            isBusiness
+              ? "border-emerald-200 from-emerald-50 to-white"
+              : "border-book-200 from-book-50 to-white"
+          }`}>
+            <h3 className={`text-xs font-semibold mb-3 uppercase tracking-wide ${
+              isBusiness ? "text-emerald-600" : "text-book-600"
+            }`}>
+              {isBusiness ? "Your ReBooked Business Mini Card" : "Your ReBooked Mini Card"}
+            </h3>
+            <div className={`flex items-center gap-3 p-3 bg-white rounded-lg border ${
+              isBusiness ? "border-emerald-100" : "border-book-100"
+            }`}>
+              <div className={`w-16 h-16 rounded-full overflow-hidden flex-shrink-0 border-2 flex items-center justify-center ${
+                isBusiness ? "bg-emerald-50 border-emerald-200" : "bg-book-100 border-book-200"
+              }`}>
                 {userProfilePicture ? (
                   <img
                     src={userProfilePicture}
                     alt={userName}
                     className="w-full h-full object-cover"
                   />
+                ) : isBusiness ? (
+                  <Building2 className="h-7 w-7 text-emerald-600" />
                 ) : (
                   <span className="text-2xl font-bold text-book-600">
                     {userName
@@ -197,12 +215,34 @@ const ShareProfileDialog = ({
                 )}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="font-semibold text-book-900 truncate">{userName}</p>
-                <p className="text-xs text-book-600">ReBooked Solutions</p>
+                <div className="flex items-center gap-1.5">
+                  <p className={`font-semibold truncate ${
+                    isBusiness ? "text-gray-900" : "text-book-900"
+                  }`}>{userName}</p>
+                  {isBusiness && (
+                    <BadgeCheck className="h-4 w-4 text-emerald-600 shrink-0" />
+                  )}
+                </div>
+                <p className={`text-xs ${
+                  isBusiness ? "text-emerald-600" : "text-book-600"
+                }`}>
+                  {isBusiness ? "ReBooked Business Partner" : "ReBooked Solutions"}
+                </p>
+                {isBusiness && subscriptionTier === "tier1" && (
+                  <span className="inline-flex items-center gap-1 mt-1 text-[9px] font-bold text-emerald-700 bg-emerald-100 border border-emerald-200 px-1.5 py-0.5 rounded-full">
+                    Tier 1
+                  </span>
+                )}
                 <div className="flex gap-1 mt-1">
-                  <div className="h-1 w-8 bg-book-200 rounded-full"></div>
-                  <div className="h-1 w-8 bg-book-200 rounded-full opacity-50"></div>
-                  <div className="h-1 w-8 bg-book-200 rounded-full opacity-30"></div>
+                  <div className={`h-1 w-8 rounded-full ${
+                    isBusiness ? "bg-emerald-200" : "bg-book-200"
+                  }`}></div>
+                  <div className={`h-1 w-8 rounded-full opacity-50 ${
+                    isBusiness ? "bg-emerald-200" : "bg-book-200"
+                  }`}></div>
+                  <div className={`h-1 w-8 rounded-full opacity-30 ${
+                    isBusiness ? "bg-emerald-200" : "bg-book-200"
+                  }`}></div>
                 </div>
               </div>
             </div>

@@ -4,7 +4,8 @@ import {
   buildExpiredBuyerCancelEmail,
   buildExpiredSellerCancelEmail,
   buildSellerConfirmReminderEmail,
-  buildBuyerDeliveryReminderEmail
+  buildBuyerDeliveryReminderEmail,
+  buildDisputeEscalatedOpsEmail
 } from "../_shared/email-templates.ts";
 
 const corsHeaders = {
@@ -493,6 +494,70 @@ serve(async (req) => {
       }
     }
 
+    // =====================================================================
+    // STEP 6: Auto-escalate expired disputes (48-hour SLA)
+    // =====================================================================
+    console.log('[check-expired-orders] Running dispute SLA check...');
+    let disputeEscalatedCount = 0;
+    try {
+      const { data: expiredDisputes, error: disputeErr } = await supabase
+        .from('orders')
+        .select('id, buyer_id, seller_id, dispute_reason, dispute_timer_expires_at, buyer_full_name, seller_full_name')
+        .eq('status', 'disputed')
+        .eq('dispute_escalated', false)
+        .lt('dispute_timer_expires_at', new Date().toISOString());
+
+      if (disputeErr) throw disputeErr;
+
+      for (const order of (expiredDisputes || [])) {
+        try {
+          // 1. Update order in database to mark escalated
+          const { error: updateErr } = await supabase
+            .from('orders')
+            .update({
+              dispute_escalated: true,
+              dispute_escalated_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', order.id);
+
+          if (updateErr) throw updateErr;
+
+          // 2. Log event in order_events
+          await supabase.from('order_events').insert({
+            order_id: order.id,
+            event_type: 'escalated',
+            actor: 'system',
+            details: { reason: 'Auto-escalated after 48-hour resolution window expired' }
+          });
+
+          // 3. Send email to ReBooked Solutions ops (info@rebookedsolutions.co.za)
+          const opsEmailHtml = buildDisputeEscalatedOpsEmail(
+            order.id,
+            order.buyer_full_name || 'Buyer',
+            order.seller_full_name || 'Seller',
+            order.dispute_reason || 'No reason specified',
+            order.dispute_timer_expires_at ? new Date(order.dispute_timer_expires_at).toLocaleString() : 'N/A'
+          );
+
+          await supabase.functions.invoke('send-email', {
+            body: {
+              to: 'info@rebookedsolutions.co.za',
+              subject: `🚨 URGENT: Dispute SLA Expired — Order #${order.id.slice(-8).toUpperCase()}`,
+              html: opsEmailHtml
+            }
+          });
+
+          disputeEscalatedCount += 1;
+          console.log(`[check-expired-orders] Successfully escalated dispute for order ${order.id}`);
+        } catch (err: any) {
+          console.error(`[check-expired-orders] Failed to escalate dispute for order ${order.id}:`, err.message);
+        }
+      }
+    } catch (err: any) {
+      console.error('[check-expired-orders] Dispute SLA check error:', err.message);
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
@@ -503,6 +568,7 @@ serve(async (req) => {
         delivery_auto_completed_processed: deliveryAutoCompleted,
         seller_reminders_sent: sellerRemindersSent,
         buyer_reminders_sent: buyerRemindersSent,
+        dispute_escalated_processed: disputeEscalatedCount,
         total_found: expired.length + (expiredMeetups?.length || 0) + (deliveredOrders?.length || 0),
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }

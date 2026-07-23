@@ -11,6 +11,14 @@ import { checkLiveSubscription } from "@/services/subscriptionService";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
   Building2,
   UploadCloud,
   Loader2,
@@ -30,6 +38,7 @@ import {
   Mail,
   Eye,
   EyeOff,
+  CreditCard,
 } from "lucide-react";
 
 interface TeamMember {
@@ -40,7 +49,7 @@ interface TeamMember {
 }
 
 export const SettingsTab: React.FC = () => {
-  const { user, profile, refetchProfile } = useAuth();
+  const { user, profile, refreshProfile } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Settings Sub-Tabs
@@ -99,18 +108,101 @@ export const SettingsTab: React.FC = () => {
   // Promo code redemption
   const [redeemCode, setRedeemCode] = useState("");
   const [isRedeeming, setIsRedeeming] = useState(false);
+  const [checkingManualSubscription, setCheckingManualSubscription] = useState(false);
+  const [updatingCard, setUpdatingCard] = useState(false);
+
+  // Cancellation 3-Step Modal State
+  const [cancelModalOpen, setCancelModalOpen] = useState(false);
+  const [cancelModalStep, setCancelModalStep] = useState<1 | 2 | 3>(1);
+  const [cancelReasonOption, setCancelReasonOption] = useState("Cost");
+  const [cancelFeedbackText, setCancelFeedbackText] = useState("");
+
+  const handleToggleAddressPublic = async (checked: boolean) => {
+    setShowAddressToPublic(checked);
+    if (!user) return;
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ show_address_to_public: checked })
+        .eq("id", user.id);
+      if (error) throw error;
+      toast.success(checked ? "Public address visibility enabled" : "Public address hidden");
+      if (refreshProfile) await refreshProfile();
+    } catch (err: any) {
+      toast.error("Failed to update visibility: " + err.message);
+    }
+  };
+
+  const handleTogglePhonePublic = async (checked: boolean) => {
+    setShowPhoneToPublic(checked);
+    if (!user) return;
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ show_phone_to_public: checked })
+        .eq("id", user.id);
+      if (error) throw error;
+      toast.success(checked ? "Public phone visibility enabled" : "Public phone hidden");
+      if (refreshProfile) await refreshProfile();
+    } catch (err: any) {
+      toast.error("Failed to update visibility: " + err.message);
+    }
+  };
+
+  const handleToggleAutoCommit = async (checked: boolean) => {
+    setAutoCommit(checked);
+    if (!user) return;
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ auto_commit: checked })
+        .eq("id", user.id);
+      if (error) throw error;
+      toast.success(checked ? "Auto-commit checkouts enabled" : "Auto-commit checkouts disabled");
+      if (refreshProfile) await refreshProfile();
+    } catch (err: any) {
+      toast.error("Failed to update auto-commit setting: " + err.message);
+    }
+  };
+
+  const [allowBuyerPickup, setAllowBuyerPickup] = useState(true);
+
+  const handleToggleAllowBuyerPickup = async (checked: boolean) => {
+    setAllowBuyerPickup(checked);
+    if (!user) return;
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ allow_buyer_pickup: checked })
+        .eq("id", user.id);
+      if (error) throw error;
+      toast.success(checked ? "Physical buyer pickup enabled" : "Physical buyer pickup disabled");
+      if (refreshProfile) await refreshProfile();
+    } catch (err: any) {
+      toast.error("Failed to update pickup setting: " + err.message);
+    }
+  };
 
   // Sync profile data on load
   useEffect(() => {
     if (profile) {
-      setBusinessName(profile.businessName || "");
-      setInstagram(profile.instagramHandle || "");
+      setBusinessName(profile.businessName || (profile as any).business_name || "");
+      setInstagram(profile.instagramHandle || (profile as any).instagram_handle || "");
       setPhone((profile as any).phone_number || "");
       setAvatarUrl((profile as any).profile_picture_url || "");
-      setShowAddressToPublic(!!profile.showAddressToPublic);
-      setShowPhoneToPublic(!!profile.showPhoneToPublic);
+      setShowAddressToPublic(
+        profile.showAddressToPublic !== undefined 
+          ? !!profile.showAddressToPublic 
+          : !!(profile as any).show_address_to_public
+      );
+      setShowPhoneToPublic(
+        profile.showPhoneToPublic !== undefined 
+          ? !!profile.showPhoneToPublic 
+          : !!(profile as any).show_phone_to_public
+      );
       setAutoResponderMsg((profile as any).auto_responder_message || "");
       setAutoCommit(!!(profile as any).auto_commit);
+      setAllowBuyerPickup((profile as any).allow_buyer_pickup !== false);
 
       // Personal details
       setPersonalName(profile.name || "");
@@ -170,7 +262,8 @@ export const SettingsTab: React.FC = () => {
     try {
       setIsUploadingPfp(true);
       const timestamp = Date.now();
-      const filename = `profile-${user.id}-${timestamp}.jpg`;
+      const fileExt = file.name.split(".").pop() || "jpg";
+      const filename = `${user.id}/profile-${timestamp}.${fileExt}`;
 
       const { data, error: uploadError } = await supabase.storage
         .from("user-profiles")
@@ -201,7 +294,7 @@ export const SettingsTab: React.FC = () => {
 
         setAvatarUrl(publicUrl);
         toast.success("Profile logo updated!");
-        if (refetchProfile) refetchProfile();
+        if (refreshProfile) refreshProfile();
       }
     } catch (err: any) {
       console.error("Profile picture upload error:", err);
@@ -249,7 +342,7 @@ export const SettingsTab: React.FC = () => {
 
       if (error) throw error;
       toast.success("Business profile settings saved!");
-      if (refetchProfile) refetchProfile();
+      if (refreshProfile) refreshProfile();
     } catch (err: any) {
       toast.error("Failed to save settings: " + err.message);
     } finally {
@@ -268,7 +361,7 @@ export const SettingsTab: React.FC = () => {
         .eq("id", user.id);
       if (error) throw error;
       toast.success("Auto-responder message updated!");
-      if (refetchProfile) refetchProfile();
+      if (refreshProfile) refreshProfile();
     } catch (err: any) {
       toast.error("Failed to save auto-responder: " + err.message);
     } finally {
@@ -299,27 +392,87 @@ export const SettingsTab: React.FC = () => {
     }
   };
 
-  // Paystack cancel subscription
-  const handleCancelSubscription = async () => {
-    if (
-      !confirm(
-        "Are you sure you want to cancel your Tier 1 partner subscription? You will lose premium analytics and the 6.5% rate at the end of the billing period."
-      )
-    )
-      return;
+  // Trigger 3-Step Cancellation Modal Pop-Up
+  const handleCancelSubscription = () => {
+    setCancelModalStep(1);
+    setCancelModalOpen(true);
+  };
 
+  // Final confirmation execution from Step 3 modal
+  const executeCancellation = async () => {
+    if (!user) return;
     setIsCancelling(true);
     try {
-      const { data, error } = await supabase.functions.invoke("paystack-subscription-cancel");
-      if (error || !data.success) {
+      // 1. Save cancellation feedback to Supabase database table
+      try {
+        await supabase.from("cancellation_feedback" as any).insert({
+          user_id: user.id,
+          reason: cancelReasonOption,
+          feedback: cancelFeedbackText.trim() || null,
+        });
+      } catch (dbErr) {
+        console.warn("Could not record cancellation feedback to DB:", dbErr);
+      }
+
+      // 2. Invoke cancellation Edge Function
+      const { data, error } = await supabase.functions.invoke("paystack-subscription-cancel", {
+        body: {
+          reason: cancelReasonOption,
+          feedback: cancelFeedbackText,
+        },
+      });
+
+      if (error || !data?.success) {
         throw new Error(error?.message || data?.error || "Cancellation failed");
       }
+
       toast.success(data.message || "Subscription cancellation scheduled successfully.");
+      setCancelModalOpen(false);
       await fetchSubscription();
     } catch (err: any) {
       toast.error(err.message || "Failed to cancel subscription");
     } finally {
       setIsCancelling(false);
+    }
+  };
+
+  // Manual sync subscription status
+  const handleManualSubscriptionCheck = async () => {
+    if (!user) return;
+    setCheckingManualSubscription(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("paystack-verify-subscription", {
+        body: { business_id: user.id },
+      });
+      if (error) throw error;
+      toast.success("Subscription status synced successfully!");
+      await fetchSubscription();
+    } catch (err: any) {
+      console.error("Manual subscription sync failed:", err);
+      toast.error("Sync failed: " + err.message);
+    } finally {
+      setCheckingManualSubscription(false);
+    }
+  };
+
+  // Paystack generate update card link
+  const handleUpdateCard = async () => {
+    if (!user) return;
+    setUpdatingCard(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("paystack-update-card");
+      if (error) throw error;
+      if (data && data.link) {
+        toast.loading("Redirecting to Paystack card update page...");
+        window.location.href = data.link;
+      } else {
+        throw new Error("No update link returned from server");
+      }
+    } catch (err: any) {
+      console.error("Failed to request update card link:", err);
+      toast.error("Failed to request card update link: " + err.message);
+    } finally {
+      setUpdatingCard(false);
     }
   };
 
@@ -359,7 +512,7 @@ export const SettingsTab: React.FC = () => {
 
       if (error) throw error;
       toast.success("Personal details updated successfully!");
-      if (refetchProfile) refetchProfile();
+      if (refreshProfile) refreshProfile();
     } catch (err: any) {
       toast.error("Failed to update personal details: " + err.message);
     } finally {
@@ -452,6 +605,63 @@ export const SettingsTab: React.FC = () => {
 
       if (error) throw error;
 
+      // Send teammate invite email
+      const inviteLink = `${window.location.origin}/accept-invite?email=${encodeURIComponent(inviteEmail.trim().toLowerCase())}&business=${encodeURIComponent(user?.id || '')}`;
+      const businessNameDisplay = businessName || "ReBooked Business Partner";
+      const currentYear = new Date().getFullYear();
+      const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { font-family: Arial, sans-serif; background: #f3fef7; padding: 20px; color: #1f4e3d; margin: 0; }
+    .container { max-width: 500px; margin: auto; background: #ffffff; padding: 30px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+    .btn { display: inline-block; padding: 12px 20px; background: #3ab26f; color: #ffffff; text-decoration: none; border-radius: 5px; margin-top: 20px; font-weight: bold; }
+    .header { background: linear-gradient(135deg, #3ab26f 0%, #2d8f58 100%); color: white; padding: 25px 20px; text-align: center; border-radius: 10px 10px 0 0; margin: -30px -30px 25px -30px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+     <div class="header">
+       <h1 style="margin:0;font-size:22px;font-weight:bold;">💼 Teammate Invitation</h1>
+       <p style="margin:8px 0 0;font-size:14px;opacity:0.9;">Join ${businessNameDisplay} on ReBooked Solutions</p>
+     </div>
+     
+     <div style="padding: 10px 0; color: #1f4e3d; line-height: 1.6; font-size: 14px;">
+       <p>Hello,</p>
+       <p>You have been invited to join <strong>${businessNameDisplay}</strong> on the ReBooked Solutions platform as a <strong>${inviteRole}</strong>.</p>
+       <p>As a team collaborator, you will be able to help manage listings, orders, and chats for the business.</p>
+       <div style="text-align: center; margin: 20px 0;">
+         <a href="${inviteLink}" class="btn" style="color: white !important;">Accept Invitation</a>
+       </div>
+       <p style="font-size: 12px; color: #6b7280; margin-top: 20px;">If you do not have a ReBooked account, you will be prompted to create one before accepting the invitation.</p>
+     </div>
+     
+     <div style="background: #f3fef7; color: #1f4e3d; padding: 20px; text-align: center; font-size: 12px; line-height: 1.6; margin: 30px -30px -30px -30px; border-radius: 0 0 10px 10px; border-top: 2px solid #3ab26f;">
+       <p style="margin:5px 0;"><strong style="color:#3ab26f;">ReBooked Solutions</strong></p>
+       <p style="margin:5px 0; font-style: italic; color:#4e7a63;">"Books · Uniforms · Everything In Between"</p>
+       <hr style="border:none; border-top:1px solid #d1fae5; margin: 12px 0;" />
+       <p style="margin:5px 0;"><strong>This is an automated message. Please do not reply to this email.</strong></p>
+       <p style="margin:5px 0;">For assistance: <a href="mailto:support@rebookedsolutions.co.za" style="color:#3ab26f;">support@rebookedsolutions.co.za</a></p>
+       <p style="margin:5px 0;">Visit us: <a href="https://rebookedsolutions.co.za" style="color:#3ab26f;">rebookedsolutions.co.za</a></p>
+       <p style="margin:10px 0 0; font-size:11px; color:#9ca3af;">© ${currentYear} ReBooked Solutions. All rights reserved.</p>
+     </div>
+  </div>
+</body>
+</html>
+      `;
+
+
+      await supabase.functions.invoke("send-email", {
+        body: {
+          to: inviteEmail.trim().toLowerCase(),
+          subject: `You've been invited to join ${businessNameDisplay} on ReBooked Solutions`,
+          html,
+        },
+      });
+
       setInviteEmail("");
       toast.success(`Collaborator invite successfully sent!`);
       loadTeamCollaborators();
@@ -481,7 +691,7 @@ export const SettingsTab: React.FC = () => {
   return (
     <div className="space-y-6 animate-fadeIn">
       {/* Settings Sub-Tabs Selector Header */}
-      <div className="flex gap-2 border-b pb-3">
+      <div className="flex justify-center gap-2 border-b pb-3">
         <Button
           variant={subTab === "business" ? "default" : "outline"}
           onClick={() => setSubTab("business")}
@@ -594,7 +804,7 @@ export const SettingsTab: React.FC = () => {
                       Show your physical pick-up address/locker info on your public seller store page.
                     </p>
                   </div>
-                  <Switch checked={showAddressToPublic} onCheckedChange={setShowAddressToPublic} />
+                  <Switch checked={showAddressToPublic} onCheckedChange={handleToggleAddressPublic} />
                 </div>
 
                 <div className="flex items-center justify-between border-b pb-3 border-gray-100 last:border-0 last:pb-0">
@@ -604,7 +814,7 @@ export const SettingsTab: React.FC = () => {
                       Allows buyers to see your business phone number on product listings.
                     </p>
                   </div>
-                  <Switch checked={showPhoneToPublic} onCheckedChange={setShowPhoneToPublic} />
+                  <Switch checked={showPhoneToPublic} onCheckedChange={handleTogglePhonePublic} />
                 </div>
 
                 <div className="flex items-center justify-between border-b pb-3 border-gray-100 last:border-0 last:pb-0">
@@ -614,7 +824,17 @@ export const SettingsTab: React.FC = () => {
                       Automatically accept paid orders and start fulfillment workflows bypass manual confirmation.
                     </p>
                   </div>
-                  <Switch checked={autoCommit} onCheckedChange={setAutoCommit} />
+                  <Switch checked={autoCommit} onCheckedChange={handleToggleAutoCommit} />
+                </div>
+
+                <div className="flex items-center justify-between border-b pb-3 border-gray-100 last:border-0 last:pb-0">
+                  <div className="space-y-0.5 max-w-[80%]">
+                    <label className="text-xs font-bold text-gray-800">Allow Physical Buyer Pickup</label>
+                    <p className="text-[11px] text-gray-500 leading-normal">
+                      Enable or disable whether buyers can choose to pick up orders in person from your address.
+                    </p>
+                  </div>
+                  <Switch checked={allowBuyerPickup} onCheckedChange={handleToggleAllowBuyerPickup} />
                 </div>
               </div>
 
@@ -733,7 +953,7 @@ export const SettingsTab: React.FC = () => {
                       <div className="space-y-1">
                         <p className="text-sm font-bold text-amber-900">Payment Past Due — Grace Period Active</p>
                         <p className="text-xs text-amber-700">
-                          We couldn't process your last payment. You still have full Tier 1 access for a <strong>5-day grace period</strong>.
+                          We couldn't process your last payment. You still have full Tier 1 access for a <strong>3-day grace period</strong>.
                           Please update your payment method to avoid downgrade.
                         </p>
                       </div>
@@ -776,6 +996,39 @@ export const SettingsTab: React.FC = () => {
                           Cancel Plan
                         </Button>
                       </>
+                    )}
+                  </div>
+
+                  {/* Action buttons for active subscriptions */}
+                  <div className="flex flex-wrap gap-3 pt-2">
+                    <Button
+                      onClick={handleManualSubscriptionCheck}
+                      disabled={checkingManualSubscription}
+                      variant="outline"
+                      className="rounded-xl text-xs font-semibold h-9 px-4 border-gray-300"
+                    >
+                      {checkingManualSubscription ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin mr-2" />
+                      ) : (
+                        <RefreshCw className="h-3.5 w-3.5 mr-2" />
+                      )}
+                      Check Subscription Status
+                    </Button>
+
+                    {!subscriptionStatus.cancelAtPeriodEnd && (
+                      <Button
+                        onClick={handleUpdateCard}
+                        disabled={updatingCard}
+                        variant="outline"
+                        className="rounded-xl text-xs font-semibold h-9 px-4 border-gray-300"
+                      >
+                        {updatingCard ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin mr-2" />
+                        ) : (
+                          <CreditCard className="h-3.5 w-3.5 mr-2" />
+                        )}
+                        Update Card on File
+                      </Button>
                     )}
                   </div>
                 </div>
@@ -1098,6 +1351,155 @@ export const SettingsTab: React.FC = () => {
           </Card>
         </>
       )}
+
+      {/* 3-STEP SUBSCRIPTION CANCELLATION MODAL */}
+      <Dialog open={cancelModalOpen} onOpenChange={setCancelModalOpen}>
+        <DialogContent className="w-[90vw] max-w-[350px] sm:max-w-md bg-white rounded-2xl p-5 sm:p-6 overflow-hidden text-center [&>button]:hidden">
+          {cancelModalStep === 1 && (
+            <>
+              <DialogHeader className="text-center flex flex-col items-center justify-center">
+                <DialogTitle className="text-lg font-bold text-gray-900 flex items-center justify-center gap-2 text-center">
+                  <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0" />
+                  What You'll Miss Out On
+                </DialogTitle>
+                <DialogDescription className="text-xs text-gray-600 pt-1 text-center font-medium">
+                  Cancelling your Tier 1 subscription means losing access to exclusive business partner privileges:
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-3 py-3 text-left">
+                <div className="p-3.5 bg-emerald-50/70 border border-emerald-200 rounded-xl space-y-2.5 text-xs">
+                  <div className="flex items-center gap-2 text-emerald-900 font-bold">
+                    <BadgeCheck className="h-4 w-4 text-emerald-600 shrink-0" />
+                    <span>6.5% Commission Rate (Save 3.5% per sale)</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-emerald-900 font-bold">
+                    <BadgeCheck className="h-4 w-4 text-emerald-600 shrink-0" />
+                    <span>Automated Customer Chat Responses</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-emerald-900 font-bold">
+                    <BadgeCheck className="h-4 w-4 text-emerald-600 shrink-0" />
+                    <span>Multi-User Team Collaborators</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-emerald-900 font-bold">
+                    <BadgeCheck className="h-4 w-4 text-emerald-600 shrink-0" />
+                    <span>Auto-Commit Checkout System</span>
+                  </div>
+                </div>
+              </div>
+
+              <DialogFooter className="flex flex-col sm:flex-row gap-2 pt-2 justify-center">
+                <Button
+                  onClick={() => setCancelModalOpen(false)}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl flex-1 h-10"
+                >
+                  Keep My Tier 1 Plan
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setCancelModalStep(2)}
+                  className="text-gray-600 border-gray-300 font-semibold text-xs rounded-xl flex-1 h-10"
+                >
+                  Proceed to Cancel
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+
+          {cancelModalStep === 2 && (
+            <>
+              <DialogHeader className="text-center flex flex-col items-center justify-center">
+                <DialogTitle className="text-lg font-bold text-gray-900 text-center">
+                  Help Us Improve
+                </DialogTitle>
+                <DialogDescription className="text-xs text-gray-600 pt-1 text-center font-medium">
+                  Please let us know why you are choosing to cancel your subscription:
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-4 py-3 text-left">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-gray-700 block text-center">Reason for cancelling</label>
+                  <select
+                    value={cancelReasonOption}
+                    onChange={(e) => setCancelReasonOption(e.target.value)}
+                    className="w-full border border-gray-300 rounded-xl px-3 py-2 text-xs font-semibold text-gray-800 bg-white"
+                  >
+                    <option value="Cost">Tier 1 is too expensive for my volume</option>
+                    <option value="Unused Features">I don't use the Tier 1 features enough</option>
+                    <option value="Missing Features">Missing features I need</option>
+                    <option value="Store Closing">Closing or pausing my business store</option>
+                    <option value="Other">Other reason</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-gray-700 block text-center">Additional Feedback (Optional)</label>
+                  <textarea
+                    value={cancelFeedbackText}
+                    onChange={(e) => setCancelFeedbackText(e.target.value)}
+                    placeholder="Tell us how we can make ReBooked better for your business..."
+                    className="w-full border border-gray-300 rounded-xl p-3 text-xs focus:ring-1 focus:ring-book-500 h-20 outline-none"
+                  />
+                </div>
+              </div>
+
+              <DialogFooter className="flex gap-2 pt-2 justify-center">
+                <Button
+                  variant="outline"
+                  onClick={() => setCancelModalStep(1)}
+                  className="border-gray-300 text-xs font-semibold rounded-xl h-10 px-4"
+                >
+                  Back
+                </Button>
+                <Button
+                  onClick={() => setCancelModalStep(3)}
+                  className="bg-book-600 hover:bg-book-700 text-white font-bold text-xs rounded-xl flex-1 h-10"
+                >
+                  Next: Final Step
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+
+          {cancelModalStep === 3 && (
+            <>
+              <DialogHeader className="text-center flex flex-col items-center justify-center">
+                <DialogTitle className="text-lg font-bold text-red-700 flex items-center justify-center gap-2 text-center">
+                  <AlertTriangle className="h-5 w-5 text-red-600 shrink-0" />
+                  Confirm Cancellation
+                </DialogTitle>
+                <DialogDescription className="text-xs text-gray-600 pt-1 text-center font-medium">
+                  Your Tier 1 benefits will remain active until your current billing period ends. After that date, your store will revert to the standard 10% commission rate.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="p-3 bg-red-50 border border-red-200 rounded-xl my-3 text-xs text-red-800 text-center">
+                <p className="font-semibold mb-1">Are you sure you want to finalize cancellation?</p>
+                <p className="text-[11px] text-red-700">You can reactivate anytime before your period ends.</p>
+              </div>
+
+              <DialogFooter className="flex flex-col sm:flex-row gap-2 pt-2 justify-center">
+                <Button
+                  variant="outline"
+                  onClick={() => setCancelModalStep(2)}
+                  className="border-gray-300 text-xs font-semibold rounded-xl h-10 flex-1"
+                >
+                  Back
+                </Button>
+                <Button
+                  onClick={executeCancellation}
+                  disabled={isCancelling}
+                  className="bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl flex-1 h-10"
+                >
+                  {isCancelling && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                  Confirm Cancellation
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

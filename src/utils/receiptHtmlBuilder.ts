@@ -6,6 +6,8 @@ export interface ReceiptItem {
   amount?: number;
   condition?: string;
   quantity?: number;
+  category?: string;
+  item_type?: string;
 }
 
 export interface ReceiptOrder {
@@ -14,6 +16,7 @@ export interface ReceiptOrder {
   payment_reference?: string | null;
   paystack_reference?: string | null;
   created_at: string;
+  status?: string | null;
   buyer_full_name?: string | null;
   buyer_email?: string | null;
   seller_full_name?: string | null;
@@ -32,20 +35,28 @@ export interface ReceiptOrder {
 }
 
 export function buildPremiumReceiptHtml(order: ReceiptOrder, isSeller: boolean): string {
-  const items = Array.isArray(order.items) ? order.items : [];
-  const firstItem = items[0] || {};
-  const itemTitle = firstItem.title || firstItem.name || firstItem.book_title || "Marketplace Item";
-  const itemCondition = firstItem.condition || "N/A";
-  const itemQuantity = Number(firstItem.quantity || 1);
+  const items = Array.isArray(order.items) && order.items.length > 0 ? order.items : [
+    {
+      title: "Marketplace Item",
+      price: typeof order.total_amount === "number" ? order.total_amount : 0,
+      condition: "N/A",
+      quantity: 1,
+    }
+  ];
 
-  const itemPrice = Number(firstItem.price ?? firstItem.amount ?? 0);
+  const totalItemsPrice = items.reduce((sum, it) => {
+    const p = Number(it.price ?? it.amount ?? 0);
+    const q = Number(it.quantity || 1);
+    return sum + (p * q);
+  }, 0);
+
   const deliveryFee = typeof order.selected_shipping_cost === "number"
     ? Number(order.selected_shipping_cost) / 100
     : 0;
   
   const buyerProtectionFee = typeof order.platform_fee === "number"
     ? Number(order.platform_fee)
-    : 20;
+    : (isSeller ? 0 : 20);
 
   const metadata = order.metadata || {};
   const discountApplied = metadata.coupon_discount
@@ -53,7 +64,7 @@ export function buildPremiumReceiptHtml(order: ReceiptOrder, isSeller: boolean):
     : 0;
   const couponCode = metadata.coupon_code || "";
 
-  const computedTotal = Math.max(0, itemPrice + deliveryFee + buyerProtectionFee - discountApplied);
+  const computedTotal = Math.max(0, totalItemsPrice + deliveryFee + buyerProtectionFee - discountApplied);
   const totalPaid = typeof order.total_amount === "number" && order.total_amount > 0
     ? Number(order.total_amount)
     : computedTotal;
@@ -62,18 +73,19 @@ export function buildPremiumReceiptHtml(order: ReceiptOrder, isSeller: boolean):
     ? Number(order.wallet_deducted_amount) / 100
     : 0;
 
-  // Resolve commission rate dynamically
+  // Resolve commission rate dynamically from historical record or tier
   const rate = typeof order.commission_rate === "number"
     ? order.commission_rate
     : (metadata.commission_rate_applied !== undefined
       ? Number(metadata.commission_rate_applied)
-      : 0.10); // Default to 10%
+      : 0.10);
 
-  const commission = itemPrice * rate;
-  const payout = itemPrice - commission;
+  const commission = totalItemsPrice * rate;
+  const payout = totalItemsPrice - commission;
 
   const createdDate = order.created_at ? new Date(order.created_at).toLocaleString() : "";
   const paymentRef = order.payment_reference || order.paystack_reference || "Pending";
+  const displayRef = order.order_id || `ORD-${order.id.slice(0, 8).toUpperCase()}`;
 
   const isPickup = order.order_type === "pickup" || order.delivery_type === "pickup";
   const deliveryDisplayName = isPickup
@@ -81,6 +93,26 @@ export function buildPremiumReceiptHtml(order: ReceiptOrder, isSeller: boolean):
     : order.delivery_type?.toLowerCase().includes('locker')
     ? 'Locker-to-Locker'
     : 'Door-to-Door';
+
+  // Real items rows HTML
+  let itemsRowsHtml = "";
+  items.forEach((it) => {
+    const title = it.title || it.name || it.book_title || "Marketplace Item";
+    const cond = it.condition || "N/A";
+    const qty = Number(it.quantity || 1);
+    const prc = Number(it.price ?? it.amount ?? 0);
+    const lineTotal = prc * qty;
+
+    itemsRowsHtml += `
+      <div style="padding: 10px 0; border-bottom: 1px solid #f0f0f0;">
+        <div style="font-size: 13px; font-weight: 600; color: #1a1a1a;">${title}</div>
+        <div style="display: flex; justify-content: space-between; font-size: 12px; color: #888; margin-top: 4px;">
+          <span>Qty: ${qty} &#8226; Condition: ${cond}</span>
+          <span style="color: #1a1a1a; font-weight: 500;">R${lineTotal.toFixed(2)}</span>
+        </div>
+      </div>
+    `;
+  });
 
   // Delivery details section HTML
   let deliveryDetailsHtml = "";
@@ -115,7 +147,7 @@ export function buildPremiumReceiptHtml(order: ReceiptOrder, isSeller: boolean):
         <div style="text-align: left;">
           <h1 style="margin: 0; font-size: 15px; font-weight: 600; color: #1a1a1a;">ReBooked Solutions</h1>
           <p style="margin: 2px 0 0 0; font-size: 12px; color: #888;">
-            Order Ref: <span style="font-family: 'SFMono-Regular', Consolas, monospace; font-size: 12px;">${order.order_id || order.id}</span>
+            Order Ref: <span style="font-family: 'SFMono-Regular', Consolas, monospace; font-size: 12px;">${displayRef}</span>
           </p>
         </div>
         <div style="margin-left: auto; font-size: 11px; font-weight: 600; color: #1f4e3d; background: #e8f5ee; padding: 4px 10px; border-radius: 12px;">
@@ -143,14 +175,12 @@ export function buildPremiumReceiptHtml(order: ReceiptOrder, isSeller: boolean):
 
       <!-- Item Section -->
       <div style="padding: 18px 24px; border-bottom: 1px solid #f0f0f0; text-align: left;">
-        <div style="font-size: 14px; font-weight: 600; margin: 0 0 2px 0; color: #1a1a1a;">${itemTitle}</div>
-        <div style="font-size: 12px; color: #888; margin: 0 0 12px 0;">
-          Condition: ${itemCondition} &#8226; Qty: ${itemQuantity}
-        </div>
+        <div style="font-size: 12px; color: #888; font-weight: 600; text-transform: uppercase; margin-bottom: 8px;">Purchased Items</div>
+        ${itemsRowsHtml}
 
-        <div style="display: flex; justify-content: space-between; font-size: 13px; line-height: 1.8;">
-          <span style="color: #888;">Item Price</span>
-          <span style="color: #1a1a1a; font-weight: 500; text-align: right;">R${itemPrice.toFixed(2)}</span>
+        <div style="display: flex; justify-content: space-between; font-size: 13px; line-height: 1.8; margin-top: 10px;">
+          <span style="color: #888;">Items Subtotal</span>
+          <span style="color: #1a1a1a; font-weight: 500; text-align: right;">R${totalItemsPrice.toFixed(2)}</span>
         </div>
 
         ${isSeller ? `

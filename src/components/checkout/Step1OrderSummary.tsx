@@ -137,38 +137,68 @@ const Step1OrderSummary: React.FC<Step1OrderSummaryProps> = ({
 
   const [expandedIndex, setExpandedIndex] = useState<number>(0);
 
+  const getItemField = (item: any, ...keys: string[]) => {
+    if (!item) return null;
+    for (const k of keys) {
+      if (item[k] !== undefined && item[k] !== null && item[k] !== "") return item[k];
+      if (item.metadata && item.metadata[k] !== undefined && item.metadata[k] !== null && item.metadata[k] !== "") return item.metadata[k];
+      if (item.rawDetails && item.rawDetails[k] !== undefined && item.rawDetails[k] !== null && item.rawDetails[k] !== "") return item.rawDetails[k];
+      if (item.details && item.details[k] !== undefined && item.details[k] !== null && item.details[k] !== "") return item.details[k];
+    }
+    return null;
+  };
+
   const renderItemDetails = (item: any) => {
+    const itemType = getItemField(item, "itemType", "item_type");
+    const category = getItemField(item, "category");
+    const condition = getItemField(item, "condition");
+    const grade = getItemField(item, "grade", "universityYear", "university_year");
+    const schoolName = getItemField(item, "schoolName", "school_name", "school");
+    const university = getItemField(item, "university", "university_name");
+    const subject = getItemField(item, "subject");
+    const size = getItemField(item, "size", "item_size");
+    const color = getItemField(item, "color", "colour");
+    const gender = getItemField(item, "gender");
+    const isbn = getItemField(item, "isbn");
+    const publisher = getItemField(item, "publisher");
+    const language = getItemField(item, "language");
+    const curriculum = getItemField(item, "curriculum");
+    const parcelSize = getItemField(item, "parcelSize", "parcel_size");
+    const quantity = getItemField(item, "quantity", "available_quantity", "availableQuantity");
+    const province = getItemField(item, "province");
+    const description = getItemField(item, "description");
+
     return (
       <div className="space-y-4">
         {/* Full Detail Grid */}
         <div className="bg-white rounded-lg border border-gray-100 px-4 py-3 divide-y divide-gray-50">
-          <DetailRow label="ISBN" value={item.isbn} icon={<Hash className="w-3.5 h-3.5" />} />
-          <DetailRow label="Publisher" value={item.publisher} icon={<BookOpen className="w-3.5 h-3.5" />} />
-          <DetailRow label="Language" value={item.language} icon={<Globe className="w-3.5 h-3.5" />} />
-          <DetailRow label="Curriculum" value={item.curriculum} icon={<Layers className="w-3.5 h-3.5" />} />
-          <DetailRow
-            label="Grade / Year"
-            value={item.grade || item.universityYear}
-            icon={<GraduationCap className="w-3.5 h-3.5" />}
-          />
-          <DetailRow label="School Name" value={item.school_name || item.schoolName} icon={<BookOpen className="w-3.5 h-3.5" />} />
-          <DetailRow label="Gender" value={item.gender} icon={<Tag className="w-3.5 h-3.5" />} />
-          <DetailRow label="Size" value={item.size} icon={<Tag className="w-3.5 h-3.5" />} />
-          <DetailRow label="Color" value={item.color} icon={<Tag className="w-3.5 h-3.5" />} />
-          <DetailRow label="Subject" value={item.subject} icon={<BookOpen className="w-3.5 h-3.5" />} />
-          <DetailRow label="Quantity Available" value={item.quantity || item.available_quantity || item.availableQuantity} icon={<Hash className="w-3.5 h-3.5" />} />
-          <DetailRow label="Item Type" value={item.itemType || item.item_type} icon={<Tag className="w-3.5 h-3.5" />} />
-          <DetailRow label="Province" value={item.province} icon={<Globe className="w-3.5 h-3.5" />} />
+          <DetailRow label="Item Type" value={itemType} icon={<Tag className="w-3.5 h-3.5 text-blue-600" />} />
+          <DetailRow label="Category" value={category} icon={<Tag className="w-3.5 h-3.5 text-indigo-600" />} />
+          <DetailRow label="Condition" value={condition} icon={<CheckCircle className="w-3.5 h-3.5 text-green-600" />} />
+          <DetailRow label="Grade / Year" value={grade} icon={<GraduationCap className="w-3.5 h-3.5 text-purple-600" />} />
+          <DetailRow label="School Name" value={schoolName} icon={<BookOpen className="w-3.5 h-3.5 text-amber-600" />} />
+          <DetailRow label="University / Institution" value={university} icon={<GraduationCap className="w-3.5 h-3.5 text-indigo-600" />} />
+          <DetailRow label="Subject" value={subject} icon={<BookOpen className="w-3.5 h-3.5 text-emerald-600" />} />
+          <DetailRow label="Size" value={size} icon={<Tag className="w-3.5 h-3.5 text-pink-600" />} />
+          <DetailRow label="Gender" value={gender} icon={<Tag className="w-3.5 h-3.5 text-cyan-600" />} />
+          <DetailRow label="Color" value={color} icon={<Tag className="w-3.5 h-3.5 font-bold" />} />
+          <DetailRow label="ISBN" value={isbn} icon={<Hash className="w-3.5 h-3.5 text-gray-500" />} />
+          <DetailRow label="Publisher" value={publisher} icon={<BookOpen className="w-3.5 h-3.5 text-gray-500" />} />
+          <DetailRow label="Language" value={language} icon={<Globe className="w-3.5 h-3.5 text-blue-500" />} />
+          <DetailRow label="Curriculum" value={curriculum} icon={<Layers className="w-3.5 h-3.5 text-teal-600" />} />
+          <DetailRow label="Parcel Size" value={parcelSize ? String(parcelSize).toUpperCase() : null} icon={<Package className="w-3.5 h-3.5 text-orange-600" />} />
+          <DetailRow label="Quantity Available" value={quantity} icon={<Hash className="w-3.5 h-3.5 text-gray-500" />} />
+          <DetailRow label="Province / Location" value={province} icon={<Globe className="w-3.5 h-3.5 text-green-600" />} />
         </div>
 
         {/* Description */}
-        {item.description && (
+        {description && (
           <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
             <div className="flex items-center gap-1.5 mb-2">
               <FileText className="w-4 h-4 text-gray-500" />
               <h4 className="font-semibold text-sm sm:text-base text-gray-900">Description</h4>
             </div>
-            <p className="text-sm text-gray-700 leading-relaxed">{item.description}</p>
+            <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">{description}</p>
           </div>
         )}
       </div>
@@ -182,7 +212,7 @@ const Step1OrderSummary: React.FC<Step1OrderSummaryProps> = ({
     'id', 'title', 'author', 'price', 'condition', 'isbn', 'image_url', 'description', 'category',
     'front_cover', 'additional_images', 'seller_id', 'seller_name', 'seller', 'rawDetails',
     'language', 'publisher', 'curriculum', 'province', 'grade', 'universityYear', 'university',
-    'schoolName', 'school_name', 'gender', 'size', 'color', 'colour', 'subject', 'parcelSize', 'quantity',
+    'schoolName', 'school_name', 'gender', 'size', 'color', 'colour', 'subject', 'parcelSize', 'parcel_size', 'quantity',
     'availableQuantity', 'available_quantity', 'initialQuantity', 'soldQuantity', 'itemType', 'item_type',
     'imageUrls', 'images', 'created_at', 'createdAt', 'status', 'sold', 'metadata'
   ]);
@@ -203,9 +233,9 @@ const Step1OrderSummary: React.FC<Step1OrderSummaryProps> = ({
   // Build a badge label for condition
   const conditionColor = (cond: string | undefined) => {
     switch ((cond || '').toLowerCase()) {
-      case 'like new': return 'bg-green-100 text-green-800 border-green-200';
-      case 'good': return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'fair': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'like new': case 'new': return 'bg-green-100 text-green-800 border-green-200';
+      case 'good': case 'better': return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'fair': case 'average': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
       default: return 'bg-gray-100 text-gray-700 border-gray-200';
     }
   };
@@ -340,44 +370,8 @@ const Step1OrderSummary: React.FC<Step1OrderSummaryProps> = ({
                 </div>
               </div>
 
-              {/* Full Detail Grid */}
-              <div className="bg-white rounded-lg border border-gray-100 px-4 py-3 divide-y divide-gray-50">
-                {/* Book-specific */}
-                <DetailRow label="ISBN" value={book.isbn || (book as any).isbn} icon={<Hash className="w-3.5 h-3.5" />} />
-                <DetailRow label="Publisher" value={(book as any).publisher || (book as any).publisher} icon={<BookOpen className="w-3.5 h-3.5" />} />
-                <DetailRow label="Language" value={(book as any).language || (book as any).language} icon={<Globe className="w-3.5 h-3.5" />} />
-                <DetailRow label="Curriculum" value={(book as any).curriculum || (book as any).curriculum} icon={<Layers className="w-3.5 h-3.5" />} />
-                <DetailRow
-                  label="Grade / Year"
-                  value={(book as any).grade || (book as any).universityYear || (book as any).university_year}
-                  icon={<GraduationCap className="w-3.5 h-3.5" />}
-                />
-                {/* Uniform-specific */}
-                <DetailRow label="School Name" value={(book as any).school_name || (book as any).schoolName} icon={<BookOpen className="w-3.5 h-3.5" />} />
-                <DetailRow label="Gender" value={(book as any).gender} icon={<Tag className="w-3.5 h-3.5" />} />
-                <DetailRow label="Size" value={(book as any).size} icon={<Tag className="w-3.5 h-3.5" />} />
-                <DetailRow label="Color" value={(book as any).color || (book as any).colour} icon={<Tag className="w-3.5 h-3.5" />} />
-                {/* Supply-specific */}
-                <DetailRow label="Subject" value={(book as any).subject} icon={<BookOpen className="w-3.5 h-3.5" />} />
-                <DetailRow label="Quantity Available" value={(book as any).quantity || (book as any).available_quantity || (book as any).availableQuantity} icon={<Hash className="w-3.5 h-3.5" />} />
-                {/* Shared */}
-                <DetailRow label="Item Type" value={(book as any).itemType || (book as any).item_type} icon={<Tag className="w-3.5 h-3.5" />} />
-                <DetailRow label="Province" value={(book as any).province} icon={<Globe className="w-3.5 h-3.5" />} />
-                {extraDetailEntries.map((detail) => (
-                  <DetailRow key={detail.key} label={detail.label} value={detail.value} icon={<Tag className="w-3.5 h-3.5" />} />
-                ))}
-              </div>
-
-              {/* Description */}
-              {book.description && (
-                <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
-                  <div className="flex items-center gap-1.5 mb-2">
-                    <FileText className="w-4 h-4 text-gray-500" />
-                    <h4 className="font-semibold text-sm sm:text-base text-gray-900">Description</h4>
-                  </div>
-                  <p className="text-sm text-gray-700 leading-relaxed">{book.description}</p>
-                </div>
-              )}
+              {/* Full Detail Grid & Description */}
+              {renderItemDetails(book)}
             </div>
           )}
         </CardContent>

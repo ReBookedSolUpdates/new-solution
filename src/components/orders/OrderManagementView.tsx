@@ -195,12 +195,12 @@ const OrderManagementView: React.FC<OrderManagementViewProps> = () => {
       const { data: ordersData, error: ordersError } = await supabase
         .from("orders")
         .select(`
-          id, book_id, item_id, item_type, buyer_id, seller_id, status, delivery_status, payment_status, created_at, updated_at,
+          id, order_id, payment_reference, paystack_reference, book_id, item_id, item_type, buyer_id, seller_id, status, delivery_status, payment_status, created_at, updated_at,
           cancelled_at, cancellation_reason, tracking_number, tracking_data,
           selected_courier_name, selected_service_name, total_amount, delivery_data,
           buyer_full_name, buyer_email, seller_full_name, seller_email, receipt_pdf_base64, wallet_deducted_amount,
           order_type, pickup_status, delivery_option, meetup_location, meetup_time,
-          buyer_confirmed_at, seller_confirmed_at
+          buyer_confirmed_at, seller_confirmed_at, commission_rate_applied
         `)
         .or(`buyer_id.eq.${user.id},seller_id.eq.${user.id}`)
         .order("created_at", { ascending: false });
@@ -376,6 +376,16 @@ const OrderManagementView: React.FC<OrderManagementViewProps> = () => {
       ? (order.seller?.full_name || order.seller?.name || "Seller")
       : (order.buyer?.full_name || order.buyer?.name || "Buyer");
 
+    const orderRef = order.order_id || (order as any).payment_reference || (order as any).paystack_reference || order.id.slice(0, 8);
+    
+    // Commission rate calculation for sellers
+    const isSeller = role === "seller";
+    const appliedCommissionRate = (order as any).commission_rate_applied !== undefined && (order as any).commission_rate_applied !== null
+      ? Number((order as any).commission_rate_applied)
+      : undefined;
+      
+    const grossPrice = typeof order.book?.price === "number" ? order.book.price : (order.total_amount || 0);
+
     return (
       <div className="flex gap-4 items-start w-full">
         <button
@@ -399,13 +409,18 @@ const OrderManagementView: React.FC<OrderManagementViewProps> = () => {
               <p className="text-sm text-book-600 mt-1">
                 {order.book?.author || "ReBooked Solutions"}
               </p>
-              <p className="text-xs text-book-500 mt-2">
-                Order #{order.id.slice(-8)} • {otherPartyName}
+              <p className="text-xs text-book-500 mt-2 font-mono">
+                Order #{orderRef} • {otherPartyName}
               </p>
             </div>
             <div className="md:text-right">
-              {typeof order.book?.price === "number" && (
-                <div className="text-lg font-bold text-book-600">R{order.book.price.toFixed(2)}</div>
+              {typeof grossPrice === "number" && (
+                <div className="text-lg font-bold text-book-600">R{grossPrice.toFixed(2)}</div>
+              )}
+              {isSeller && appliedCommissionRate !== undefined && (
+                <div className="text-[11px] text-amber-700 font-medium mt-0.5">
+                  Commission ({(appliedCommissionRate * 100).toFixed(1)}%): -R{(grossPrice * appliedCommissionRate).toFixed(2)}
+                </div>
               )}
               <div className="text-xs text-book-500 mt-1">{new Date(order.created_at).toLocaleDateString()}</div>
             </div>

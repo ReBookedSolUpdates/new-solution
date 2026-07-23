@@ -134,3 +134,41 @@ export async function getPickupPoints(params: {
 }) {
   return invokeShippingFunction("get-pickup-points", { body: params as Record<string, unknown> });
 }
+
+/**
+ * Update an existing shipment
+ */
+export async function updateShipment(params: {
+  shipment_id: string;
+  order_id?: string;
+  shipment_data: Record<string, unknown>;
+}) {
+  return invokeShippingFunction("update-shipment", {
+    body: { action: "update_shipment", ...params } as Record<string, unknown>,
+  });
+}
+
+/**
+ * Update a parcel within a shipment
+ */
+export async function updateParcel(params: {
+  shipment_id: string;
+  parcel_id?: string;
+  parcel_data: Record<string, unknown>;
+}) {
+  return invokeShippingFunction("update-shipment", {
+    body: { action: "update_parcel", ...params } as Record<string, unknown>,
+  });
+}
+
+/**
+ * Create a return shipment for a dispute
+ */
+export async function createReturnShipment(params: {
+  order_id: string;
+}) {
+  return invokeShippingFunction("update-shipment", {
+    body: { action: "create_return", ...params } as Record<string, unknown>,
+  });
+}
+

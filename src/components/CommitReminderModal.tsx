@@ -132,7 +132,7 @@ const CommitReminderModal = ({
   // Buyer version
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="rounded-2xl max-w-xs sm:max-w-md">
+      <DialogContent hideCloseButton className="rounded-2xl max-w-xs sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-blue-600">
             <Clock className="h-5 w-5" />

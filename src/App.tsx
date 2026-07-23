@@ -68,6 +68,7 @@ import BusinessProfile from "./pages/BusinessProfile"; // Modularized tab struct
 import TextbooksInfo from "./pages/TextbooksInfo";
 import UniformsInfo from "./pages/UniformsInfo";
 import SchoolSuppliesInfo from "./pages/SchoolSuppliesInfo";
+import AcceptInvite from "./pages/AcceptInvite";
 
 
 // Other Pages
@@ -164,6 +165,7 @@ function AppRoutes() {
 
         {/* Authentication Routes */}
         <Route path="/login" element={<Login />} />
+        <Route path="/accept-invite" element={<AcceptInvite />} />
         <Route path="/register" element={<Register />} />
         <Route
           path="/forgot-password"

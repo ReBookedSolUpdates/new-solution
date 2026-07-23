@@ -5,7 +5,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const PAYSTACK_SECRET_KEY = Deno.env.get('PAYSTACK_SECRET_KEY') || 'sk_test_placeholder_key_value_here';
+const sandboxKey = Deno.env.get('PAYSTACK_SECRET_KEY_SANDBOX');
+const PAYSTACK_SECRET_KEY = sandboxKey || Deno.env.get('PAYSTACK_SECRET_KEY') || 'sk_test_placeholder_key_value_here';
 
 // Clamp renewal date: if the day-of-month is > 28, set to 28th.
 // This ensures subscriptions starting on 29th/30th/31st always renew on the 28th.
@@ -22,15 +23,151 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { reference } = await req.json();
+    const { reference, business_id } = await req.json().catch(() => ({}));
 
+    const authHeader = req.headers.get('Authorization');
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    // 1. Manual check logic using business_id
+    if (business_id && !reference) {
+      console.log(`[paystack-verify-subscription] Manual subscription sync request for business: ${business_id}`);
+
+      if (!authHeader) {
+        throw new Error('Unauthorized: Missing authorization header');
+      }
+
+      const supabaseAuth = createClient(
+        Deno.env.get('SUPABASE_URL') ?? '',
+        Deno.env.get('SUPABASE_ANON_KEY') ?? ''
+      );
+
+      const { data: { user }, error: authError } = await supabaseAuth.auth.getUser(
+        authHeader.replace('Bearer ', '')
+      );
+
+      if (authError || !user) {
+        throw new Error('Unauthorized: Invalid authentication');
+      }
+
+      const isOwner = user.id === business_id;
+      let isCollaborator = false;
+
+      if (!isOwner) {
+        const { data: collab } = await supabase
+          .from('business_collaborators')
+          .select('id')
+          .eq('business_id', business_id)
+          .eq('collaborator_id', user.id)
+          .eq('status', 'Active')
+          .maybeSingle();
+        if (collab?.id) {
+          isCollaborator = true;
+        }
+      }
+
+      if (!isOwner && !isCollaborator) {
+        throw new Error('Unauthorized: Access denied');
+      }
+
+      const { data: sub } = await supabase
+        .from('business_subscriptions')
+        .select('*')
+        .eq('business_id', business_id)
+        .maybeSingle();
+
+      if (!sub || !sub.paystack_subscription_code) {
+        return new Response(
+          JSON.stringify({
+            success: true,
+            tier: sub?.tier || 'free',
+            status: sub?.status || 'none',
+            message: 'No subscription record found'
+          }),
+          {
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          }
+        );
+      }
+
+      const response = await fetch(`https://api.paystack.co/subscription/${sub.paystack_subscription_code}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${PAYSTACK_SECRET_KEY}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const result = await response.json();
+      console.log('[paystack-verify-subscription] Paystack subscription response:', result);
+
+      if (!response.ok || !result.status) {
+        throw new Error(result.message || 'Failed to fetch status from Paystack');
+      }
+
+      const liveStatus = result.data.status;
+      const rawEnd = result.data.next_payment_date || result.data.current_period_end;
+      const currentPeriodEnd = rawEnd ? clampRenewalDate(new Date(rawEnd)).toISOString() : null;
+
+      let localStatus = sub.status;
+      let localTier = sub.tier;
+
+      if (liveStatus === 'active' || liveStatus === 'non-renewing') {
+        localStatus = 'active';
+        localTier = 'tier1';
+      } else if (liveStatus === 'attention') {
+        localStatus = 'past_due';
+      } else if (liveStatus === 'completed' || liveStatus === 'cancelled') {
+        localStatus = 'cancelled';
+        localTier = 'free';
+      }
+
+      const { error: updateSubErr } = await supabase
+        .from('business_subscriptions')
+        .update({
+          status: localStatus,
+          tier: localTier,
+          current_period_end: currentPeriodEnd || sub.current_period_end,
+          updated_at: new Date().toISOString()
+        })
+        .eq('business_id', business_id);
+
+      if (updateSubErr) throw updateSubErr;
+
+      const { error: updateProfErr } = await supabase
+        .from('profiles')
+        .update({
+          subscription_tier: localTier,
+          subscription_active_until: localTier === 'tier1' ? (currentPeriodEnd || sub.current_period_end) : null
+        })
+        .eq('id', business_id);
+
+      if (updateProfErr) throw updateProfErr;
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          tier: localTier,
+          status: localStatus,
+          currentPeriodEnd: currentPeriodEnd || sub.current_period_end
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
+
+    // 2. Original reference check logic
     if (!reference) {
       throw new Error('Reference is required for verification');
     }
 
     console.log(`[paystack-verify-subscription] Verifying reference: ${reference}`);
 
-    // 1. Call Paystack Verify API
     const response = await fetch(`https://api.paystack.co/transaction/verify/${reference}`, {
       method: 'GET',
       headers: {
@@ -50,12 +187,6 @@ Deno.serve(async (req) => {
     const email = eventData.customer?.email;
     let userId = eventData.metadata?.user_id || null;
 
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
-
-    // If userId is missing from metadata, resolve by customer email
     if (!userId && email) {
       const { data: profile } = await supabase
         .from('profiles')
@@ -80,7 +211,6 @@ Deno.serve(async (req) => {
       ? new Date(eventData.current_period_start).toISOString()
       : new Date().toISOString();
 
-    // 2. Upsert business_subscriptions record
     const { error: subErr } = await supabase
       .from('business_subscriptions')
       .upsert({
@@ -97,7 +227,6 @@ Deno.serve(async (req) => {
 
     if (subErr) throw subErr;
 
-    // 3. Update profiles table
     const { error: profErr } = await supabase
       .from('profiles')
       .update({

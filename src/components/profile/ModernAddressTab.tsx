@@ -531,9 +531,27 @@ const ModernAddressTab = ({
           </CardHeader>
           <CardContent className="p-6">
             <div className="space-y-4">
-              <p className="text-sm text-gray-600">
-                Where books you sell will be picked up from
-              </p>
+              <div className="flex items-center gap-4 py-2 border-b border-gray-100">
+                <span className="text-xs font-semibold text-gray-700">Location Type:</span>
+                <RadioGroup
+                  defaultValue="business"
+                  onValueChange={(val) => {
+                    if (pickupAddress) {
+                      setPickupAddress({ ...pickupAddress, addressType: val as "home" | "business" });
+                    }
+                  }}
+                  className="flex items-center gap-4 text-xs"
+                >
+                  <div className="flex items-center space-x-1.5">
+                    <RadioGroupItem value="business" id="type-biz" />
+                    <Label htmlFor="type-biz" className="cursor-pointer font-medium">Business / Shop Address</Label>
+                  </div>
+                  <div className="flex items-center space-x-1.5">
+                    <RadioGroupItem value="home" id="type-home" />
+                    <Label htmlFor="type-home" className="cursor-pointer font-medium">Home Address</Label>
+                  </div>
+                </RadioGroup>
+              </div>
 
               {(editMode === "pickup" || editMode === "both") ? (
                 <div className="space-y-4">

@@ -83,7 +83,7 @@ const ReportBookDialog = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-[90vw] max-w-[90vw] sm:max-w-md mx-auto my-auto rounded-2xl">
+      <DialogContent hideCloseButton className="w-[90vw] max-w-[90vw] sm:max-w-md mx-auto my-auto rounded-2xl">
         <DialogHeader>
           <DialogTitle>Report Listing</DialogTitle>
           <DialogDescription>

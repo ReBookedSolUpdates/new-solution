@@ -219,10 +219,10 @@ export const updateBook = async (
       throw new Error("User not authenticated");
     }
 
-    // First verify the user owns this book
+    // First verify the user owns this book and load current quantities for consistency check
     const { data: existingBook, error: fetchError } = await supabase
       .from("books")
-      .select("seller_id")
+      .select("seller_id, sold_quantity, initial_quantity, available_quantity")
       .eq("id", bookId)
       .single();
 
@@ -276,10 +276,17 @@ export const updateBook = async (
     if (bookData.universityYear !== undefined)
       updateData.university_year = bookData.universityYear;
     if ((bookData as any).quantity !== undefined) {
-      const qty = Math.max(1, Number((bookData as any).quantity));
-      updateData.available_quantity = qty;
-      // Do not reduce initial_quantity on edit; optionally increase if higher than initial
-      updateData.initial_quantity = updateData.initial_quantity ?? undefined;
+      const newAvailableQty = Math.max(0, Number((bookData as any).quantity));
+      const currentSoldQty = Number(existingBook.sold_quantity || 0);
+      
+      updateData.available_quantity = newAvailableQty;
+      // Maintain books_qty_consistency: initial_quantity = available_quantity + sold_quantity
+      updateData.initial_quantity = newAvailableQty + currentSoldQty;
+
+      // If available quantity is restored > 0, un-mark sold flag
+      if (newAvailableQty > 0) {
+        updateData.sold = false;
+      }
     }
 
     const { data: book, error } = await supabase

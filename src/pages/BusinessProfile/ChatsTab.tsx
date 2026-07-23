@@ -7,7 +7,16 @@ import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { checkLiveSubscription } from "@/services/subscriptionService";
 import { supabase } from "@/integrations/supabase/client";
-import { getUserConversations, sendMessage } from "@/services/chatService";
+import { getUserConversations, sendMessage, getSignedMediaUrl } from "@/services/chatService";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 import {
   MessageSquare,
   Search,
@@ -19,19 +28,56 @@ import {
   Sparkles,
   ChevronRight,
   CheckCircle2,
+  CheckCircle,
   MapPin,
   RefreshCw,
+  X as XIcon,
+  Loader2,
 } from "lucide-react";
 
-interface DemoMessage {
+// Media message rendering logic
+const MediaMessage = ({ path, type, onClick }: { path: string; type: string; onClick?: () => void }) => {
+  const [url, setUrl] = React.useState<string | null>(null);
+  React.useEffect(() => {
+    let cancelled = false;
+    getSignedMediaUrl(path).then((u) => { if (!cancelled) setUrl(u); });
+    return () => { cancelled = true; };
+  }, [path]);
+  if (!url) return <div className="h-20 w-32 bg-gray-100 rounded-lg animate-pulse" />;
+  const content = type === "video" ? (
+    <video src={url} controls className="rounded-lg w-full max-w-xs max-h-40 object-contain bg-black" />
+  ) : (
+    <img src={url} alt="Shared" className="rounded-lg w-full max-w-xs max-h-40 object-cover" />
+  );
+  return onClick ? (
+    <button onClick={onClick} className="cursor-pointer w-full max-w-xs block overflow-hidden rounded-lg">
+      {content}
+    </button>
+  ) : content;
+};
+
+// Lightbox image wrapper
+const LightboxImage = ({ path }: { path: string }) => {
+  const [url, setUrl] = React.useState<string | null>(null);
+  React.useEffect(() => {
+    getSignedMediaUrl(path).then(setUrl);
+  }, [path]);
+  if (!url) return <RefreshCw className="h-6 w-6 text-white animate-spin" />;
+  return <img src={url} alt="Shared media large" className="max-w-full max-h-full object-contain rounded-lg shadow-2xl" />;
+};
+
+
+interface ChatMessage {
   id: string;
   sender: "seller" | "buyer";
   text: string;
   timestamp: string;
   seen: boolean;
+  media_url?: string;
+  media_type?: string;
 }
 
-interface DemoConversation {
+interface ChatConversation {
   id: string;
   buyerName: string;
   buyerAvatar?: string;
@@ -43,10 +89,14 @@ interface DemoConversation {
   orderStatus: "Pending Acceptance" | "Awaiting Pickup" | "In Transit" | "Completed" | "Cancelled" | "Disputed" | "Escalated";
   orderType: "pickup" | "delivery";
   disputeDeadline?: string;
-  messages: DemoMessage[];
+  messages: ChatMessage[];
   archived?: boolean;
   isReal?: boolean;
   listingId?: string | null;
+  disputeReason?: string | null;
+  disputeStatus?: string | null;
+  disputeResolution?: string | null;
+  orderUUID?: string | null;
 }
 
 const CANNED_REPLIES = [
@@ -76,66 +126,24 @@ export const ChatsTab: React.FC = () => {
   const [selectedConvs, setSelectedConvs] = useState<Record<string, boolean>>({});
 
   // 1. REAL CONVERSATIONS FROM BACKEND DB
-  const [realConvs, setRealConvs] = useState<DemoConversation[]>([]);
+  const [realConvs, setRealConvs] = useState<ChatConversation[]>([]);
   const [loadingReal, setLoadingReal] = useState(true);
-  const [realMessages, setRealMessages] = useState<DemoMessage[]>([]);
+  const [realMessages, setRealMessages] = useState<ChatMessage[]>([]);
   const [loadingMessages, setLoadingMessages] = useState(false);
 
-  // 2. DEMO CONVERSATIONS MOCK DATA
-  const [conversations, setConversations] = useState<DemoConversation[]>([
-    {
-      id: "c-1",
-      buyerName: "Sarah Jenkins",
-      buyerAvatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150",
-      lastMessage: "The book pages are torn and the binding is broken. I want a refund.",
-      lastMessageTime: "10:15",
-      unread: true,
-      orderId: "ORD-178266-C65",
-      orderItem: "Grade 11 Mathematics Textbook",
-      orderStatus: "Disputed",
-      orderType: "delivery",
-      disputeDeadline: new Date(Date.now() + 18.5 * 60 * 60 * 1000).toISOString(),
-      messages: [
-        { id: "m-1-1", sender: "buyer", text: "Hi, I received the textbook today.", timestamp: "09:30", seen: true },
-        { id: "m-1-2", sender: "seller", text: "Excellent! Let me know if you need anything else.", timestamp: "09:35", seen: true },
-        { id: "m-1-3", sender: "buyer", text: "Wait, the book pages are torn and the binding is broken. I want a refund.", timestamp: "10:15", seen: false },
-      ]
-    },
-    {
-      id: "c-2",
-      buyerName: "Michael Zulu",
-      buyerAvatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150",
-      lastMessage: "Hey, are you still good for 2pm tomorrow?",
-      lastMessageTime: "09:40",
-      unread: true,
-      orderId: "ORD-178278-KLAL",
-      orderItem: "Accounting Workbook Vol 2",
-      orderStatus: "Awaiting Pickup",
-      orderType: "pickup",
-      messages: [
-        { id: "m-2-1", sender: "seller", text: "Hi Michael, your order has been accepted. We can meet at the campus lockers.", timestamp: "Yesterday", seen: true },
-        { id: "m-2-2", sender: "buyer", text: "Awesome. I scheduled the pickup for tomorrow.", timestamp: "09:00", seen: true },
-        { id: "m-2-3", sender: "buyer", text: "Hey, are you still good for 2pm tomorrow?", timestamp: "09:40", seen: false },
-      ]
-    },
-    {
-      id: "c-3",
-      buyerName: "Emily Watson",
-      buyerAvatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150",
-      lastMessage: "Thank you for the quick handover, the lab coat fits perfectly!",
-      lastMessageTime: "Yesterday",
-      unread: false,
-      orderId: "ORD-178265-P32",
-      orderItem: "Science Lab Coat & Goggles",
-      orderStatus: "Completed",
-      orderType: "pickup",
-      messages: [
-        { id: "m-3-1", sender: "seller", text: "Hi Emily, I am waiting near the science block.", timestamp: "Yesterday", seen: true },
-        { id: "m-3-2", sender: "buyer", text: "On my way!", timestamp: "Yesterday", seen: true },
-        { id: "m-3-3", sender: "buyer", text: "Thank you for the quick handover, the lab coat fits perfectly!", timestamp: "Yesterday", seen: true },
-      ]
-    }
-  ]);
+  // Custom Quick Responses states
+  const [customReplies, setCustomReplies] = useState<string[]>([]);
+  const [newCustomReply, setNewCustomReply] = useState("");
+  const [showQuickRepliesModal, setShowQuickRepliesModal] = useState(false);
+
+  // Dispute resolution states
+  const [showResolveDialog, setShowResolveDialog] = useState(false);
+  const [resolvingOrderId, setResolvingOrderId] = useState<string | null>(null);
+  const [disputeResolutionText, setDisputeResolutionText] = useState("");
+  const [resolving, setResolving] = useState(false);
+
+  // Lightbox Media state
+  const [selectedMedia, setSelectedMedia] = useState<{ path: string; type: string } | null>(null);
 
   // Load active subscription status
   useEffect(() => {
@@ -154,6 +162,62 @@ export const ChatsTab: React.FC = () => {
     fetchTier();
   }, [user]);
 
+  // Load custom quick responses
+  const loadCustomReplies = async () => {
+    if (!user?.id) return;
+    try {
+      const { data, error } = await supabase
+        .from("business_quick_responses")
+        .select("text")
+        .eq("business_id", user.id)
+        .order("created_at", { ascending: true });
+
+      if (error) throw error;
+      setCustomReplies((data || []).map((r: any) => r.text));
+    } catch (err) {
+      console.error("Failed to load custom quick responses:", err);
+    }
+  };
+
+  useEffect(() => {
+    if (user?.id) {
+      loadCustomReplies();
+    }
+  }, [user]);
+
+  // Add custom quick reply (Tier 1 feature)
+  const handleAddCustomReply = async () => {
+    if (!user?.id || !newCustomReply.trim()) return;
+    try {
+      const { error } = await supabase
+        .from("business_quick_responses")
+        .insert({ business_id: user.id, text: newCustomReply.trim() });
+      if (error) throw error;
+      toast.success("Custom reply added!");
+      setNewCustomReply("");
+      await loadCustomReplies();
+    } catch (err: any) {
+      toast.error("Failed to add custom reply: " + err.message);
+    }
+  };
+
+  // Delete custom quick reply (Tier 1 feature)
+  const handleDeleteCustomReply = async (replyText: string) => {
+    if (!user?.id) return;
+    try {
+      const { error } = await supabase
+        .from("business_quick_responses")
+        .delete()
+        .eq("business_id", user.id)
+        .eq("text", replyText);
+      if (error) throw error;
+      toast.success("Custom reply removed");
+      await loadCustomReplies();
+    } catch (err: any) {
+      toast.error("Failed to delete reply: " + err.message);
+    }
+  };
+
   // Fetch real database chats
   const loadRealData = async () => {
     if (!user?.id) return;
@@ -165,11 +229,11 @@ export const ChatsTab: React.FC = () => {
         .from("orders")
         .select(`
           id, book_id, item_id, item_type, buyer_id, seller_id, status, delivery_status,
-          order_type, pickup_status, total_amount, dispute_reason
+          order_type, pickup_status, total_amount, dispute_reason, dispute_status, dispute_resolution
         `)
         .or(`seller_id.eq.${user.id},buyer_id.eq.${user.id}`);
 
-      const mapped: DemoConversation[] = convList.map(c => {
+      const mapped: ChatConversation[] = convList.map(c => {
         const isSeller = c.seller_id === user.id;
         const otherParty = isSeller ? c.buyer : c.seller;
         
@@ -205,7 +269,11 @@ export const ChatsTab: React.FC = () => {
           orderType: relatedOrder?.order_type === "pickup" ? "pickup" : "delivery",
           messages: [],
           isReal: true,
-          listingId: c.listing_id
+          listingId: c.listing_id,
+          disputeReason: relatedOrder?.dispute_reason || null,
+          disputeStatus: relatedOrder?.dispute_status || null,
+          disputeResolution: relatedOrder?.dispute_resolution || null,
+          orderUUID: relatedOrder?.id || null
         };
       });
 
@@ -228,8 +296,8 @@ export const ChatsTab: React.FC = () => {
       return;
     }
 
-    const active = [...realConvs, ...conversations].find(c => c.id === selectedConvId);
-    if (!active?.isReal) {
+    const active = realConvs.find(c => c.id === selectedConvId);
+    if (!active) {
       return;
     }
 
@@ -244,14 +312,16 @@ export const ChatsTab: React.FC = () => {
 
         if (error) throw error;
 
-        const mapped: DemoMessage[] = (msgList || []).map(m => {
+        const mapped: ChatMessage[] = (msgList || []).map(m => {
           const isSeller = m.sender_id === user?.id;
           return {
             id: m.id,
             sender: isSeller ? "seller" : "buyer",
-            text: m.content || "Media / attachment",
+            text: m.content || "",
             timestamp: new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            seen: !!m.read_at
+            seen: !!m.read_at,
+            media_url: m.media_url,
+            media_type: m.media_type
           };
         });
 
@@ -283,12 +353,14 @@ export const ChatsTab: React.FC = () => {
         (payload) => {
           const newMsg = payload.new;
           const isSeller = newMsg.sender_id === user?.id;
-          const mappedMsg: DemoMessage = {
+          const mappedMsg: ChatMessage = {
             id: newMsg.id,
             sender: isSeller ? "seller" : "buyer",
-            text: newMsg.content || "Media / attachment",
+            text: newMsg.content || "",
             timestamp: new Date(newMsg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            seen: !!newMsg.read_at
+            seen: !!newMsg.read_at,
+            media_url: newMsg.media_url,
+            media_type: newMsg.media_type
           };
           setRealMessages(prev => {
             if (prev.some(m => m.id === mappedMsg.id)) return prev;
@@ -304,10 +376,10 @@ export const ChatsTab: React.FC = () => {
 
   }, [selectedConvId, realConvs, user]);
 
-  // Combine real and demo conversations
+  // All conversations from live Supabase data
   const allConversations = useMemo(() => {
-    return [...realConvs, ...conversations];
-  }, [realConvs, conversations]);
+    return realConvs;
+  }, [realConvs]);
 
   // Filter & sort visible conversations
   const visibleConversations = useMemo(() => {
@@ -342,9 +414,6 @@ export const ChatsTab: React.FC = () => {
       if (isTier1 && sortBy === "urgency") {
         if (a.orderStatus === "Disputed" && b.orderStatus !== "Disputed") return -1;
         if (a.orderStatus !== "Disputed" && b.orderStatus === "Disputed") return 1;
-        if (a.disputeDeadline && b.disputeDeadline) {
-          return new Date(a.disputeDeadline).getTime() - new Date(b.disputeDeadline).getTime();
-        }
       }
       return 1;
     });
@@ -358,58 +427,55 @@ export const ChatsTab: React.FC = () => {
   // Active messages computed
   const activeMessages = useMemo(() => {
     if (!activeConv) return [];
-    return activeConv.isReal ? realMessages : activeConv.messages;
+    return realMessages;
   }, [activeConv, realMessages]);
 
   // Handle Mark Resolved
-  const handleMarkResolved = async (convId: string) => {
-    const isMock = !convId.includes("-");
-    if (isMock) {
-      setConversations(prev =>
-        prev.map(c => {
-          if (c.id === convId) {
-            toast.success("Dispute issue resolved!");
-            return {
-              ...c,
-              orderStatus: "Completed",
-              disputeDeadline: undefined,
-              messages: [
-                ...c.messages,
-                {
-                  id: `m-res-${Date.now()}`,
-                  sender: "seller",
-                  text: "✨ Seller resolved the issue and completed the transaction.",
-                  timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                  seen: true
-                }
-              ]
-            };
-          }
-          return c;
-        })
-      );
+  const handleMarkResolved = (convId: string) => {
+    const active = realConvs.find(c => c.id === convId);
+    if (!active || !active.orderUUID) return;
+    setResolvingOrderId(active.orderUUID);
+    setDisputeResolutionText("");
+    setShowResolveDialog(true);
+  };
+
+  const submitResolveDispute = async () => {
+    if (!resolvingOrderId) return;
+    if (disputeResolutionText.trim().length < 10) {
+      toast.error("Please enter a resolution explanation of at least 10 characters.");
       return;
     }
-
+    setResolving(true);
     try {
-      // Find order to update
-      const active = realConvs.find(c => c.id === convId);
-      if (!active) return;
-      const orderUUID = active.orderId.replace("ORD-", "");
-
       const { error } = await supabase
         .from("orders")
         .update({
           status: "completed",
-          dispute_status: "resolved"
+          dispute_status: "resolved",
+          dispute_resolution: disputeResolutionText.trim(),
+          dispute_resolved_at: new Date().toISOString()
         })
-        .ilike("id", `%${orderUUID}`);
+        .eq("id", resolvingOrderId);
 
       if (error) throw error;
+
+      // Log event in order_events
+      await supabase.from('order_events').insert({
+        order_id: resolvingOrderId,
+        event_type: 'resolved',
+        actor: 'seller',
+        details: { resolution: disputeResolutionText.trim() }
+      }).catch(() => {});
+
       toast.success("Dispute resolved successfully!");
+      setShowResolveDialog(false);
+      setResolvingOrderId(null);
+      setDisputeResolutionText("");
       loadRealData();
     } catch (err: any) {
       toast.error("Failed to resolve dispute: " + err.message);
+    } finally {
+      setResolving(false);
     }
   };
 
@@ -418,77 +484,72 @@ export const ChatsTab: React.FC = () => {
     const text = textToSend || typedMessage;
     if (!text.trim() || !selectedConvId) return;
 
-    const active = allConversations.find(c => c.id === selectedConvId);
-    if (active?.isReal) {
-      try {
-        try {
-          await sendMessage(selectedConvId, user?.id || "", text);
-        } catch (sendErr) {
-          // Fallback direct insert
-          await supabase.from("messages").insert({
-            conversation_id: selectedConvId,
-            sender_id: user?.id,
-            content: text,
-            is_encrypted: false
-          });
-        }
-        if (!textToSend) setTypedMessage("");
-        loadRealData();
-      } catch (err: any) {
-        toast.error("Failed to send message: " + err.message);
-      }
-      return;
-    }
+    // Optimistic UI update
+    const optimisticMsg: ChatMessage = {
+      id: `opt-${Date.now()}`,
+      sender: "seller",
+      text: text,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      seen: false
+    };
+    setRealMessages(prev => [...prev, optimisticMsg]);
 
-    // Demo message flow
-    setConversations(prev =>
-      prev.map(c => {
-        if (c.id === selectedConvId) {
-          const newMsg: DemoMessage = {
-            id: `msg-${Date.now()}`,
-            sender: "seller",
-            text: text,
-            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            seen: false
-          };
-          return {
-            ...c,
-            lastMessage: text,
-            lastMessageTime: newMsg.timestamp,
-            messages: [...c.messages, newMsg]
-          };
-        }
-        return c;
-      })
-    );
-    if (!textToSend) setTypedMessage("");
+    try {
+      try {
+        await sendMessage(selectedConvId, user?.id || "", text);
+      } catch (sendErr) {
+        // Fallback direct insert
+        await supabase.from("messages").insert({
+          conversation_id: selectedConvId,
+          sender_id: user?.id,
+          content: text,
+          is_encrypted: false
+        });
+      }
+      if (!textToSend) setTypedMessage("");
+      loadRealData();
+    } catch (err: any) {
+      toast.error("Failed to send message: " + err.message);
+    }
   };
 
   // Bulk Actions
-  const handleBulkMarkRead = () => {
-    setConversations(prev =>
-      prev.map(c => {
-        if (selectedConvs[c.id]) {
-          return { ...c, unread: false };
-        }
-        return c;
-      })
-    );
-    setSelectedConvs({});
-    toast.success("Marked selected chats as read");
+  const handleBulkMarkRead = async () => {
+    const selectedIds = Object.keys(selectedConvs).filter(id => selectedConvs[id]);
+    if (selectedIds.length === 0) return;
+    try {
+      const { error } = await supabase
+        .from("messages")
+        .update({ read_at: new Date().toISOString() })
+        .in("conversation_id", selectedIds)
+        .neq("sender_id", user?.id)
+        .is("read_at", null);
+
+      if (error) throw error;
+      toast.success("Marked selected chats as read");
+      setSelectedConvs({});
+      loadRealData();
+    } catch (err: any) {
+      toast.error("Failed to mark read: " + err.message);
+    }
   };
 
-  const handleBulkArchive = () => {
-    setConversations(prev =>
-      prev.map(c => {
-        if (selectedConvs[c.id]) {
-          return { ...c, archived: true };
-        }
-        return c;
-      })
-    );
-    setSelectedConvs({});
-    toast.success("Archived selected conversations");
+  const handleBulkArchive = async () => {
+    const selectedIds = Object.keys(selectedConvs).filter(id => selectedConvs[id]);
+    if (selectedIds.length === 0) return;
+    try {
+      const { error } = await supabase
+        .from("conversations")
+        .update({ status: "archived" })
+        .in("id", selectedIds);
+
+      if (error) throw error;
+      toast.success("Archived selected conversations");
+      setSelectedConvs({});
+      loadRealData();
+    } catch (err: any) {
+      toast.error("Failed to archive conversations: " + err.message);
+    }
   };
 
   // Render Order Progress Timeline (Basic Feature for both)
@@ -499,20 +560,22 @@ export const ChatsTab: React.FC = () => {
     }
 
     // Determine active index
-    let activeIdx = 0;
-    if (["committed", "awaiting_pickup", "pickup_scheduled", "ready_for_pickup", "Awaiting Pickup"].includes(status)) {
-      activeIdx = 1;
+    let activeIdx = 0; // Paid
+    if (["committed", "awaiting_pickup", "pickup_scheduled", "ready_for_pickup"].includes(status)) {
+      activeIdx = 1; // Committed
     } else if (
-      ["dispatched", "in_transit", "handed_over", "awaiting_buyer_confirmation", "In Transit", "Disputed", "Escalated", "disputed", "escalated"].includes(status)
+      ["dispatched", "in_transit", "handed_over", "awaiting_buyer_confirmation", "disputed", "escalated"].includes(status)
     ) {
-      activeIdx = 2;
+      activeIdx = 2; // Shipped / In Transit
+    } else if (["delivered", "completed"].includes(status)) {
+      activeIdx = 3; // Delivered
     }
 
     const steps = [
-      { label: "Pending Commit", desc: "Awaiting seller accept" },
-      { label: "Accepted / Ready", desc: orderType === "pickup" ? "Meetup scheduled" : "Ready for courier" },
-      { label: "Dispatched / Handoff", desc: orderType === "pickup" ? "Meetup handover" : "In transit" },
-      { label: "Release Funds", desc: "Awaiting confirm" }
+      { label: "Paid", desc: "Awaiting accept" },
+      { label: "Committed", desc: orderType === "pickup" ? "Meetup scheduled" : "Ready for courier" },
+      { label: "Shipped", desc: orderType === "pickup" ? "Meetup handover" : "In transit" },
+      { label: "Delivered", desc: "Delivered" }
     ];
 
     return (
@@ -740,7 +803,7 @@ export const ChatsTab: React.FC = () => {
         </div>
 
         {/* 2. CHAT VIEW CONTENT COLUMN */}
-        <div className={`md:col-span-8 flex flex-col h-full bg-gray-50/20 ${activeConv ? 'flex' : 'hidden md:flex items-center justify-center'}`}>
+        <div className={`md:col-span-8 flex flex-col h-full bg-gray-50/20 min-h-0 ${activeConv ? 'flex' : 'hidden md:flex items-center justify-center'}`}>
           {activeConv ? (
             <>
               {/* Chat View Header - Order Context (Basic Feature for both) */}
@@ -787,7 +850,7 @@ export const ChatsTab: React.FC = () => {
                     <AlertTriangle className="h-5 w-5 text-red-600 shrink-0" />
                     <p className="text-xs font-black text-red-950">Active Buyer Dispute</p>
                     <p className="text-[10px] text-red-750 leading-relaxed">
-                      Issue reported: "{activeConv.lastMessage || "Torn pages"}". Payout escrow is locked. Please negotiate with the buyer or resolve within 48h.
+                      Issue reported: "{activeConv.disputeReason || "Torn pages"}". Payout escrow is locked. Please negotiate with the buyer or resolve within 48h.
                     </p>
                   </div>
                   <Button
@@ -797,6 +860,17 @@ export const ChatsTab: React.FC = () => {
                   >
                     <CheckCircle2 className="h-4 w-4" /> Mark Issue Resolved
                   </Button>
+                </div>
+              )}
+
+              {/* Centered Dispute Resolved Banner */}
+              {activeConv.disputeStatus === "resolved" && activeConv.disputeResolution && (
+                <div className="bg-emerald-50 border-b border-emerald-250 p-4 flex flex-col items-center justify-center text-center gap-1.5 shrink-0">
+                  <CheckCircle className="h-5 w-5 text-emerald-600 shrink-0" />
+                  <p className="text-xs font-black text-emerald-950">Dispute Resolved</p>
+                  <p className="text-[10px] text-emerald-700 leading-relaxed max-w-md">
+                    Resolution: "{activeConv.disputeResolution}"
+                  </p>
                 </div>
               )}
 
@@ -831,16 +905,25 @@ export const ChatsTab: React.FC = () => {
                             ? "bg-book-600 text-white rounded-tr-none" 
                             : "bg-white text-gray-800 border rounded-tl-none"
                         }`}>
+                          {msg.media_url && (msg.media_type === "image" || msg.media_type === "video") && (
+                            <div className="mb-2">
+                              <MediaMessage
+                                path={msg.media_url}
+                                type={msg.media_type}
+                                onClick={() => setSelectedMedia({ path: msg.media_url, type: msg.media_type })}
+                              />
+                            </div>
+                          )}
                           {msg.text}
                         </div>
                         <div className={`flex items-center gap-1 text-[9px] text-gray-400 px-1 mt-0.5 ${
                           isSeller ? "justify-end" : "justify-start"
                         }`}>
                           <span>{msg.timestamp}</span>
-                          {/* TIER 1 FEATURE: Read Receipts */}
+                          {/* Read Receipts - Available to all store owners */}
                           {isSeller && (
                             <CheckCheck className={`h-3 w-3 ${
-                              isTier1 && (msg.seen || idx < activeMessages.length - 1)
+                              (msg.seen || idx < activeMessages.length - 1)
                                 ? "text-blue-500" 
                                 : "text-gray-300"
                             }`} />
@@ -855,9 +938,17 @@ export const ChatsTab: React.FC = () => {
               {/* TIER 1 FEATURE: Quick Canned Replies */}
               {isTier1 && (
                 <div className="p-2 bg-gray-50 border-t border-gray-150 shrink-0 space-y-1.5">
-                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider px-1">Quick Responses</p>
+                  <div className="flex items-center justify-between px-1">
+                    <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Quick Responses</p>
+                    <button
+                      onClick={() => setShowQuickRepliesModal(true)}
+                      className="text-[9px] font-semibold text-book-600 hover:underline"
+                    >
+                      Manage Replies
+                    </button>
+                  </div>
                   <div className="flex gap-1.5 overflow-x-auto pr-2 pb-1 scrollbar-thin">
-                    {CANNED_REPLIES.map(reply => (
+                    {[...CANNED_REPLIES, ...customReplies].map(reply => (
                       <Button
                         key={reply}
                         variant="outline"
@@ -906,6 +997,115 @@ export const ChatsTab: React.FC = () => {
         </div>
 
       </div>
+
+      {/* Dispute Resolution Explanation Dialog */}
+      <Dialog open={showResolveDialog} onOpenChange={setShowResolveDialog}>
+        <DialogContent className="max-w-md rounded-3xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-emerald-900">
+              <CheckCircle className="h-5 w-5 text-emerald-600" />
+              Resolve Escrow Dispute
+            </DialogTitle>
+            <DialogDescription className="text-xs text-gray-500 mt-1">
+              Please enter a brief explanation of how this dispute was resolved. Escrow funds will be released to your wallet upon resolution.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <Textarea
+              value={disputeResolutionText}
+              onChange={(e) => setDisputeResolutionText(e.target.value)}
+              placeholder="e.g. Sent replacement book to buyer / Issued partial refund manually (minimum 10 characters)..."
+              className="text-xs rounded-xl min-h-[80px]"
+            />
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setShowResolveDialog(false)} className="rounded-xl">
+              Cancel
+            </Button>
+            <Button
+              onClick={submitResolveDispute}
+              disabled={resolving || disputeResolutionText.trim().length < 10}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl"
+            >
+              {resolving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              Confirm Resolution & Release Escrow
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Quick Responses Management Dialog */}
+      <Dialog open={showQuickRepliesModal} onOpenChange={setShowQuickRepliesModal}>
+        <DialogContent className="max-w-md rounded-3xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-book-600" />
+              Manage Quick Responses
+            </DialogTitle>
+            <DialogDescription className="text-xs text-gray-500">
+              Add or remove custom canned replies to quickly respond to buyer messages.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2 max-h-[200px] overflow-y-auto divide-y divide-gray-100">
+            {customReplies.length === 0 ? (
+              <p className="text-xs text-gray-400 py-2 text-center">No custom quick responses yet.</p>
+            ) : (
+              customReplies.map((reply, i) => (
+                <div key={i} className="flex justify-between items-center py-2 text-xs text-gray-700 gap-4">
+                  <span className="flex-1 line-clamp-2">{reply}</span>
+                  <button
+                    onClick={() => handleDeleteCustomReply(reply)}
+                    className="text-red-500 hover:text-red-750 font-bold hover:underline shrink-0 text-[10px]"
+                  >
+                    Delete
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+          <div className="flex gap-2 pt-2">
+            <Input
+              value={newCustomReply}
+              onChange={(e) => setNewCustomReply(e.target.value)}
+              placeholder="Type a new canned response..."
+              className="text-xs rounded-xl flex-1"
+            />
+            <Button
+              onClick={handleAddCustomReply}
+              disabled={!newCustomReply.trim()}
+              className="bg-book-600 hover:bg-book-700 rounded-xl text-xs h-10 px-4"
+            >
+              Add Reply
+            </Button>
+          </div>
+          <DialogFooter className="pt-2">
+            <Button variant="outline" onClick={() => setShowQuickRepliesModal(false)} className="rounded-xl w-full">
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Media Lightbox Modal */}
+      <Dialog open={!!selectedMedia} onOpenChange={(open) => !open && setSelectedMedia(null)}>
+        <DialogContent className="max-w-3xl bg-black border-0 p-0 text-white flex items-center justify-center h-[80vh] rounded-3xl overflow-hidden relative">
+          <button
+            onClick={() => setSelectedMedia(null)}
+            className="absolute top-4 right-4 bg-white/10 hover:bg-white/20 p-2 rounded-full transition text-white z-50"
+          >
+            <XIcon className="h-5 w-5" />
+          </button>
+          {selectedMedia && (
+            <div className="w-full h-full flex items-center justify-center p-6">
+              {selectedMedia.type === "video" ? (
+                <video src={selectedMedia.path} controls autoPlay className="max-w-full max-h-full rounded-lg" />
+              ) : (
+                <LightboxImage path={selectedMedia.path} />
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 };

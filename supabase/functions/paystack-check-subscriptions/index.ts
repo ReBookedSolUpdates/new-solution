@@ -11,7 +11,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const PAYSTACK_SECRET_KEY = Deno.env.get('PAYSTACK_SECRET_KEY') || 'sk_test_placeholder_key_value_here';
+const sandboxKey = Deno.env.get('PAYSTACK_SECRET_KEY_SANDBOX');
+const PAYSTACK_SECRET_KEY = sandboxKey || Deno.env.get('PAYSTACK_SECRET_KEY') || 'sk_test_placeholder_key_value_here';
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
 
@@ -249,6 +250,15 @@ async function cancelSubscription(
 
   if (profErr) throw profErr;
 
+  // Insert in-app notification for downgrade
+  await supabase.from('notifications').insert({
+    user_id: sub.business_id,
+    title: 'Subscription Downgraded',
+    message: 'Your ReBooked Business account has been downgraded to the Free tier due to unpaid billing.',
+    type: 'billing',
+    read: false
+  });
+
   // 4. Send downgrade email
   const { data: profile } = await supabase
     .from('profiles')
@@ -314,5 +324,23 @@ async function sendGraceEmail(
       subject,
       html: emailHtml,
     }
+  });
+
+  // Insert in-app notification for grace/dunning
+  let notifTitle = 'Payment Failed';
+  let notifMsg = 'Your monthly subscription payment failed. You have 3 days to recover your account.';
+  if (day === 2) {
+    notifTitle = 'Urgent Payment Reminder';
+    notifMsg = 'Your Tier 1 subscription is overdue. Only 2 days left to restore access before downgrade.';
+  } else if (day === 3) {
+    notifTitle = 'Final Warning: Overdue Subscription';
+    notifMsg = 'Your subscription payment is unpaid. Access will be cancelled at the end of today.';
+  }
+  await supabase.from('notifications').insert({
+    user_id: businessId,
+    title: notifTitle,
+    message: notifMsg,
+    type: 'billing',
+    read: false
   });
 }

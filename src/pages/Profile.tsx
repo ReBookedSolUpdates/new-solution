@@ -762,7 +762,7 @@ const Profile = () => {
               <Package className="w-4 h-4" />
               {!isMobile && "Activity"}
               {pendingCommits && pendingCommits.length > 0 && (
-                <span className="absolute top-1 right-1 h-2.5 w-2.5 bg-red-500 rounded-full animate-pulse" title="Pending commits"></span>
+                <span className="h-2 w-2 bg-red-500 rounded-full animate-pulse shrink-0 ml-1" title="Pending commits"></span>
               )}
             </TabsTrigger>
             <TabsTrigger value="settings" className="flex items-center gap-2">
@@ -1095,7 +1095,8 @@ const Profile = () => {
                             try {
                               setIsUploadingProfilePicture(true);
                               const timestamp = Date.now();
-                              const filename = `profile-${user?.id}-${timestamp}.jpg`;
+                              const fileExt = file.name.split(".").pop() || "jpg";
+                              const filename = `${user?.id}/profile-${timestamp}.${fileExt}`;
 
                               const { data, error: uploadError } = await supabase.storage
                                 .from("user-profiles")
@@ -1409,6 +1410,8 @@ const Profile = () => {
         userName={[(profile as any)?.first_name, (profile as any)?.last_name].filter(Boolean).join(" ") || profile?.name || "Anonymous User"}
         isOwnProfile={true}
         userProfilePicture={profilePictureUrl}
+        isBusiness={profile?.isBusiness}
+        subscriptionTier={profile?.subscriptionTier}
       />
 
       <ProfileEditDialog

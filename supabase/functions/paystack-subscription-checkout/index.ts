@@ -5,7 +5,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const PAYSTACK_SECRET_KEY = Deno.env.get('PAYSTACK_SECRET_KEY') || 'sk_test_placeholder_key_value_here';
+const sandboxKey = Deno.env.get('PAYSTACK_SECRET_KEY_SANDBOX');
+const PAYSTACK_SECRET_KEY = sandboxKey || Deno.env.get('PAYSTACK_SECRET_KEY') || 'sk_test_placeholder_key_value_here';
 
 // Environment-based plan code selection:
 // - Sandbox/test: use PAYSTACK_PLAN_CODE_SANDBOX (falls back to PAYSTACK_PLAN_CODE)
@@ -16,7 +17,7 @@ const PAYSTACK_PLAN_CODE = isProduction
   : (Deno.env.get('PAYSTACK_PLAN_CODE_SANDBOX') || Deno.env.get('PAYSTACK_PLAN_CODE') || 'PLN_placeholder_tier1_code');
 
 console.log('[paystack-subscription-checkout] Config check:', {
-  hasSecretKey: !!Deno.env.get('PAYSTACK_SECRET_KEY'),
+  hasSecretKey: !!PAYSTACK_SECRET_KEY,
   hasPlanCode: !!PAYSTACK_PLAN_CODE,
   environment: isProduction ? 'production' : 'sandbox',
   planCode: PAYSTACK_PLAN_CODE,

@@ -207,9 +207,9 @@ serve(async (req) => {
       status: "pending_commit",
     };
 
-    // Auto-commit if seller is business and auto_commit is enabled
-    if (seller?.is_business && seller?.auto_commit) {
-      console.log(`[process-book-purchase] Seller ${seller_id} is business with auto_commit enabled. Triggering commit-to-sale...`);
+    // Auto-commit if seller has auto_commit enabled
+    if (seller?.auto_commit) {
+      console.log(`[process-book-purchase] Seller ${seller_id} has auto_commit enabled. Triggering commit-to-sale...`);
       try {
         const commitResponse = await fetch(`${SUPABASE_URL}/functions/v1/commit-to-sale`, {
           method: 'POST',

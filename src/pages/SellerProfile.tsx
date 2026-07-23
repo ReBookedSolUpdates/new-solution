@@ -14,6 +14,8 @@ import {
   Phone,
   Instagram,
   Mail,
+  Building2,
+  BadgeCheck,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -44,6 +46,12 @@ interface SellerProfile {
   created_at: string;
   province?: string;
   hasName?: boolean;
+  isBusiness?: boolean;
+  phoneNumber?: string;
+  instagramHandle?: string;
+  showAddressToPublic?: boolean;
+  showPhoneToPublic?: boolean;
+  subscriptionTier?: string;
 }
 
 const SellerProfile = () => {
@@ -97,11 +105,13 @@ const SellerProfile = () => {
       // Fetch seller profile
       const { data: sellerData, error: sellerError } = await supabase
         .from("profiles")
-        .select("id, first_name, last_name, email, bio, profile_picture_url, created_at, preferred_delivery_locker_data, is_business, phone_number, instagram_handle, show_address_to_public, show_phone_to_public, subscription_tier")
+        .select("id, first_name, last_name, email, bio, profile_picture_url, created_at, preferred_delivery_locker_data, is_business, business_name, phone_number, instagram_handle, show_address_to_public, show_phone_to_public, subscription_tier")
         .eq("id", sellerId)
         .maybeSingle();
 
-      const displayName = [sellerData?.first_name, sellerData?.last_name].filter(Boolean).join(" ") || (sellerData as any)?.name || (sellerData as any)?.full_name || sellerData?.email?.split("@")[0] || "";
+      const displayName = sellerData?.is_business && sellerData?.business_name
+        ? sellerData.business_name
+        : [sellerData?.first_name, sellerData?.last_name].filter(Boolean).join(" ") || (sellerData as any)?.name || (sellerData as any)?.full_name || sellerData?.email?.split("@")[0] || "";
       
       if (sellerData) {
         setSeller({ 
@@ -175,7 +185,9 @@ const SellerProfile = () => {
     if (!seller) return;
 
     const profileUrl = `${window.location.origin}/seller/${seller.id}`;
-    const titleText = seller.name && seller.name.trim().length > 0 ? `${seller.name} ReBooked Mini` : "ReBooked Mini";
+    const titleText = seller.name && seller.name.trim().length > 0 
+      ? `${seller.name} ${seller.isBusiness ? 'ReBooked Business Mini' : 'ReBooked Mini'}` 
+      : (seller.isBusiness ? "ReBooked Business Mini" : "ReBooked Mini");
     const shareData = {
       title: titleText,
       text: seller.hasName && seller.name
@@ -218,11 +230,11 @@ const SellerProfile = () => {
           <Card className="w-full max-w-md">
             <CardContent className="p-6 text-center">
               <h2 className="text-xl font-semibold text-gray-900 mb-2">
-                Seller Not Found
+                Profile Not Found
               </h2>
               <p className="text-gray-600 mb-4">
                 {error ||
-                  "The seller profile you're looking for doesn't exist."}
+                  "The profile you're looking for doesn't exist."}
               </p>
               <Button onClick={() => navigate("/listings")} variant="outline">
                 Browse All Listings
@@ -259,35 +271,63 @@ const SellerProfile = () => {
         {/* Header */}
         <div className="bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/70 border-b">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-            <div className="rounded-xl border shadow-sm p-4 sm:p-6 bg-gradient-to-br from-book-50 to-white">
+            <div className={`rounded-xl border shadow-sm p-4 sm:p-6 bg-gradient-to-br ${
+              seller.isBusiness 
+                ? seller.subscriptionTier === "tier1"
+                  ? "from-emerald-50/60 to-teal-50/10 border-emerald-200 shadow-emerald-50/30"
+                  : "from-emerald-50/50 to-teal-50/10 border-emerald-100 shadow-emerald-50/20"
+                : "from-book-50 to-white"
+            }`}>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 items-start">
                 {/* Avatar + Info */}
                 <div className="flex items-start md:items-start gap-4 md:col-span-2 min-w-0 text-left">
-                  <Avatar className="h-16 w-16 sm:h-20 sm:w-20 flex-shrink-0">
+                  <Avatar className={`h-16 w-16 sm:h-20 sm:w-20 flex-shrink-0 ${
+                    seller.isBusiness ? "border-2 border-emerald-200" : ""
+                  }`}>
                     <AvatarImage src={seller.profile_picture_url} />
-                    <AvatarFallback className="bg-book-100 text-book-700 text-lg">
-                      {(seller.name || "?").charAt(0).toUpperCase()}
+                    <AvatarFallback className={seller.isBusiness ? "bg-emerald-50 text-emerald-700 text-lg" : "bg-book-100 text-book-700 text-lg"}>
+                      {seller.isBusiness
+                        ? <Building2 className="h-7 w-7" />
+                        : (seller.name || "?").charAt(0).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1 min-w-0 text-left">
-                    <h1 className="text-xl sm:text-2xl font-bold text-gray-900 break-words md:text-left">
-                      {seller.name && seller.name.trim().length > 0 ? seller.name : "ReBooked"}
-                    </h1>
-                    <div className="text-sm sm:text-base font-semibold text-book-800 mt-0.5 md:text-left">ReBooked Mini</div>
+                    {seller.isBusiness && (
+                      <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider">Business Seller</span>
+                    )}
+                    <div className="flex items-center gap-2 flex-wrap justify-start">
+                      <h1 className="text-xl sm:text-2xl font-bold text-gray-900 break-words md:text-left">
+                        {seller.name && seller.name.trim().length > 0 ? seller.name : "ReBooked"}
+                      </h1>
+                      {seller.isBusiness && (
+                        <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100 border border-emerald-200 text-[9px] font-black uppercase tracking-wider h-5 flex items-center gap-1 shrink-0">
+                          <BadgeCheck className="h-3 w-3" />
+                          Verified Partner
+                        </Badge>
+                      )}
+                      {seller.isBusiness && seller.subscriptionTier === "tier1" && (
+                        <Badge className="bg-emerald-600 text-white hover:bg-emerald-600 border-0 text-[9px] font-black uppercase tracking-wider h-5 flex items-center gap-1 shrink-0">
+                          Tier 1
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="text-sm sm:text-base font-semibold text-book-800 mt-0.5 md:text-left">
+                      {seller.isBusiness ? "ReBooked Business Mini" : "ReBooked Mini"}
+                    </div>
                     <div className="mt-2 flex flex-col gap-1.5 text-sm text-gray-600 md:text-left">
                       <div className="flex items-center gap-2">
                         <Calendar className="h-4 w-4 flex-shrink-0" />
                         <span className="break-words">Member since {memberSince}</span>
                       </div>
-                      {/* Address display: Always show for normal sellers. For businesses, show only if Tier 1 and showAddressToPublic is true */}
-                      {(!seller.isBusiness || (seller.subscriptionTier === 'tier1' && seller.showAddressToPublic)) && (
+                      {/* Address display: Always show for normal sellers. For businesses, show only if showAddressToPublic is true */}
+                      {(!seller.isBusiness || seller.showAddressToPublic) && (
                         <div className="flex items-center gap-2">
                           <MapPin className="h-4 w-4 flex-shrink-0" />
                           <span className="break-words">{seller.province || "Province not set"}</span>
                         </div>
                       )}
-                      {/* Premium Tier 1 Contacts */}
-                      {seller.isBusiness && seller.subscriptionTier === 'tier1' && (
+                      {/* Premium Business Contacts */}
+                      {seller.isBusiness && (
                         <>
                           {seller.showPhoneToPublic && seller.phoneNumber && (
                             <div className="flex items-center gap-2">
@@ -333,7 +373,9 @@ const SellerProfile = () => {
                       <div className="text-xl sm:text-2xl font-bold text-book-700">{listings.length}</div>
                     </div>
                     <div>
-                      <div className="text-xs sm:text-sm text-gray-500">Seller Rating</div>
+                      <div className="text-xs sm:text-sm text-gray-500">
+                        {seller.isBusiness ? "Business Rating" : "Seller Rating"}
+                      </div>
                       <div className="mt-1">
                         <SellerRating sellerId={seller.id} showLabel={false} />
                       </div>
@@ -478,7 +520,7 @@ const SellerProfile = () => {
             <TabsContent value="reviews" className="space-y-6">
               <div className="mb-6 text-left">
                 <h2 className="text-xl font-semibold text-gray-900 mb-2">
-                  Seller Reviews
+                  {seller.isBusiness ? "Business Reviews" : "Seller Reviews"}
                 </h2>
                 <p className="text-gray-600">
                   What buyers say about {seller.name}

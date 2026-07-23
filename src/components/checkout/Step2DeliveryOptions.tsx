@@ -59,44 +59,87 @@ const Step2DeliveryOptions: React.FC<Step2DeliveryOptionsProps> = ({
   const [lockerRatesLoading, setLockerRatesLoading] = useState(false);
   const [localSelectedDelivery, setLocalSelectedDelivery] = useState<DeliveryOption | undefined>(selectedDelivery);
 
-  const matchSize = (serviceName: string, parcelSize: string) => {
-    if (!serviceName) return false;
-    const normalizedService = serviceName.toLowerCase().replace(/[^a-z0-9]/g, "");
-    const normalizedSize = parcelSize.toLowerCase().replace(/[^a-z0-9]/g, "");
-    
-    if (normalizedSize === 'extrasmall') {
-      return normalizedService.includes('extrasmall') || normalizedService.includes('xs');
-    }
-    if (normalizedSize === 'extralarge') {
-      return normalizedService.includes('extralarge') || normalizedService.includes('xl');
-    }
-    if (normalizedSize === 'small') {
-      return normalizedService.includes('small') && !normalizedService.includes('extrasmall') && !normalizedService.includes('xs');
-    }
-    if (normalizedSize === 'large') {
-      return normalizedService.includes('large') && !normalizedService.includes('extralarge') && !normalizedService.includes('xl');
-    }
-    return normalizedService.includes(normalizedSize);
+  const getParcelSizeRank = (sizeStr?: string | null): number => {
+    if (!sizeStr) return 0;
+    const s = String(sizeStr).toLowerCase().replace(/[^a-z0-9]/g, "");
+    if (s.includes("extrasmall") || s === "xs") return 1;
+    if (s.includes("small") || s === "s") return 2;
+    if (s.includes("medium") || s === "m") return 3;
+    if (s.includes("extralarge") || s === "xl") return 5;
+    if (s.includes("large") || s === "l") return 4;
+    return 0;
+  };
+
+  const getQuoteSizeRank = (serviceName?: string | null): number => {
+    if (!serviceName) return 0;
+    const s = serviceName.toLowerCase();
+    if (s.includes("extra small") || s.includes("extrasmall") || s.includes("xs")) return 1;
+    if (s.includes("small") && !s.includes("extra")) return 2;
+    if (s.includes("medium")) return 3;
+    if (s.includes("extra large") || s.includes("extralarge") || s.includes("xl")) return 5;
+    if (s.includes("large") && !s.includes("extra")) return 4;
+    return 0;
+  };
+
+  const filterQuotesByParcelSize = (quotesResp: UnifiedQuote[], parcelSize?: string | null): UnifiedQuote[] => {
+    if (!quotesResp || quotesResp.length === 0) return quotesResp;
+    const itemRank = getParcelSizeRank(parcelSize);
+    if (itemRank <= 1) return quotesResp;
+
+    const validQuotes = quotesResp.filter((q) => {
+      const qRank = getQuoteSizeRank(q.service_name);
+      if (qRank > 0 && qRank < itemRank) {
+        console.log(`[STEP2_DELIVERY] Discarded cheaper undersized quote "${q.service_name}" (Rank ${qRank} < Item Rank ${itemRank}) to protect seller fees.`);
+        return false;
+      }
+      return true;
+    });
+
+    return validQuotes.length > 0 ? validQuotes : quotesResp;
   };
 
   useEffect(() => {
     console.log("[STEP2_DELIVERY] Component mounted. Buyer Address:", !!buyerAddress, "Seller Address:", !!sellerAddress, "Pre-selected Locker:", !!preSelectedLocker);
-    // If a locker was pre-selected in Step1.5, automatically calculate locker rates
-    if (preSelectedLocker) {
-      console.log("DEBUG: preSelectedLocker mounted:", {
-        id: preSelectedLocker.id,
-        provider_slug: preSelectedLocker.provider_slug,
-        name: preSelectedLocker.name,
-        fullObject: preSelectedLocker,
-      });
-      setSelectedLocker(preSelectedLocker);
-      recalculateRatesForLocker(preSelectedLocker);
-    } else if (buyerAddress?.street && buyerAddress?.city && buyerAddress?.postal_code) {
-      fetchDeliveryOptions();
-    } else {
-      setLoading(false);
-    }
-  }, [buyerAddress, sellerAddress, sellerLockerData, preSelectedLocker]);
+    
+    const initializeLockerAndRates = async () => {
+      // 1. If a locker was pre-selected in Step 1.5, use it immediately
+      if (preSelectedLocker) {
+        setSelectedLocker(preSelectedLocker);
+        await recalculateRatesForLocker(preSelectedLocker);
+        return;
+      }
+
+      // 2. Otherwise check if logged in buyer has a saved PUDO locker in their profile
+      if (user?.id) {
+        try {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("preferred_delivery_locker_data, preferred_pickup_locker_data")
+            .eq("id", user.id)
+            .maybeSingle();
+
+          const savedLocker = (profile?.preferred_delivery_locker_data || profile?.preferred_pickup_locker_data) as PudoLocker | null;
+          if (savedLocker && savedLocker.id && savedLocker.name) {
+            console.log("[STEP2_DELIVERY] Auto-selected buyer's saved PUDO locker from profile:", savedLocker.name);
+            setSelectedLocker(savedLocker);
+            await recalculateRatesForLocker(savedLocker);
+            return;
+          }
+        } catch (err) {
+          console.warn("[STEP2_DELIVERY] Failed to load buyer saved locker:", err);
+        }
+      }
+
+      // 3. Fallback: load home/standard delivery options if address exists
+      if (buyerAddress?.street && buyerAddress?.city && buyerAddress?.postal_code) {
+        await fetchDeliveryOptions();
+      } else {
+        setLoading(false);
+      }
+    };
+
+    initializeLockerAndRates();
+  }, [buyerAddress, sellerAddress, sellerLockerData, preSelectedLocker, user?.id]);
 
   useEffect(() => {
     // Recalculate rates when a locker is selected
@@ -243,13 +286,8 @@ const Step2DeliveryOptions: React.FC<Step2DeliveryOptionsProps> = ({
         throw new Error("No shipping quotes could be found for this route.");
       }
 
-      let filteredQuotes = quotesResp;
-      if (book?.parcelSize) {
-        filteredQuotes = quotesResp.filter(q => matchSize(q.service_name, book.parcelSize));
-        if (filteredQuotes.length === 0) {
-          filteredQuotes = quotesResp;
-        }
-      }
+      const itemParcelSize = book?.parcelSize || (book as any)?.parcel_size;
+      const filteredQuotes = filterQuotesByParcelSize(quotesResp, itemParcelSize);
 
       setQuotes(filteredQuotes);
 
@@ -352,13 +390,8 @@ const Step2DeliveryOptions: React.FC<Step2DeliveryOptionsProps> = ({
         const quotesResp = await getAllDeliveryQuotes(quoteRequest);
         console.log("[STEP2_DELIVERY] Quotes received (Locker):", quotesResp.length);
 
-        let filteredQuotes = quotesResp;
-        if (book?.parcelSize) {
-          filteredQuotes = quotesResp.filter(q => matchSize(q.service_name, book.parcelSize));
-          if (filteredQuotes.length === 0) {
-            filteredQuotes = quotesResp;
-          }
-        }
+        const itemParcelSize = book?.parcelSize || (book as any)?.parcel_size;
+        const filteredQuotes = filterQuotesByParcelSize(quotesResp, itemParcelSize);
 
         setQuotes(filteredQuotes);
 
@@ -436,13 +469,8 @@ const Step2DeliveryOptions: React.FC<Step2DeliveryOptionsProps> = ({
         const quotesResp = await getAllDeliveryQuotes(quoteRequest);
         console.log("[STEP2_DELIVERY] Quotes received (Home):", quotesResp.length);
 
-        let filteredQuotes = quotesResp;
-        if (book?.parcelSize) {
-          filteredQuotes = quotesResp.filter(q => matchSize(q.service_name, book.parcelSize));
-          if (filteredQuotes.length === 0) {
-            filteredQuotes = quotesResp;
-          }
-        }
+        const itemParcelSize = book?.parcelSize || (book as any)?.parcel_size;
+        const filteredQuotes = filterQuotesByParcelSize(quotesResp, itemParcelSize);
 
         setQuotes(filteredQuotes);
 
@@ -585,51 +613,55 @@ const Step2DeliveryOptions: React.FC<Step2DeliveryOptionsProps> = ({
           <div className="space-y-4">
             <div className="flex items-start justify-between gap-3">
               <div className="flex-1">
-                {preSelectedLocker ? (
-                  <div className="p-4 rounded-lg bg-book-50 border border-book-100">
-                    <p className="text-sm font-semibold text-book-900 mb-1">
-                      📍 {preSelectedLocker.name}
-                    </p>
-                    <p className="text-sm text-book-800">
-                      {preSelectedLocker.address || preSelectedLocker.full_address}
-                    </p>
-                    {preSelectedLocker.trading_hours && (
+                {selectedLocker || preSelectedLocker ? (
+                  <div className="p-4 rounded-lg bg-book-50 border border-book-100 space-y-2">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200 text-[10px] uppercase font-bold mb-1">
+                          ✓ Auto-Selected PUDO Locker
+                        </Badge>
+                        <p className="text-sm font-bold text-book-900">
+                          📍 {(selectedLocker || preSelectedLocker)?.name}
+                        </p>
+                        <p className="text-sm text-book-800">
+                          {(selectedLocker || preSelectedLocker)?.address || (selectedLocker || preSelectedLocker)?.full_address}
+                        </p>
+                      </div>
+                    </div>
+                    {(selectedLocker || preSelectedLocker)?.trading_hours && (
                       <div className="mt-2 pt-2 border-t border-book-100">
                         <span className="text-[10px] font-bold text-book-600 uppercase tracking-wider block mb-1">Operating Hours</span>
                         <p className="text-xs text-book-700 leading-relaxed whitespace-pre-wrap">
-                          {preSelectedLocker.trading_hours}
+                          {(selectedLocker || preSelectedLocker)?.trading_hours}
                         </p>
-                      </div>
-                    )}
-                    {preSelectedLocker.provider_slug && (
-                      <p className="text-xs text-book-700 mt-2">
-                        Provider: Pudo / Courier Guy
-                      </p>
-                    )}
-                    {preSelectedLocker.available_compartment_sizes && preSelectedLocker.available_compartment_sizes.length > 0 && (
-                      <div className="flex flex-col gap-1 mt-3 pt-2 border-t border-book-100">
-                        <span className="text-[10px] font-bold text-book-600 uppercase tracking-wider">Available Sizes</span>
-                        <div className="flex flex-wrap gap-1">
-                          {preSelectedLocker.available_compartment_sizes.map((size: string) => (
-                            <Badge key={size} variant="outline" className="text-[9px] px-1.5 py-0 h-4 border-book-200 text-book-700 bg-white/50">
-                              {size}
-                            </Badge>
-                          ))}
-                        </div>
                       </div>
                     )}
                   </div>
                 ) : (
-                  <div className="p-4 rounded-lg bg-green-50 border border-green-100">
-                    <p className="text-sm font-semibold text-gray-900 mb-1">Your Delivery Address</p>
-                    <p className="text-sm text-gray-700">
-                      {buyerAddress?.street || "No address set"}, {buyerAddress?.city || ""},{" "}
-                      {buyerAddress?.province || ""} {buyerAddress?.postal_code || ""}
-                    </p>
+                  <div className="space-y-4">
+                    <div className="p-4 rounded-lg bg-amber-50 border border-amber-200">
+                      <p className="text-sm font-semibold text-amber-900 mb-1">
+                        📍 Select a PUDO Locker for Delivery
+                      </p>
+                      <p className="text-xs text-amber-800">
+                        You don't have a saved PUDO locker yet. Please search your suburb or postal code below to pick a nearby Courier Guy PUDO locker:
+                      </p>
+                    </div>
+
+                    <PudoLockerSelector
+                      onLockerSelect={(locker) => {
+                        setSelectedLocker(locker);
+                        recalculateRatesForLocker(locker);
+                        toast.success(`Selected PUDO Locker: ${locker.name}`);
+                      }}
+                      showCardLayout={false}
+                      title="Search Nearby PUDO Lockers"
+                      description="Search by town, suburb or postal code"
+                    />
                   </div>
                 )}
               </div>
-              {onEditAddress && !preSelectedLocker && (
+              {onEditAddress && (
                 <Button
                   variant="outline"
                   size="sm"

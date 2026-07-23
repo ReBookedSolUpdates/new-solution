@@ -462,9 +462,9 @@ Deno.serve(async (req) => {
       const autoCommitEnabled = !!sellerProfile?.auto_commit;
       let autoCommitted = false;
 
-      // Handle Auto-Commit if enabled for business seller
-      if (isBusinessSeller && autoCommitEnabled && supabaseUrl && supabaseServiceKey) {
-        console.log(`[bobpay-webhook] Seller ${orders.seller_id} is business with auto_commit enabled. Triggering commit-to-sale...`);
+      // Handle Auto-Commit if enabled for seller
+      if (autoCommitEnabled && supabaseUrl && supabaseServiceKey) {
+        console.log(`[bobpay-webhook] Seller ${orders.seller_id} has auto_commit enabled. Triggering commit-to-sale...`);
         try {
           const commitResponse = await fetch(`${supabaseUrl}/functions/v1/commit-to-sale`, {
             method: 'POST',
